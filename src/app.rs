@@ -2,6 +2,7 @@ use crate::db::bridge::{DbBridge, DbResponse};
 use crate::state::{AppState, ConnectionStatus};
 use crate::storage;
 use crate::ui;
+use crate::ui::theme::FerrumTheme;
 
 pub struct FerrumGridApp {
     state: AppState,
@@ -13,14 +14,11 @@ pub struct FerrumGridApp {
 
 impl FerrumGridApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        ui::theme::configure_fonts(&cc.egui_ctx);
+        FerrumTheme::init(&cc.egui_ctx);
 
         let settings = storage::settings::load_settings();
-        if settings.dark_mode {
-            cc.egui_ctx.set_visuals(eframe::egui::Visuals::dark());
-        } else {
-            cc.egui_ctx.set_visuals(eframe::egui::Visuals::light());
-        }
+        // Apply persisted theme preference up-front (Auto/Light/Dark)
+        FerrumTheme::apply_mode(&cc.egui_ctx, settings.theme);
 
         let saved_connections = storage::connections::load_connections();
         let history = storage::history::load_history();
@@ -30,6 +28,9 @@ impl FerrumGridApp {
         let app_state = AppState {
             default_row_limit: settings.default_row_limit,
             saved_connections,
+            theme_mode: settings.theme,
+            sidebar_visible: settings.sidebar_visible,
+            result_panel_visible: settings.result_panel_visible,
             ..Default::default()
         };
 
@@ -55,7 +56,6 @@ impl FerrumGridApp {
                     conn_id,
                     server_version,
                 } => {
-                    // Check if this was a test connection
                     if self.state.connection_dialog.testing {
                         let config = self.state.connection_dialog.to_config();
                         if config.id == conn_id {
@@ -63,7 +63,6 @@ impl FerrumGridApp {
                             self.state.connection_dialog.test_result = Some(Ok(
                                 format!("Connected! PostgreSQL {server_version}"),
                             ));
-                            // Disconnect the test connection
                             bridge.send(crate::db::bridge::DbCommand::Disconnect {
                                 conn_id,
                             });
@@ -79,7 +78,6 @@ impl FerrumGridApp {
                     self.state.status_message =
                         format!("Connected (PostgreSQL {server_version})");
 
-                    // Auto-load schemas
                     bridge.send(crate::db::bridge::DbCommand::ListSchemas {
                         conn_id,
                     });
@@ -104,7 +102,6 @@ impl FerrumGridApp {
                 } => {
                     self.state.query_running = false;
 
-                    // Add to history
                     if let Some(conn) = self.state.connections.get(&conn_id) {
                         if let Some(tab) =
                             self.state.editor_tabs.get(self.state.active_tab)
@@ -158,7 +155,6 @@ impl FerrumGridApp {
                     self.state.last_error = Some("Query cancelled".to_string());
                 }
                 DbResponse::Error { conn_id, error } => {
-                    // Check if this was a test connection error
                     if self.state.connection_dialog.testing {
                         self.state.connection_dialog.testing = false;
                         self.state.connection_dialog.test_result =
@@ -204,25 +200,27 @@ impl eframe::App for FerrumGridApp {
         self.process_responses();
 
         let bridge = self.bridge.as_ref().unwrap();
-        ui::panels::render_panels(ctx, &mut self.state, bridge);
+        ui::panels::render_app(ctx, &mut self.state, bridge, &self.history);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
 
         self.toasts.show(ctx);
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        // Save state
+        // Sync UI state back to settings
+        self.settings.theme = self.state.theme_mode;
+        self.settings.sidebar_visible = self.state.sidebar_visible;
+        self.settings.result_panel_visible = self.state.result_panel_visible;
+
         storage::connections::save_connections(&self.state.saved_connections);
         storage::settings::save_settings(&self.settings);
 
-        // Store passwords in keyring
         for config in &self.state.saved_connections {
             if !config.password.is_empty() {
                 storage::connections::store_password(&config.id, &config.password);
             }
         }
 
-        // Disconnect all and drop bridge
         if let Some(bridge) = &self.bridge {
             for conn_id in self.state.connections.keys() {
                 bridge.send(crate::db::bridge::DbCommand::Disconnect {

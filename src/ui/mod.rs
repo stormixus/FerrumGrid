@@ -1,3 +1,4 @@
+pub mod command_palette;
 pub mod dialogs;
 pub mod editor;
 pub mod grid;

@@ -1,22 +1,45 @@
 use std::path::PathBuf;
 
+use crate::ui::theme::ThemeMode;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
-    pub dark_mode: bool,
+    #[serde(default)]
+    pub theme: ThemeMode,
+    #[serde(default = "default_font_size")]
     pub font_size: f32,
+    #[serde(default = "default_row_limit")]
     pub default_row_limit: usize,
+    #[serde(default = "default_true")]
     pub auto_commit: bool,
+    #[serde(default = "default_true")]
     pub confirm_destructive: bool,
+    #[serde(default = "default_true")]
+    pub sidebar_visible: bool,
+    #[serde(default = "default_true")]
+    pub result_panel_visible: bool,
+}
+
+fn default_font_size() -> f32 {
+    13.0
+}
+fn default_row_limit() -> usize {
+    1000
+}
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            dark_mode: true,
-            font_size: 13.0,
-            default_row_limit: 1000,
+            theme: ThemeMode::Auto,
+            font_size: default_font_size(),
+            default_row_limit: default_row_limit(),
             auto_commit: true,
             confirm_destructive: true,
+            sidebar_visible: true,
+            result_panel_visible: true,
         }
     }
 }

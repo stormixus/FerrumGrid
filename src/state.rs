@@ -4,6 +4,7 @@ use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult,
     TableInfo,
 };
+use crate::ui::theme::ThemeMode;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionStatus {
@@ -46,6 +47,70 @@ impl ConnectionState {
     }
 }
 
+// ============================================================================
+// Object filter — drives the sidebar's object toolbar
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectFilter {
+    All,
+    Tables,
+    Views,
+    Functions,
+    Queries,
+    History,
+}
+
+impl Default for ObjectFilter {
+    fn default() -> Self {
+        Self::All
+    }
+}
+
+impl ObjectFilter {
+    pub fn label(self) -> &'static str {
+        match self {
+            ObjectFilter::All => "All",
+            ObjectFilter::Tables => "Tables",
+            ObjectFilter::Views => "Views",
+            ObjectFilter::Functions => "Functions",
+            ObjectFilter::Queries => "Queries",
+            ObjectFilter::History => "History",
+        }
+    }
+}
+
+// ============================================================================
+// Command palette state
+// ============================================================================
+
+#[derive(Debug, Default)]
+pub struct CommandPaletteState {
+    pub open: bool,
+    pub query: String,
+    pub selected_index: usize,
+    pub focus_requested: bool,
+}
+
+impl CommandPaletteState {
+    pub fn open(&mut self) {
+        self.open = true;
+        self.query.clear();
+        self.selected_index = 0;
+        self.focus_requested = true;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.query.clear();
+        self.selected_index = 0;
+    }
+}
+
+// ============================================================================
+// AppState
+// ============================================================================
+
 pub struct AppState {
     pub connections: HashMap<ConnectionId, ConnectionState>,
     pub active_connection: Option<ConnectionId>,
@@ -60,6 +125,16 @@ pub struct AppState {
     pub saved_connections: Vec<ConnectionConfig>,
     pub default_row_limit: usize,
     pub status_message: String,
+
+    // New (Forge design)
+    pub theme_mode: ThemeMode,
+    pub object_filter: ObjectFilter,
+    pub sidebar_search: String,
+    pub sidebar_visible: bool,
+    pub result_panel_visible: bool,
+    pub command_palette: CommandPaletteState,
+    pub result_view_form: bool,   // Form vs Grid toggle for results
+    pub result_filter: String,    // inline row filter
 }
 
 impl Default for AppState {
@@ -78,6 +153,15 @@ impl Default for AppState {
             saved_connections: Vec::new(),
             default_row_limit: 1000,
             status_message: "Disconnected".to_string(),
+
+            theme_mode: ThemeMode::default(),
+            object_filter: ObjectFilter::All,
+            sidebar_search: String::new(),
+            sidebar_visible: true,
+            result_panel_visible: true,
+            command_palette: CommandPaletteState::default(),
+            result_view_form: false,
+            result_filter: String::new(),
         }
     }
 }
@@ -118,7 +202,10 @@ impl ConnectionDialogState {
         ConnectionConfig {
             id: self.editing_id.unwrap_or_else(ConnectionId::new),
             display_name: if self.display_name.is_empty() {
-                format!("{}@{}:{}/{}", self.username, self.host, self.port, self.database)
+                format!(
+                    "{}@{}:{}/{}",
+                    self.username, self.host, self.port, self.database
+                )
             } else {
                 self.display_name.clone()
             },
