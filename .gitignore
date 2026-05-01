@@ -1,0 +1,5 @@
+/target
+.omc/
+*.swp
+*.swo
+.DS_Store
