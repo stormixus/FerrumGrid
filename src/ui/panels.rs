@@ -1,6 +1,7 @@
 use eframe::egui::{self, Color32, Margin, RichText, Sense, Stroke};
 
 use crate::db::bridge::DbBridge;
+use crate::menu::MenuAction;
 use crate::state::{AppState, ConnectionStatus, ObjectFilter};
 use crate::storage::history::HistoryEntry;
 use crate::ui::icons::Icon;
@@ -23,6 +24,7 @@ pub fn render_app(
     let t = Tokens::current(ctx);
 
     render_header(ctx, t, state);
+    render_in_app_menu(ctx, t, state);
     render_object_toolbar(ctx, t, state);
     render_status_bar(ctx, t, state);
 
@@ -286,6 +288,110 @@ fn render_theme_switcher(ui: &mut egui::Ui, t: Tokens, state: &mut AppState) {
             }
         },
     );
+}
+
+// ============================================================================
+// In-app menu bar (26px) — File / View / Query / Help, with same dispatch
+// targets as the native macOS menu so both paths share logic.
+// ============================================================================
+
+fn render_in_app_menu(ctx: &egui::Context, t: Tokens, state: &mut AppState) {
+    egui::TopBottomPanel::top("ferrum_in_app_menu")
+        .exact_height(26.0)
+        .frame(
+            egui::Frame::new()
+                .fill(t.bg_app)
+                .inner_margin(Margin::symmetric(theme::SPACE_MD_I, 0))
+                .stroke(Stroke::new(1.0, t.border_subtle)),
+        )
+        .show(ctx, |ui| {
+            ui.set_min_height(26.0);
+            egui::menu::bar(ui, |ui| {
+                let q = &mut state.pending_menu_actions;
+
+                ui.menu_button("File", |ui| {
+                    if ui.button("New Connection\u{2026}\t\u{2318}N").clicked() {
+                        q.push(MenuAction::NewConnection);
+                        ui.close_menu();
+                    }
+                    if ui.button("New Query Tab\t\u{2318}T").clicked() {
+                        q.push(MenuAction::NewQueryTab);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("Close Tab\t\u{2318}W").clicked() {
+                        q.push(MenuAction::CloseTab);
+                        ui.close_menu();
+                    }
+                });
+
+                ui.menu_button("View", |ui| {
+                    if ui.button("Toggle Sidebar\t\u{2318}B").clicked() {
+                        q.push(MenuAction::ToggleSidebar);
+                        ui.close_menu();
+                    }
+                    if ui.button("Toggle Result Panel\t\u{2318}J").clicked() {
+                        q.push(MenuAction::ToggleResultPanel);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    let mark = |active| if active { "\u{2713} " } else { "  " };
+                    if ui
+                        .button(format!(
+                            "{}Appearance: Auto",
+                            mark(state.theme_mode == ThemeMode::Auto)
+                        ))
+                        .clicked()
+                    {
+                        q.push(MenuAction::ThemeAuto);
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{}Appearance: Light",
+                            mark(state.theme_mode == ThemeMode::Light)
+                        ))
+                        .clicked()
+                    {
+                        q.push(MenuAction::ThemeLight);
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{}Appearance: Dark",
+                            mark(state.theme_mode == ThemeMode::Dark)
+                        ))
+                        .clicked()
+                    {
+                        q.push(MenuAction::ThemeDark);
+                        ui.close_menu();
+                    }
+                });
+
+                ui.menu_button("Query", |ui| {
+                    if ui.button("Run\t\u{2318}\u{21A9}").clicked() {
+                        q.push(MenuAction::RunQuery);
+                        ui.close_menu();
+                    }
+                    if ui.button("Stop\t\u{2318}.").clicked() {
+                        q.push(MenuAction::StopQuery);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("Command Palette\u{2026}\t\u{2318}K").clicked() {
+                        q.push(MenuAction::OpenCommandPalette);
+                        ui.close_menu();
+                    }
+                });
+
+                ui.menu_button("Help", |ui| {
+                    if ui.button("About FerrumGrid").clicked() {
+                        q.push(MenuAction::About);
+                        ui.close_menu();
+                    }
+                });
+            });
+        });
 }
 
 // ============================================================================

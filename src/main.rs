@@ -1,5 +1,6 @@
 mod app;
 mod db;
+mod menu;
 mod state;
 mod storage;
 mod types;

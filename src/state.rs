@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::menu::MenuAction;
 use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult,
     TableInfo,
@@ -135,6 +136,10 @@ pub struct AppState {
     pub command_palette: CommandPaletteState,
     pub result_view_form: bool,   // Form vs Grid toggle for results
     pub result_filter: String,    // inline row filter
+
+    /// Actions queued by the in-app menu bar; drained each frame by the app
+    /// dispatcher (alongside the native macOS NSMenu queue).
+    pub pending_menu_actions: Vec<MenuAction>,
 }
 
 impl Default for AppState {
@@ -162,6 +167,7 @@ impl Default for AppState {
             command_palette: CommandPaletteState::default(),
             result_view_form: false,
             result_filter: String::new(),
+            pending_menu_actions: Vec::new(),
         }
     }
 }

@@ -1,8 +1,10 @@
-use crate::db::bridge::{DbBridge, DbResponse};
+use crate::db::bridge::{DbBridge, DbCommand, DbResponse};
+use crate::menu::{self, MenuAction};
 use crate::state::{AppState, ConnectionStatus};
 use crate::storage;
+use crate::types::EditorTab;
 use crate::ui;
-use crate::ui::theme::FerrumTheme;
+use crate::ui::theme::{FerrumTheme, ThemeMode};
 
 pub struct FerrumGridApp {
     state: AppState,
@@ -15,6 +17,9 @@ pub struct FerrumGridApp {
 impl FerrumGridApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         FerrumTheme::init(&cc.egui_ctx);
+
+        // Install native macOS menu bar (no-op on other platforms).
+        menu::install();
 
         let settings = storage::settings::load_settings();
         // Apply persisted theme preference up-front (Auto/Light/Dark)
@@ -193,10 +198,91 @@ impl FerrumGridApp {
             }
         }
     }
+
+    fn dispatch_menu_actions(&mut self) {
+        // Drain queues from both sources: native macOS NSMenu (muda) and the
+        // in-app menu bar (panels.rs pushes into state.pending_menu_actions).
+        let in_app: Vec<MenuAction> =
+            std::mem::take(&mut self.state.pending_menu_actions);
+        let native = menu::drain();
+
+        for action in in_app.into_iter().chain(native) {
+            match action {
+                MenuAction::NewConnection => {
+                    self.state.show_connection_dialog = true;
+                    self.state.connection_dialog = Default::default();
+                }
+                MenuAction::NewQueryTab => {
+                    let n = self.state.editor_tabs.len() + 1;
+                    self.state
+                        .editor_tabs
+                        .push(EditorTab::new(format!("Query {n}")));
+                    self.state.active_tab = self.state.editor_tabs.len() - 1;
+                }
+                MenuAction::CloseTab => {
+                    if self.state.editor_tabs.len() > 1 {
+                        let idx = self.state.active_tab;
+                        self.state.editor_tabs.remove(idx);
+                        if self.state.active_tab >= self.state.editor_tabs.len() {
+                            self.state.active_tab = self.state.editor_tabs.len() - 1;
+                        }
+                    }
+                }
+                MenuAction::RunQuery => {
+                    if let (Some(conn_id), Some(bridge)) =
+                        (self.state.active_connection, &self.bridge)
+                    {
+                        if let Some(tab) =
+                            self.state.editor_tabs.get(self.state.active_tab)
+                        {
+                            let sql = tab.content.trim().to_string();
+                            if !sql.is_empty() && !self.state.query_running {
+                                self.state.query_running = true;
+                                self.state.last_error = None;
+                                bridge.send(DbCommand::ExecuteQuery {
+                                    conn_id,
+                                    sql,
+                                    row_limit: Some(self.state.default_row_limit),
+                                });
+                            }
+                        }
+                    }
+                }
+                MenuAction::StopQuery => {
+                    if let (Some(conn_id), Some(bridge)) =
+                        (self.state.active_connection, &self.bridge)
+                    {
+                        if self.state.query_running {
+                            bridge.send(DbCommand::CancelQuery { conn_id });
+                        }
+                    }
+                }
+                MenuAction::OpenCommandPalette => {
+                    self.state.command_palette.open();
+                }
+                MenuAction::ToggleSidebar => {
+                    self.state.sidebar_visible = !self.state.sidebar_visible;
+                }
+                MenuAction::ToggleResultPanel => {
+                    self.state.result_panel_visible = !self.state.result_panel_visible;
+                }
+                MenuAction::ThemeAuto => self.state.theme_mode = ThemeMode::Auto,
+                MenuAction::ThemeLight => self.state.theme_mode = ThemeMode::Light,
+                MenuAction::ThemeDark => self.state.theme_mode = ThemeMode::Dark,
+                MenuAction::About => {
+                    self.toasts.info(format!(
+                        "FerrumGrid {}",
+                        env!("CARGO_PKG_VERSION")
+                    ));
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        self.dispatch_menu_actions();
         self.process_responses();
 
         let bridge = self.bridge.as_ref().unwrap();
