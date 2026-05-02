@@ -1,4 +1,5 @@
 use crate::db::bridge::{DbBridge, DbResponse};
+use crate::i18n::init_with_saved;
 use crate::state::{AppState, ConnectionStatus};
 use crate::storage;
 use crate::ui;
@@ -16,6 +17,10 @@ impl FerrumGridApp {
         ui::theme::configure_fonts(&cc.egui_ctx);
 
         let settings = storage::settings::load_settings();
+
+        // Initialize i18n system
+        init_with_saved(Some(&settings.language));
+
         if settings.dark_mode {
             cc.egui_ctx.set_visuals(eframe::egui::Visuals::dark());
         } else {
@@ -153,6 +158,10 @@ impl FerrumGridApp {
                         conn.indexes.insert(key, indexes);
                     }
                 }
+                DbResponse::ForeignKeyList { conn_id: _, schema, foreign_keys } => {
+                    crate::ui::er_diagram::handle_fk_response(&mut self.state, &schema, &foreign_keys);
+                    crate::ui::table_designer::apply_fk_info(&mut self.state, &foreign_keys);
+                }
                 DbResponse::QueryCancelled { conn_id: _ } => {
                     self.state.query_running = false;
                     self.state.last_error = Some("Query cancelled".to_string());
@@ -206,6 +215,9 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
+        ui::er_diagram::render_er_diagram(ctx, &mut self.state, bridge);
+        ui::table_designer::render_table_designer(ctx, &mut self.state, bridge);
+        crate::prisma::ui::render_prisma_window(ctx, &mut self.state, bridge);
 
         self.toasts.show(ctx);
     }

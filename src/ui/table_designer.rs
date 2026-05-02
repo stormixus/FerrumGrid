@@ -1,0 +1,728 @@
+use eframe::egui::{
+    self, Align, Button, Color32, ComboBox, CornerRadius, Frame, Margin, RichText,
+    ScrollArea, Sense, Stroke, TextEdit, Ui, Vec2, Window,
+};
+
+use crate::db::bridge::DbBridge;
+use crate::state::AppState;
+use crate::ui::theme;
+
+const PG_TYPES: &[&str] = &[
+    "INTEGER", "BIGINT", "SMALLINT", "SERIAL", "BIGSERIAL", "BOOLEAN", "TEXT", "VARCHAR",
+    "CHAR", "NUMERIC", "DECIMAL", "REAL", "DOUBLE PRECISION", "DATE", "TIMESTAMP",
+    "TIMESTAMPTZ", "TIME", "INTERVAL", "BYTEA", "UUID", "JSON", "JSONB", "INET", "CIDR",
+    "ARRAY", "TSVECTOR", "TSQUERY", "POINT", "LINE", "LSEG", "BOX", "PATH", "POLYGON",
+    "CIRCLE",
+];
+
+#[derive(Debug, Clone, Default)]
+pub struct TableDesignerState {
+    pub show: bool,
+    pub schema: String,
+    pub table_name: String,
+    pub columns: Vec<ColumnDef>,
+    pub indexes: Vec<IndexDef>,
+    pub selected_column: Option<usize>,
+    pub generated_ddl: Option<String>,
+    pub show_ddl_preview: bool,
+    pub editing_table: Option<(String, String)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ColumnDef {
+    pub name: String,
+    pub data_type: String,
+    pub length: Option<String>,
+    pub is_nullable: bool,
+    pub is_primary_key: bool,
+    pub is_unique: bool,
+    pub default_value: String,
+    pub is_foreign_key: bool,
+    pub fk_ref_schema: String,
+    pub fk_ref_table: String,
+    pub fk_ref_column: String,
+}
+
+impl Default for ColumnDef {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            data_type: "INTEGER".to_string(),
+            length: None,
+            is_nullable: true,
+            is_primary_key: false,
+            is_unique: false,
+            default_value: String::new(),
+            is_foreign_key: false,
+            fk_ref_schema: String::new(),
+            fk_ref_table: String::new(),
+            fk_ref_column: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexDef {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub is_unique: bool,
+    pub index_type: String,
+}
+
+impl Default for IndexDef {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            columns: Vec::new(),
+            is_unique: false,
+            index_type: "BTREE".to_string(),
+        }
+    }
+}
+
+pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, _bridge: &DbBridge) {
+    if !state.table_designer.show {
+        return;
+    }
+
+    let mut should_close = false;
+
+    Window::new(if state.table_designer.editing_table.is_some() {
+        "Edit Table"
+    } else {
+        "Create Table"
+    })
+    .default_size([900.0, 700.0])
+    .resizable(true)
+    .collapsible(true)
+    .show(ctx, |ui| {
+        render_designer_ui(ui, state, &mut should_close);
+    });
+
+    if should_close {
+        state.table_designer.show = false;
+    }
+}
+
+fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool) {
+    let conn = state.active_connection.and_then(|id| state.connections.get(&id));
+    let schemas = conn.map(|c| c.schemas.clone()).unwrap_or_default();
+
+    ui.horizontal(|ui| {
+        ui.label("Schema:");
+        ComboBox::from_id_salt("td_schema")
+            .width(150.0)
+            .selected_text(&state.table_designer.schema)
+            .show_ui(ui, |ui| {
+                for schema in &schemas {
+                    if ui
+                        .selectable_label(&state.table_designer.schema == schema, schema)
+                        .clicked()
+                    {
+                        state.table_designer.schema.clone_from(schema);
+                    }
+                }
+            });
+
+        ui.add_space(20.0);
+
+        ui.label("Table Name:");
+        let name_edit = ui.add(
+            TextEdit::singleline(&mut state.table_designer.table_name)
+                .desired_width(200.0)
+                .hint_text("table_name"),
+        );
+        if name_edit.lost_focus() {
+            state.table_designer.table_name = sanitize_identifier(&state.table_designer.table_name);
+        }
+
+        ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+            if ui.add(primary_button("Generate DDL")).clicked() {
+                state.table_designer.generated_ddl = Some(generate_ddl(state));
+                state.table_designer.show_ddl_preview = true;
+            }
+
+            ui.add_space(8.0);
+
+            if ui.button("Cancel").clicked() {
+                *should_close = true;
+            }
+        });
+    });
+
+    ui.separator();
+
+    ui.columns(2, |cols| {
+        cols[0].vertical(|ui| {
+            ui.set_min_width(ui.available_width());
+            render_columns_panel(ui, state);
+        });
+
+        cols[1].vertical(|ui| {
+            ui.set_min_width(ui.available_width());
+            if let Some(selected) = state.table_designer.selected_column {
+                render_column_detail(ui, state, selected, &schemas);
+            } else {
+                render_indexes_panel(ui, state);
+            }
+        });
+    });
+
+    if state.table_designer.show_ddl_preview {
+        Window::new("Generated DDL")
+            .default_size([600.0, 400.0])
+            .resizable(true)
+            .collapsible(true)
+            .show(ui.ctx(), |ui| {
+                if let Some(ref ddl) = state.table_designer.generated_ddl {
+                    ui.add_sized(
+                        ui.available_size(),
+                        TextEdit::multiline(&mut ddl.clone()).code_editor(),
+                    );
+                }
+                ui.horizontal(|ui| {
+                    if ui.button("Copy to Clipboard").clicked() {
+                        if let Some(ref ddl) = state.table_designer.generated_ddl {
+                            ui.ctx().output_mut(|o| {
+                                o.commands.push(egui::output::OutputCommand::CopyText(
+                                    ddl.clone(),
+                                ));
+                            });
+                        }
+                    }
+                    if ui.button("Close").clicked() {
+                        state.table_designer.show_ddl_preview = false;
+                    }
+                });
+            });
+    }
+}
+
+fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
+    Frame::new()
+        .fill(theme::BG_DARK)
+        .inner_margin(Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+
+            ui.horizontal(|ui| {
+                ui.strong("Columns");
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                    if ui.add(small_button("+")).clicked() {
+                        let col = ColumnDef::default();
+                        state.table_designer.columns.push(col);
+                        state.table_designer.selected_column =
+                            Some(state.table_designer.columns.len() - 1);
+                    }
+                });
+            });
+
+            ui.add_space(8.0);
+
+            ScrollArea::vertical().id_salt("columns_list").show(ui, |ui| {
+                let mut to_delete = None;
+                let mut selection_changed = false;
+                let mut new_selection = state.table_designer.selected_column;
+
+                for (idx, col) in state.table_designer.columns.iter().enumerate() {
+                    let is_selected = state.table_designer.selected_column == Some(idx);
+                    let mut frame = Frame::new()
+                        .inner_margin(Margin::same(6))
+                        .corner_radius(CornerRadius::same(4));
+
+                    if is_selected {
+                        frame = frame.fill(theme::ACCENT_COPPER_DIM).stroke(Stroke::new(
+                            1.0,
+                            theme::ACCENT_COPPER,
+                        ));
+                    } else {
+                        frame = frame.fill(theme::BG_MEDIUM);
+                    }
+
+                    let response = frame.show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let pk_icon = if col.is_primary_key { "🔑 " } else { "" };
+                            let fk_icon = if col.is_foreign_key { "🔗 " } else { "" };
+                            let null_text = if col.is_nullable { "NULL" } else { "NOT NULL" };
+
+                            ui.label(format!("{}{}{}", pk_icon, fk_icon, col.name));
+                            ui.with_layout(
+                                egui::Layout::right_to_left(Align::Center),
+                                |ui| {
+                                    ui.label(
+                                        RichText::new(null_text)
+                                            .color(theme::TEXT_MUTED)
+                                            .size(10.0),
+                                    );
+                                    ui.label(
+                                        RichText::new(&col.data_type)
+                                            .color(theme::ACCENT_BLUE)
+                                            .size(11.0),
+                                    );
+                                },
+                            );
+                        });
+                    });
+
+                    let response = ui
+                        .interact(response.response.rect, ui.id().with(idx), Sense::click());
+
+                    if response.clicked() {
+                        new_selection = Some(idx);
+                        selection_changed = true;
+                    }
+
+                    response.context_menu(|ui| {
+                        if ui.button("Delete").clicked() {
+                            to_delete = Some(idx);
+                            ui.close_menu();
+                        }
+                    });
+                }
+
+                if let Some(idx) = to_delete {
+                    state.table_designer.columns.remove(idx);
+                    if state.table_designer.selected_column == Some(idx) {
+                        state.table_designer.selected_column = None;
+                    } else if let Some(sel) = state.table_designer.selected_column {
+                        if sel > idx {
+                            state.table_designer.selected_column = Some(sel - 1);
+                        }
+                    }
+                }
+
+                if selection_changed {
+                    state.table_designer.selected_column = new_selection;
+                }
+            });
+        });
+}
+
+fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: &[String]) {
+    if idx >= state.table_designer.columns.len() {
+        return;
+    }
+
+    let col = &mut state.table_designer.columns[idx];
+
+    Frame::new()
+        .fill(theme::BG_DARK)
+        .inner_margin(Margin::same(12))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+
+            ui.horizontal(|ui| {
+                ui.strong("Column Properties");
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                    if ui.button("×").clicked() {
+                        state.table_designer.selected_column = None;
+                    }
+                });
+            });
+
+            ui.add_space(12.0);
+
+            egui::Grid::new("column_props").num_columns(2).spacing([8.0, 8.0]).show(ui, |ui| {
+                ui.label("Name:");
+                let name_edit = ui.add(TextEdit::singleline(&mut col.name).desired_width(180.0));
+                if name_edit.lost_focus() {
+                    col.name = sanitize_identifier(&col.name);
+                }
+                ui.end_row();
+
+                ui.label("Data Type:");
+                ComboBox::from_id_salt("col_type")
+                    .width(180.0)
+                    .selected_text(&col.data_type)
+                    .show_ui(ui, |ui| {
+                        for &type_name in PG_TYPES {
+                            if ui.selectable_label(col.data_type == type_name, type_name).clicked() {
+                                col.data_type = type_name.to_string();
+                            }
+                        }
+                    });
+                ui.end_row();
+
+                if needs_length(&col.data_type) {
+                    ui.label("Length:");
+                    ui.add(
+                        TextEdit::singleline(col.length.get_or_insert_with(String::new))
+                            .desired_width(80.0)
+                            .hint_text("e.g., 255"),
+                    );
+                    ui.end_row();
+                }
+
+                ui.label("Default:");
+                ui.add(TextEdit::singleline(&mut col.default_value).desired_width(180.0));
+                ui.end_row();
+
+                ui.label("");
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut col.is_nullable, "Nullable");
+                    ui.checkbox(&mut col.is_primary_key, "Primary Key");
+                    ui.checkbox(&mut col.is_unique, "Unique");
+                });
+                ui.end_row();
+
+                ui.label("");
+                ui.checkbox(&mut col.is_foreign_key, "Foreign Key");
+                ui.end_row();
+
+                if col.is_foreign_key {
+                    ui.label("References:");
+                    ui.horizontal(|ui| {
+                        ComboBox::from_id_salt("fk_schema")
+                            .width(100.0)
+                            .selected_text(&col.fk_ref_schema)
+                            .show_ui(ui, |ui| {
+                                for schema in schemas {
+                                    if ui.selectable_label(&col.fk_ref_schema == schema, schema).clicked() {
+                                        col.fk_ref_schema.clone_from(schema);
+                                    }
+                                }
+                            });
+
+                        ui.add(
+                            TextEdit::singleline(&mut col.fk_ref_table)
+                                .desired_width(100.0)
+                                .hint_text("table"),
+                        );
+                        ui.add(
+                            TextEdit::singleline(&mut col.fk_ref_column)
+                                .desired_width(100.0)
+                                .hint_text("column"),
+                        );
+                    });
+                    ui.end_row();
+                }
+            });
+        });
+}
+
+fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
+    Frame::new()
+        .fill(theme::BG_DARK)
+        .inner_margin(Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+
+            ui.horizontal(|ui| {
+                ui.strong("Indexes");
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                    if ui.add(small_button("+")).clicked() {
+                        let idx = IndexDef::default();
+                        state.table_designer.indexes.push(idx);
+                    }
+                });
+            });
+
+            ui.add_space(8.0);
+
+            ScrollArea::vertical().id_salt("indexes_list").show(ui, |ui| {
+                let mut to_delete = None;
+
+                for (idx, index) in state.table_designer.indexes.iter_mut().enumerate() {
+                    Frame::new()
+                        .fill(theme::BG_MEDIUM)
+                        .inner_margin(Margin::same(6))
+                        .corner_radius(CornerRadius::same(4))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                let unique_marker = if index.is_unique { "[U] " } else { "" };
+                                ui.label(format!("{}{}", unique_marker, index.name));
+
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(Align::Center),
+                                    |ui| {
+                                        if ui.button("🗑").clicked() {
+                                            to_delete = Some(idx);
+                                        }
+                                    },
+                                );
+                            });
+
+                            ui.label(
+                                RichText::new(format!("Columns: {}", index.columns.join(", ")))
+                                    .color(theme::TEXT_MUTED)
+                                    .size(10.0),
+                            );
+                        });
+                }
+
+                if let Some(idx) = to_delete {
+                    state.table_designer.indexes.remove(idx);
+                }
+            });
+        });
+}
+
+fn needs_length(data_type: &str) -> bool {
+    matches!(
+        data_type.to_uppercase().as_str(),
+        "VARCHAR" | "CHAR" | "NUMERIC" | "DECIMAL" | "VARBIT"
+    )
+}
+
+fn sanitize_identifier(name: &str) -> String {
+    name.trim()
+        .to_lowercase()
+        .replace(' ', "_")
+        .replace(|c: char| !c.is_alphanumeric() && c != '_', "")
+}
+
+fn generate_ddl(state: &AppState) -> String {
+    let td = &state.table_designer;
+
+    if td.table_name.is_empty() || td.schema.is_empty() {
+        return "-- Please specify schema and table name".to_string();
+    }
+
+    let mut ddl = String::new();
+    ddl.push_str(&format!(
+        "CREATE TABLE IF NOT EXISTS {}.{} (\n",
+        escape_identifier(&td.schema),
+        escape_identifier(&td.table_name)
+    ));
+
+    let mut pk_columns: Vec<&str> = Vec::new();
+    let mut fk_defs: Vec<String> = Vec::new();
+
+    for col in &td.columns {
+        ddl.push_str("    ");
+        ddl.push_str(&escape_identifier(&col.name));
+        ddl.push(' ');
+        ddl.push_str(&col.data_type);
+
+        if let Some(ref len) = col.length {
+            if !len.is_empty() {
+                ddl.push('(');
+                ddl.push_str(len);
+                ddl.push(')');
+            }
+        }
+
+        if col.is_primary_key {
+            pk_columns.push(&col.name);
+        }
+
+        if col.is_foreign_key && !col.fk_ref_table.is_empty() && !col.fk_ref_column.is_empty()
+        {
+            let fk_def = format!(
+                "    CONSTRAINT {}_{}_fk FOREIGN KEY ({}) REFERENCES {}.{}({})",
+                escape_identifier(&td.table_name),
+                escape_identifier(&col.name),
+                escape_identifier(&col.name),
+                escape_identifier(&col.fk_ref_schema),
+                escape_identifier(&col.fk_ref_table),
+                escape_identifier(&col.fk_ref_column)
+            );
+            fk_defs.push(fk_def);
+        }
+
+        if !col.is_nullable {
+            ddl.push_str(" NOT NULL");
+        }
+
+        if !col.default_value.is_empty() {
+            ddl.push_str(" DEFAULT ");
+            ddl.push_str(&col.default_value);
+        }
+
+        if col.is_unique && !col.is_primary_key {
+            ddl.push_str(" UNIQUE");
+        }
+
+        ddl.push_str(",\n");
+    }
+
+    if !pk_columns.is_empty() {
+        ddl.push_str(&format!(
+            "    CONSTRAINT {}_pk PRIMARY KEY ({})",
+            escape_identifier(&td.table_name),
+            pk_columns
+                .iter()
+                .map(|c| escape_identifier(c))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+
+        if !fk_defs.is_empty() {
+            ddl.push_str(",\n");
+        } else {
+            ddl.push('\n');
+        }
+    }
+
+    for (i, fk) in fk_defs.iter().enumerate() {
+        ddl.push_str(fk);
+        if i < fk_defs.len() - 1 {
+            ddl.push_str(",\n");
+        } else {
+            ddl.push('\n');
+        }
+    }
+
+    ddl.push_str(");\n");
+
+    for idx in &td.indexes {
+        if idx.name.is_empty() || idx.columns.is_empty() {
+            continue;
+        }
+
+        let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
+        ddl.push_str(&format!(
+            "\nCREATE {unique_str}INDEX IF NOT EXISTS {} ON {}.{} ({});",
+            escape_identifier(&idx.name),
+            escape_identifier(&td.schema),
+            escape_identifier(&td.table_name),
+            idx.columns
+                .iter()
+                .map(|c| escape_identifier(c))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    if let Some((old_schema, old_table)) = &td.editing_table {
+        if old_schema != &td.schema || old_table != &td.table_name {
+            ddl.push_str(&format!(
+                "\n-- To rename table:\n-- ALTER TABLE {}.{} RENAME TO {}.{};",
+                escape_identifier(old_schema),
+                escape_identifier(old_table),
+                escape_identifier(&td.schema),
+                escape_identifier(&td.table_name)
+            ));
+        }
+    }
+
+    ddl
+}
+
+fn escape_identifier(name: &str) -> String {
+    if name.contains('"') || name.contains(' ') || name.starts_with(|c: char| c.is_numeric()) {
+        format!("\"{}\"", name.replace('"', "\"\""))
+    } else {
+        name.to_string()
+    }
+}
+
+fn primary_button(text: &str) -> Button<'_> {
+    Button::new(RichText::new(text).color(Color32::WHITE))
+        .fill(theme::ACCENT_COPPER)
+        .stroke(Stroke::new(1.0, theme::ACCENT_COPPER_LIGHT))
+        .corner_radius(CornerRadius::same(4))
+}
+
+fn small_button(text: &str) -> Button<'_> {
+    Button::new(text)
+        .fill(theme::BG_LIGHT)
+        .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
+        .corner_radius(CornerRadius::same(4))
+        .min_size(Vec2::new(24.0, 24.0))
+}
+
+pub fn open_for_new_table(state: &mut AppState) {
+    state.table_designer = TableDesignerState {
+        show: true,
+        schema: state
+            .active_connection
+            .and_then(|id| state.connections.get(&id))
+            .and_then(|c| c.schemas.first().cloned())
+            .unwrap_or_default(),
+        table_name: String::new(),
+        columns: vec![ColumnDef::default()],
+        indexes: Vec::new(),
+        selected_column: Some(0),
+        generated_ddl: None,
+        show_ddl_preview: false,
+        editing_table: None,
+    };
+}
+
+pub fn open_for_new_table_with_schema(state: &mut AppState, schema: &str) {
+    state.table_designer = TableDesignerState {
+        show: true,
+        schema: schema.to_string(),
+        table_name: String::new(),
+        columns: vec![ColumnDef::default()],
+        indexes: Vec::new(),
+        selected_column: Some(0),
+        generated_ddl: None,
+        show_ddl_preview: false,
+        editing_table: None,
+    };
+}
+
+pub fn open_for_existing_table(
+    state: &mut AppState,
+    schema: &str,
+    table: &str,
+    bridge: &DbBridge,
+) {
+    let conn_id = match state.active_connection {
+        Some(id) => id,
+        None => return,
+    };
+
+    let conn = match state.connections.get(&conn_id) {
+        Some(c) => c,
+        None => return,
+    };
+
+    let columns = conn
+        .columns
+        .get(&(schema.to_string(), table.to_string()))
+        .cloned()
+        .unwrap_or_default();
+
+    let column_defs: Vec<ColumnDef> = columns
+        .iter()
+        .map(|c| ColumnDef {
+            name: c.name.clone(),
+            data_type: c.data_type.clone(),
+            length: None,
+            is_nullable: c.is_nullable,
+            is_primary_key: c.is_primary_key,
+            is_unique: false,
+            default_value: c.default_value.clone().unwrap_or_default(),
+            is_foreign_key: false,
+            fk_ref_schema: String::new(),
+            fk_ref_table: String::new(),
+            fk_ref_column: String::new(),
+        })
+        .collect();
+
+    state.table_designer = TableDesignerState {
+        show: true,
+        schema: schema.to_string(),
+        table_name: table.to_string(),
+        columns: column_defs,
+        indexes: Vec::new(),
+        selected_column: None,
+        generated_ddl: None,
+        show_ddl_preview: false,
+        editing_table: Some((schema.to_string(), table.to_string())),
+    };
+
+    bridge.send(crate::db::bridge::DbCommand::ListForeignKeys {
+        conn_id,
+        schema: schema.to_string(),
+    });
+}
+
+pub fn apply_fk_info(state: &mut AppState, foreign_keys: &[crate::ui::er_diagram::ForeignKey]) {
+    for col in &mut state.table_designer.columns {
+        for fk in foreign_keys {
+            if fk.source_table == state.table_designer.table_name
+                && fk.source_schema == state.table_designer.schema
+                && fk.source_column == col.name
+            {
+                col.is_foreign_key = true;
+                col.fk_ref_schema.clone_from(&fk.target_schema);
+                col.fk_ref_table.clone_from(&fk.target_table);
+                col.fk_ref_column.clone_from(&fk.target_column);
+            }
+        }
+    }
+}

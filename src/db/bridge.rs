@@ -36,6 +36,10 @@ pub enum DbCommand {
         schema: String,
         table: String,
     },
+    ListForeignKeys {
+        conn_id: ConnectionId,
+        schema: String,
+    },
     CancelQuery {
         conn_id: ConnectionId,
     },
@@ -75,6 +79,11 @@ pub enum DbResponse {
         schema: String,
         table: String,
         indexes: Vec<IndexInfo>,
+    },
+    ForeignKeyList {
+        conn_id: ConnectionId,
+        schema: String,
+        foreign_keys: Vec<crate::ui::er_diagram::ForeignKey>,
     },
     QueryCancelled {
         conn_id: ConnectionId,
@@ -149,6 +158,9 @@ enum ConnCommand {
     ListIndexes {
         schema: String,
         table: String,
+    },
+    ListForeignKeys {
+        schema: String,
     },
     CancelQuery,
     Shutdown,
@@ -227,6 +239,14 @@ async fn dispatch_loop(
                     let _ = handle
                         .task_tx
                         .send(ConnCommand::ListIndexes { schema, table })
+                        .await;
+                }
+            }
+            DbCommand::ListForeignKeys { conn_id, schema } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ListForeignKeys { schema })
                         .await;
                 }
             }
@@ -401,6 +421,21 @@ async fn connection_task(
                 .await
                 {
                     Ok(indexes) => DbResponse::IndexList { conn_id, schema: schema.clone(), table: table.clone(), indexes },
+                    Err(e) => DbResponse::Error {
+                        conn_id,
+                        error: e,
+                    },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListForeignKeys { schema } => {
+                let response = match crate::db::metadata_fk::list_foreign_keys(
+                    &client, &schema, conn_id,
+                )
+                .await
+                {
+                    Ok(foreign_keys) => DbResponse::ForeignKeyList { conn_id, schema: schema.clone(), foreign_keys },
                     Err(e) => DbResponse::Error {
                         conn_id,
                         error: e,

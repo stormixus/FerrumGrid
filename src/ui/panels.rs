@@ -1,6 +1,7 @@
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 
 use crate::db::bridge::DbBridge;
+use crate::i18n::{t, Language, get_language, set_language};
 use crate::state::{AppState, ConnectionStatus};
 use crate::ui::{editor, grid, icons, theme, tree_browser};
 
@@ -83,9 +84,9 @@ fn render_menu_bar(ctx: &egui::Context, state: &mut AppState) {
 
                 ui.add_space(theme::SPACE_LG);
 
-                ui.menu_button("File", |ui| {
+                ui.menu_button(t("menu_file"), |ui| {
                     if ui
-                        .button(format!("{} New Connection", icons::PLUS))
+                        .button(format!("{} {}", icons::PLUS, t("menu_new_connection")))
                         .clicked()
                     {
                         state.show_connection_dialog = true;
@@ -93,20 +94,20 @@ fn render_menu_bar(ctx: &egui::Context, state: &mut AppState) {
                         ui.close_menu();
                     }
                     ui.separator();
-                    if ui.button("Quit").clicked() {
+                    if ui.button(t("menu_quit")).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
 
-                ui.menu_button("Query", |ui| {
+                ui.menu_button(t("menu_query"), |ui| {
                     if ui
-                        .button(format!("{} Execute  Cmd+Return", icons::EXECUTE))
+                        .button(format!("{} {}", icons::EXECUTE, t("menu_execute")))
                         .clicked()
                     {
                         ui.close_menu();
                     }
                     if ui
-                        .button(format!("{} New Tab", icons::PLUS))
+                        .button(format!("{} {}", icons::PLUS, t("menu_new_tab")))
                         .clicked()
                     {
                         let n = state.editor_tabs.len() + 1;
@@ -118,10 +119,10 @@ fn render_menu_bar(ctx: &egui::Context, state: &mut AppState) {
                     }
                 });
 
-                ui.menu_button("View", |ui| {
+                ui.menu_button(t("menu_view"), |ui| {
                     let dark = ui.visuals().dark_mode;
                     if ui
-                        .button(if dark { "Light Mode" } else { "Dark Mode" })
+                        .button(if dark { t("menu_light_mode") } else { t("menu_dark_mode") })
                         .clicked()
                     {
                         if dark {
@@ -131,6 +132,32 @@ fn render_menu_bar(ctx: &egui::Context, state: &mut AppState) {
                         }
                         ui.close_menu();
                     }
+                    ui.separator();
+                    if ui.button(t("menu_er_diagram")).clicked() {
+                        state.er_diagram.show_diagram = !state.er_diagram.show_diagram;
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button(t("menu_table_designer")).clicked() {
+                        crate::ui::table_designer::open_for_new_table(state);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button(t("menu_prisma")).clicked() {
+                        crate::prisma::ui::open_prisma_window(state);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    ui.menu_button(t("menu_language"), |ui| {
+                        let current = get_language();
+                        for lang in Language::all() {
+                            let selected = current == lang;
+                            if ui.selectable_label(selected, lang.name()).clicked() {
+                                set_language(lang);
+                                ui.close_menu();
+                            }
+                        }
+                    });
                 });
             });
         });
@@ -161,10 +188,10 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                                 format!("PG {}", server_version),
                             ),
                             ConnectionStatus::Connecting => {
-                                (theme::ACCENT_YELLOW, "Connecting\u{2026}".to_string())
+                                (theme::ACCENT_YELLOW, t("status_connecting"))
                             }
                             ConnectionStatus::Disconnected => {
-                                (theme::ACCENT_RED, "Disconnected".to_string())
+                                (theme::ACCENT_RED, t("status_disconnected"))
                             }
                         };
 
@@ -196,7 +223,7 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                         theme::TEXT_DISABLED,
                     );
                     ui.label(
-                        RichText::new("No connection")
+                        RichText::new(t("no_connection"))
                             .color(theme::TEXT_MUTED)
                             .size(11.0),
                     );
@@ -206,14 +233,12 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                     egui::Layout::right_to_left(egui::Align::Center),
                     |ui| {
                         if let Some(ref result) = state.current_result {
-                            let row_s =
-                                if result.rows.len() == 1 { "row" } else { "rows" };
                             ui.label(
                                 RichText::new(format!(
                                     "{}ms  \u{2502}  {} {}",
                                     result.execution_time_ms,
                                     result.rows.len(),
-                                    row_s
+                                    t("result_rows")
                                 ))
                                 .color(theme::TEXT_MUTED)
                                 .size(11.0),
@@ -223,7 +248,7 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                         if state.query_running {
                             ui.spinner();
                             ui.label(
-                                RichText::new("Running\u{2026}")
+                                RichText::new(t("loading"))
                                     .color(theme::ACCENT_YELLOW)
                                     .size(11.0),
                             );
@@ -248,7 +273,7 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
         ui.set_min_width(ui.available_width());
         ui.horizontal(|ui| {
             ui.label(
-                RichText::new(format!("{} Explorer", icons::DATABASE))
+                RichText::new(format!("{} {}", icons::DATABASE, t("explorer_title")))
                     .color(theme::TEXT_SECONDARY)
                     .size(11.0)
                     .strong(),
@@ -256,7 +281,7 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let btn = egui::Button::new(
-                    RichText::new(format!("{} New", icons::PLUS))
+                    RichText::new(format!("{} {}", icons::PLUS, t("explorer_new")))
                         .color(theme::TEXT_PRIMARY)
                         .size(11.0),
                 )

@@ -1,0 +1,49 @@
+// Prisma Schema Grammar
+
+whitespace = _{ " " | "\t" | "\n" | "\r" }
+comment = _{ "//" ~ (!"\n" ~ ANY)* }
+doc_comment = { "///" ~ (!"\n" ~ ANY)* }
+
+// Identifiers
+identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+string = ${ "\"" ~ inner_string ~ "\"" }
+inner_string = @{ (!"\"" ~ ANY)* }
+number = @{ ASCII_DIGIT+ }
+
+// Prisma Schema
+schema = { SOI ~ (datasource_block | generator_block | model_block | enum_block | comment | whitespace)* ~ EOI }
+
+// Datasource
+datasource_block = { "datasource" ~ identifier ~ "{" ~ datasource_body ~ "}" }
+datasource_body = { (key_value | comment | whitespace)* }
+
+// Generator
+generator_block = { "generator" ~ identifier ~ "{" ~ generator_body ~ "}" }
+generator_body = { (key_value | comment | whitespace)* }
+
+// Key-Value pairs
+key_value = { identifier ~ "=" ~ (string | identifier | env_function) }
+env_function = { "env" ~ "(" ~ string ~ ")" }
+
+// Model
+model_block = { doc_comment* ~ "model" ~ identifier ~ "{" ~ model_body ~ "}" }
+model_body = { (field | model_attribute | comment | whitespace)* }
+
+// Enum
+enum_block = { doc_comment* ~ "enum" ~ identifier ~ "{" ~ enum_body ~ "}" }
+enum_body = { (enum_value | comment | whitespace)* }
+enum_value = { identifier }
+
+// Field
+field = { doc_comment* ~ identifier ~ field_type ~ (field_attribute)* }
+field_type = { type_name | optional_type | list_type }
+type_name = { identifier }
+optional_type = { type_name ~ "?" }
+list_type = { type_name ~ "[]" }
+
+// Attributes
+field_attribute = { "@" ~ identifier ~ (attribute_args)? }
+model_attribute = { "@@" ~ identifier ~ (attribute_args)? }
+attribute_args = { "(" ~ (attribute_arg ~ ("," ~ attribute_arg)*)? ~ ")" }
+attribute_arg = { identifier | string | number | attribute_expression }
+attribute_expression = { identifier ~ "." ~ identifier }

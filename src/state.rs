@@ -4,6 +4,9 @@ use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult,
     TableInfo,
 };
+use crate::prisma::ui::PrismaUIState;
+use crate::ui::er_diagram::ERDiagramState;
+use crate::ui::table_designer::TableDesignerState;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionStatus {
@@ -60,6 +63,9 @@ pub struct AppState {
     pub saved_connections: Vec<ConnectionConfig>,
     pub default_row_limit: usize,
     pub status_message: String,
+    pub er_diagram: ERDiagramState,
+    pub table_designer: TableDesignerState,
+    pub prisma_ui: PrismaUIState,
 }
 
 impl Default for AppState {
@@ -78,6 +84,9 @@ impl Default for AppState {
             saved_connections: Vec::new(),
             default_row_limit: 1000,
             status_message: "Disconnected".to_string(),
+            er_diagram: ERDiagramState::new(),
+            table_designer: TableDesignerState::default(),
+            prisma_ui: PrismaUIState::default(),
         }
     }
 }

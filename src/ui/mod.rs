@@ -1,7 +1,9 @@
 pub mod dialogs;
 pub mod editor;
+pub mod er_diagram;
 pub mod grid;
 pub mod icons;
 pub mod panels;
+pub mod table_designer;
 pub mod theme;
 pub mod tree_browser;

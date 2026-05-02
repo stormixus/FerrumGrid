@@ -7,6 +7,7 @@ pub struct AppSettings {
     pub default_row_limit: usize,
     pub auto_commit: bool,
     pub confirm_destructive: bool,
+    pub language: String,
 }
 
 impl Default for AppSettings {
@@ -17,6 +18,7 @@ impl Default for AppSettings {
             default_row_limit: 1000,
             auto_commit: true,
             confirm_destructive: true,
+            language: "en".to_string(),
         }
     }
 }

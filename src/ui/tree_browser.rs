@@ -167,7 +167,7 @@ fn render_schema_node(
         .color(theme::TEXT_SECONDARY)
         .size(12.0);
 
-    collapsing_node(ui, node_id, header_text, None, false, |ui| {
+    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| {
         match &tables {
             None => {
                 if !is_loading {
@@ -213,6 +213,13 @@ fn render_schema_node(
                     );
                 }
             }
+        }
+    });
+
+    resp.header_response.context_menu(|ui| {
+        if ui.button(format!("{} New Table", icons::PLUS)).clicked() {
+            crate::ui::table_designer::open_for_new_table_with_schema(state, schema);
+            ui.close_menu();
         }
     });
 }
@@ -284,6 +291,11 @@ fn render_table_node(
     });
 
     resp.header_response.context_menu(|ui| {
+        if ui.button(format!("{} Edit Table", icons::TABLE)).clicked() {
+            crate::ui::table_designer::open_for_existing_table(state, schema, table_name, bridge);
+            ui.close_menu();
+        }
+        ui.separator();
         if ui
             .button(format!("{} View Data (Top 100)", icons::EXECUTE))
             .clicked()
