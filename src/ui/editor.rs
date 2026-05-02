@@ -21,13 +21,13 @@ pub fn render_editor(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge)
 
 fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
     let tab_frame = egui::Frame::new()
-        .fill(theme::BG_DARKEST)
-        .inner_margin(Margin::symmetric(theme::SPACE_MD as i8, 0))
+        .fill(theme::BG_SHELL)
+        .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
         .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
 
     tab_frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
-        ui.set_min_height(30.0);
+        ui.set_min_height(34.0);
 
         ui.horizontal(|ui| {
             let mut tab_to_close: Option<usize> = None;
@@ -35,7 +35,14 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
             for i in 0..state.editor_tabs.len() {
                 let selected = i == state.active_tab;
                 let title = state.editor_tabs[i].title.clone();
-                render_tab(ui, i, &title, selected, &mut tab_to_close, &mut state.active_tab);
+                render_tab(
+                    ui,
+                    i,
+                    &title,
+                    selected,
+                    &mut tab_to_close,
+                    &mut state.active_tab,
+                );
             }
 
             if let Some(idx) = tab_to_close {
@@ -51,11 +58,12 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
             ui.add_space(theme::SPACE_SM);
             let new_tab_btn = egui::Button::new(
                 RichText::new(icons::PLUS)
-                    .color(theme::TEXT_MUTED)
+                    .color(theme::TEXT_SECONDARY)
                     .size(14.0),
             )
-            .fill(Color32::TRANSPARENT)
-            .stroke(Stroke::NONE)
+            .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
+            .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 60)))
+            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
             .min_size(egui::vec2(24.0, 24.0));
 
             if ui.add(new_tab_btn).clicked() {
@@ -78,14 +86,16 @@ fn render_tab(
     let tab_height = 30.0;
     let tab_padding_x = theme::SPACE_LG;
     let close_btn_width = 18.0;
+    let display_title = truncate_label(title, 28);
 
     let galley = ui.painter().layout_no_wrap(
-        title.to_string(),
+        display_title.clone(),
         egui::FontId::proportional(12.0),
         Color32::WHITE,
     );
     let total_width =
-        galley.rect.width() + tab_padding_x * 2.0 + close_btn_width + theme::SPACE_SM;
+        (galley.rect.width() + tab_padding_x * 2.0 + close_btn_width + theme::SPACE_SM)
+            .clamp(94.0, 220.0);
 
     let (tab_rect, resp) =
         ui.allocate_exact_size(egui::vec2(total_width, tab_height), egui::Sense::click());
@@ -98,35 +108,38 @@ fn render_tab(
     let bg = if selected {
         theme::BG_DARK
     } else if resp.hovered() {
-        theme::BG_MEDIUM
+        theme::with_alpha(theme::ACCENT_TEAL, 18)
     } else {
         Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(tab_rect, 0.0, bg);
+    let paint_rect = tab_rect.shrink2(egui::vec2(1.0, 3.0));
+    ui.painter()
+        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_LG), bg);
 
     // Active tab bottom copper accent line
     if selected {
         let line = egui::Rect::from_min_size(
-            egui::pos2(tab_rect.min.x, tab_rect.max.y - 2.0),
-            egui::vec2(tab_rect.width(), 2.0),
+            egui::pos2(paint_rect.min.x + 8.0, paint_rect.max.y - 2.0),
+            egui::vec2((paint_rect.width() - 16.0).max(10.0), 2.0),
         );
-        ui.painter().rect_filled(line, 0.0, theme::ACCENT_COPPER);
+        ui.painter().rect_filled(
+            line,
+            CornerRadius::same(theme::RADIUS_SM),
+            theme::ACCENT_COPPER,
+        );
     }
-
-    // Right separator
-    ui.painter().vline(
-        tab_rect.max.x,
-        tab_rect.y_range(),
-        Stroke::new(1.0, theme::BORDER_SUBTLE),
-    );
 
     // Tab label
     ui.painter().text(
         egui::pos2(tab_rect.min.x + tab_padding_x, tab_rect.center().y),
         egui::Align2::LEFT_CENTER,
-        title,
+        display_title,
         egui::FontId::proportional(12.0),
-        if selected { theme::TEXT_PRIMARY } else { theme::TEXT_MUTED },
+        if selected {
+            theme::TEXT_PRIMARY
+        } else {
+            theme::TEXT_MUTED
+        },
     );
 
     // Close button ×
@@ -134,10 +147,8 @@ fn render_tab(
         tab_rect.max.x - close_btn_width / 2.0 - theme::SPACE_SM,
         tab_rect.center().y,
     );
-    let close_rect =
-        egui::Rect::from_center_size(close_center, egui::vec2(16.0, 16.0));
-    let close_resp =
-        ui.interact(close_rect, resp.id.with("close"), egui::Sense::click());
+    let close_rect = egui::Rect::from_center_size(close_center, egui::vec2(16.0, 16.0));
+    let close_resp = ui.interact(close_rect, resp.id.with("close"), egui::Sense::click());
 
     let close_color = if close_resp.hovered() {
         theme::ACCENT_RED
@@ -167,6 +178,19 @@ fn render_tab(
     });
 }
 
+fn truncate_label(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        text.to_string()
+    } else {
+        let mut label = text
+            .chars()
+            .take(max_chars.saturating_sub(3))
+            .collect::<String>();
+        label.push_str("...");
+        label
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Toolbar
 // ---------------------------------------------------------------------------
@@ -174,7 +198,10 @@ fn render_tab(
 fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let toolbar_frame = egui::Frame::new()
         .fill(theme::BG_DARK)
-        .inner_margin(Margin::symmetric(theme::SPACE_MD as i8, theme::SPACE_SM as i8))
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_LG as i8,
+            theme::SPACE_SM as i8,
+        ))
         .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
 
     toolbar_frame.show(ui, |ui| {
@@ -183,7 +210,7 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             let has_connection = state.active_connection.is_some();
             let can_execute = has_connection && !state.query_running;
 
-            let execute_label = format!("{} Execute", icons::EXECUTE);
+            let execute_label = format!("{} Run", icons::EXECUTE);
             let execute_btn = if can_execute {
                 theme::primary_button(&execute_label)
             } else {
@@ -199,8 +226,8 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 
             let exec_resp = ui.add_enabled(can_execute, execute_btn);
 
-            let shortcut_fired = can_execute
-                && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
+            let shortcut_fired =
+                can_execute && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
 
             if exec_resp.clicked() || shortcut_fired {
                 execute_current_query(state, bridge);
@@ -225,39 +252,39 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 ui.add_space(theme::SPACE_MD);
                 ui.spinner();
                 ui.label(
-                    RichText::new("Running\u{2026}")
+                    RichText::new("Running...")
                         .color(theme::ACCENT_YELLOW)
                         .size(12.0),
                 );
 
-                let cancel_btn = egui::Button::new(
-                    RichText::new(format!("{} Cancel", icons::CANCEL))
-                        .color(theme::TEXT_SECONDARY)
-                        .size(11.0),
-                )
-                .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
-                .corner_radius(CornerRadius::same(theme::RADIUS_SM));
-
-                if ui.add(cancel_btn).clicked() {
+                if ui
+                    .add(theme::ghost_button(&format!("{} Cancel", icons::CANCEL)))
+                    .clicked()
+                {
                     if let Some(conn_id) = state.active_connection {
                         bridge.send(DbCommand::CancelQuery { conn_id });
                     }
                 }
             }
 
+            ui.add_space(theme::SPACE_MD);
+            ui.label(
+                RichText::new("Cmd+Return")
+                    .color(theme::TEXT_MUTED)
+                    .monospace()
+                    .size(10.0),
+            );
+
             // Right side: active connection name
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(conn_id) = state.active_connection {
                     if let Some(conn) = state.connections.get(&conn_id) {
-                        let (dot_rect, _) = ui.allocate_exact_size(
-                            egui::vec2(8.0, 8.0),
-                            egui::Sense::hover(),
-                        );
+                        let (dot_rect, _) =
+                            ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
                         ui.painter().circle_filled(
                             dot_rect.center(),
                             3.5,
-                            theme::ACCENT_GREEN,
+                            theme::conn_status_color(true, false),
                         );
                         ui.label(
                             RichText::new(&conn.config.display_name)
@@ -267,7 +294,7 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                     }
                 } else {
                     ui.label(
-                        RichText::new("No connection \u{2014} open one from the sidebar")
+                        RichText::new("No connection")
                             .color(theme::TEXT_DISABLED)
                             .size(11.0),
                     );
@@ -283,32 +310,74 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 
 fn render_editor_body(ui: &mut egui::Ui, state: &mut AppState) {
     let editor_frame = egui::Frame::new()
-        .fill(theme::BG_DARKEST)
-        .inner_margin(Margin::same(theme::SPACE_MD as i8));
+        .fill(theme::BG_EDITOR)
+        .inner_margin(Margin::ZERO);
 
     editor_frame.show(ui, |ui| {
         if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+            let line_count = if tab.content.is_empty() {
+                1
+            } else {
+                tab.content.lines().count()
+            };
+            let char_count = tab.content.chars().count();
+            render_editor_meta(ui, &tab.title, line_count, char_count);
+
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                 let layout_job = highlight_sql(ui, text, wrap_width);
                 ui.fonts(|f| f.layout_job(layout_job))
             };
 
-            egui::ScrollArea::vertical()
-                .id_salt("editor_scroll")
-                .auto_shrink([false, false])
+            egui::Frame::new()
+                .fill(theme::BG_EDITOR)
+                .inner_margin(Margin::same(theme::SPACE_LG as i8))
                 .show(ui, |ui| {
-                    ui.add(
-                        egui::TextEdit::multiline(&mut tab.content)
-                            .font(egui::TextStyle::Monospace)
-                            .code_editor()
-                            .desired_width(f32::INFINITY)
-                            .desired_rows(12)
-                            .frame(false)
-                            .layouter(&mut layouter),
-                    );
+                    egui::ScrollArea::vertical()
+                        .id_salt("editor_scroll")
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut tab.content)
+                                    .font(egui::TextStyle::Monospace)
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(12)
+                                    .hint_text("SELECT *\nFROM public.table_name\nLIMIT 100;")
+                                    .frame(false)
+                                    .layouter(&mut layouter),
+                            );
+                        });
                 });
         }
     });
+}
+
+fn render_editor_meta(ui: &mut egui::Ui, title: &str, line_count: usize, char_count: usize) {
+    egui::Frame::new()
+        .fill(theme::BG_DARKEST)
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_LG as i8,
+            theme::SPACE_SM as i8,
+        ))
+        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(title)
+                        .color(theme::TEXT_SECONDARY)
+                        .strong()
+                        .size(11.0),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(
+                        RichText::new(format!("{line_count} lines  |  {char_count} chars"))
+                            .color(theme::TEXT_MUTED)
+                            .monospace()
+                            .size(10.0),
+                    );
+                });
+            });
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -337,18 +406,89 @@ fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
 // ---------------------------------------------------------------------------
 
 const SQL_KEYWORDS: &[&str] = &[
-    "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "IS", "NULL",
-    "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "CREATE",
-    "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "SCHEMA", "DATABASE",
-    "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS", "ON",
-    "AS", "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET",
-    "UNION", "ALL", "DISTINCT", "EXISTS", "BETWEEN", "LIKE", "ILIKE",
-    "CASE", "WHEN", "THEN", "ELSE", "END", "WITH", "RECURSIVE",
-    "TRUE", "FALSE", "ASC", "DESC", "NULLS", "FIRST", "LAST",
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "CAST",
-    "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "CONSTRAINT", "UNIQUE",
-    "CHECK", "DEFAULT", "NOT", "EXPLAIN", "ANALYZE", "SHOW",
-    "BEGIN", "COMMIT", "ROLLBACK", "GRANT", "REVOKE",
+    "SELECT",
+    "FROM",
+    "WHERE",
+    "AND",
+    "OR",
+    "NOT",
+    "IN",
+    "IS",
+    "NULL",
+    "INSERT",
+    "INTO",
+    "VALUES",
+    "UPDATE",
+    "SET",
+    "DELETE",
+    "CREATE",
+    "ALTER",
+    "DROP",
+    "TABLE",
+    "INDEX",
+    "VIEW",
+    "SCHEMA",
+    "DATABASE",
+    "JOIN",
+    "LEFT",
+    "RIGHT",
+    "INNER",
+    "OUTER",
+    "FULL",
+    "CROSS",
+    "ON",
+    "AS",
+    "ORDER",
+    "BY",
+    "GROUP",
+    "HAVING",
+    "LIMIT",
+    "OFFSET",
+    "UNION",
+    "ALL",
+    "DISTINCT",
+    "EXISTS",
+    "BETWEEN",
+    "LIKE",
+    "ILIKE",
+    "CASE",
+    "WHEN",
+    "THEN",
+    "ELSE",
+    "END",
+    "WITH",
+    "RECURSIVE",
+    "TRUE",
+    "FALSE",
+    "ASC",
+    "DESC",
+    "NULLS",
+    "FIRST",
+    "LAST",
+    "COUNT",
+    "SUM",
+    "AVG",
+    "MIN",
+    "MAX",
+    "COALESCE",
+    "CAST",
+    "PRIMARY",
+    "KEY",
+    "FOREIGN",
+    "REFERENCES",
+    "CONSTRAINT",
+    "UNIQUE",
+    "CHECK",
+    "DEFAULT",
+    "NOT",
+    "EXPLAIN",
+    "ANALYZE",
+    "SHOW",
+    "BEGIN",
+    "COMMIT",
+    "ROLLBACK",
+    "GRANT",
+    "REVOKE",
 ];
 
 fn highlight_sql(ui: &egui::Ui, text: &str, wrap_width: f32) -> egui::text::LayoutJob {
@@ -426,9 +566,7 @@ fn highlight_sql(ui: &egui::Ui, text: &str, wrap_width: f32) -> egui::text::Layo
         // Identifier / keyword
         if ch.is_ascii_alphabetic() || ch == '_' {
             let start = i;
-            while i < chars.len()
-                && (chars[i].is_ascii_alphanumeric() || chars[i] == '_')
-            {
+            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
                 i += 1;
             }
             let word: String = chars[start..i].iter().collect();

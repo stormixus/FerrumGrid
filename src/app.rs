@@ -22,9 +22,9 @@ impl FerrumGridApp {
         init_with_saved(Some(&settings.language));
 
         if settings.dark_mode {
-            cc.egui_ctx.set_visuals(eframe::egui::Visuals::dark());
+            ui::theme::FerrumTheme::apply_dark(&cc.egui_ctx);
         } else {
-            cc.egui_ctx.set_visuals(eframe::egui::Visuals::light());
+            ui::theme::FerrumTheme::apply_light(&cc.egui_ctx);
         }
 
         let saved_connections = storage::connections::load_connections();

@@ -29,12 +29,12 @@ pub fn render_grid(ui: &mut egui::Ui, state: &mut AppState) {
 
 fn render_error_bar(ui: &mut egui::Ui, error: &str) {
     let frame = egui::Frame::new()
-        .fill(Color32::from_rgba_premultiplied(180, 40, 40, 30))
-        .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, theme::SPACE_SM as i8))
-        .stroke(Stroke::new(
-            1.0,
-            Color32::from_rgba_premultiplied(210, 70, 70, 80),
-        ));
+        .fill(theme::with_alpha(theme::ACCENT_RED, 28))
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_LG as i8,
+            theme::SPACE_SM as i8,
+        ))
+        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_RED, 86)));
 
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
@@ -66,17 +66,31 @@ fn render_empty_state(ui: &mut egui::Ui, running: bool) {
                 ui.spinner();
                 ui.add_space(theme::SPACE_MD);
                 ui.label(
-                    RichText::new("Executing query\u{2026}")
+                    RichText::new("Executing query...")
                         .color(theme::TEXT_MUTED)
                         .size(12.0),
                 );
             });
         } else {
-            ui.label(
-                RichText::new("Execute a query to see results")
-                    .color(theme::TEXT_DISABLED)
-                    .size(12.0),
-            );
+            ui.vertical_centered(|ui| {
+                ui.label(
+                    RichText::new(icons::TABLE)
+                        .color(theme::with_alpha(theme::ACCENT_TEAL, 150))
+                        .size(34.0),
+                );
+                ui.add_space(theme::SPACE_SM);
+                ui.label(
+                    RichText::new("No result set")
+                        .color(theme::TEXT_MUTED)
+                        .strong()
+                        .size(13.0),
+                );
+                ui.label(
+                    RichText::new("Run a query to populate the grid")
+                        .color(theme::TEXT_DISABLED)
+                        .size(11.0),
+                );
+            });
         }
     });
 }
@@ -97,72 +111,65 @@ fn render_result_header(ui: &mut egui::Ui, state: &mut AppState) {
     let truncated = state.current_result_truncated;
 
     let frame = egui::Frame::new()
-        .fill(theme::BG_DARKEST)
-        .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, theme::SPACE_SM as i8))
+        .fill(theme::BG_SHELL)
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_LG as i8,
+            theme::SPACE_MD as i8,
+        ))
         .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
 
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
         ui.horizontal(|ui| {
             ui.label(
-                RichText::new(format!(
+                RichText::new("Result")
+                    .color(theme::TEXT_PRIMARY)
+                    .strong()
+                    .size(13.0),
+            );
+            ui.add_space(theme::SPACE_MD);
+            metric_chip(
+                ui,
+                &format!(
                     "{} {}",
                     row_count,
                     if row_count == 1 { "row" } else { "rows" }
-                ))
-                .color(theme::TEXT_PRIMARY)
-                .strong()
-                .size(12.0),
+                ),
+                theme::ACCENT_TEAL,
             );
-            ui.label(
-                RichText::new(format!(
-                    "\u{2502} {} {}",
+            metric_chip(
+                ui,
+                &format!(
+                    "{} {}",
                     col_count,
                     if col_count == 1 { "col" } else { "cols" }
-                ))
-                .color(theme::TEXT_MUTED)
-                .size(12.0),
+                ),
+                theme::ACCENT_BLUE,
             );
-            ui.label(
-                RichText::new(format!("\u{2502} {exec_ms}ms"))
-                    .color(theme::TEXT_MUTED)
-                    .size(12.0),
-            );
+            metric_chip(ui, &format!("{exec_ms}ms"), theme::ACCENT_COPPER);
 
             if truncated {
-                ui.label(
-                    RichText::new(format!("{} truncated", icons::TRUNCATED))
-                        .color(theme::ACCENT_YELLOW)
-                        .size(11.0),
+                metric_chip(
+                    ui,
+                    &format!("{} truncated", icons::TRUNCATED),
+                    theme::ACCENT_YELLOW,
                 );
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let export_btn = egui::Button::new(
-                    RichText::new(format!("{} CSV", icons::EXPORT))
-                        .color(theme::TEXT_SECONDARY)
-                        .size(11.0),
-                )
-                .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
-                .corner_radius(CornerRadius::same(theme::RADIUS_SM));
-
-                if ui.add(export_btn).clicked() {
+                if ui
+                    .add(theme::ghost_button(&format!("{} CSV", icons::EXPORT)))
+                    .clicked()
+                {
                     export_csv(state);
                 }
 
                 ui.add_space(theme::SPACE_SM);
 
-                let copy_btn = egui::Button::new(
-                    RichText::new(format!("{} Copy TSV", icons::COPY))
-                        .color(theme::TEXT_SECONDARY)
-                        .size(11.0),
-                )
-                .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
-                .corner_radius(CornerRadius::same(theme::RADIUS_SM));
-
-                if ui.add(copy_btn).clicked() {
+                if ui
+                    .add(theme::ghost_button(&format!("{} Copy TSV", icons::COPY)))
+                    .clicked()
+                {
                     if let Some(ref result) = state.current_result {
                         let tsv = result_to_tsv(result);
                         ui.ctx().copy_text(tsv);
@@ -171,6 +178,32 @@ fn render_result_header(ui: &mut egui::Ui, state: &mut AppState) {
             });
         });
     });
+}
+
+fn metric_chip(ui: &mut egui::Ui, text: &str, color: Color32) {
+    let galley = ui.painter().layout_no_wrap(
+        text.to_string(),
+        egui::FontId::proportional(11.0),
+        theme::TEXT_PRIMARY,
+    );
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(galley.rect.width() + 18.0, 20.0),
+        egui::Sense::hover(),
+    );
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(theme::RADIUS_LG),
+        theme::with_alpha(color, 24),
+    );
+    ui.painter()
+        .circle_filled(rect.left_center() + egui::vec2(9.0, 0.0), 2.5, color);
+    ui.painter().text(
+        rect.left_center() + egui::vec2(15.0, 0.0),
+        egui::Align2::LEFT_CENTER,
+        text,
+        egui::FontId::proportional(11.0),
+        theme::TEXT_SECONDARY,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -190,9 +223,9 @@ fn render_table(ui: &mut egui::Ui, state: &AppState) {
     let num_cols = result.columns.len();
     let available_width = ui.available_width();
     let col_width = (available_width / num_cols as f32).clamp(60.0, 320.0);
-    let row_height = 20.0;
-    let header_height = 26.0;
-    let header_bg = theme::BG_ELEVATED;
+    let row_height = 24.0;
+    let header_height = 30.0;
+    let header_bg = theme::BG_MEDIUM;
 
     TableBuilder::new(ui)
         .striped(true)
@@ -242,12 +275,7 @@ fn render_table(ui: &mut egui::Ui, state: &AppState) {
 fn render_cell(ui: &mut egui::Ui, cell: &CellValue) {
     match cell {
         CellValue::Null => {
-            ui.label(
-                RichText::new(icons::NULL_MARKER)
-                    .color(theme::TEXT_DISABLED)
-                    .size(11.0)
-                    .italics(),
-            );
+            value_pill(ui, icons::NULL_MARKER, theme::TEXT_MUTED);
         }
         CellValue::Bool(v) => {
             let (text, color) = if *v {
@@ -255,26 +283,71 @@ fn render_cell(ui: &mut egui::Ui, cell: &CellValue) {
             } else {
                 ("false", theme::ACCENT_RED)
             };
-            ui.label(RichText::new(text).color(color).size(12.0).monospace());
+            value_pill(ui, text, color);
+        }
+        CellValue::Json(v) => {
+            render_copyable_cell(ui, &v.to_string(), theme::ACCENT_TEAL);
+        }
+        CellValue::Timestamp(v) => {
+            render_copyable_cell(ui, v, theme::ACCENT_BLUE);
+        }
+        CellValue::Uuid(v) => {
+            render_copyable_cell(ui, &v.to_string(), theme::ACCENT_COPPER_LIGHT);
+        }
+        CellValue::Bytes(v) => {
+            render_copyable_cell(ui, &format!("\\x{}", hex_encode(v)), theme::TEXT_MUTED);
         }
         other => {
             let text = other.to_string();
-            let resp = ui.label(
-                RichText::new(&text)
-                    .font(egui::FontId::monospace(12.0))
-                    .color(theme::TEXT_PRIMARY),
-            );
-            resp.on_hover_text(&text).context_menu(|ui| {
-                if ui
-                    .button(format!("{} Copy Value", icons::COPY))
-                    .clicked()
-                {
-                    ui.ctx().copy_text(text.clone());
-                    ui.close_menu();
-                }
-            });
+            render_copyable_cell(ui, &text, theme::TEXT_PRIMARY);
         }
     }
+}
+
+fn value_pill(ui: &mut egui::Ui, text: &str, color: Color32) {
+    let galley =
+        ui.painter()
+            .layout_no_wrap(text.to_string(), egui::FontId::monospace(11.0), color);
+    let (rect, resp) = ui.allocate_exact_size(
+        egui::vec2(galley.rect.width() + 12.0, 18.0),
+        egui::Sense::click(),
+    );
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        theme::with_alpha(color, if resp.hovered() { 38 } else { 24 }),
+    );
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        text,
+        egui::FontId::monospace(11.0),
+        color,
+    );
+    resp.context_menu(|ui| {
+        if ui.button(format!("{} Copy Value", icons::COPY)).clicked() {
+            ui.ctx().copy_text(text.to_string());
+            ui.close_menu();
+        }
+    });
+}
+
+fn render_copyable_cell(ui: &mut egui::Ui, text: &str, color: Color32) {
+    let resp = ui.label(
+        RichText::new(text)
+            .font(egui::FontId::monospace(12.0))
+            .color(color),
+    );
+    resp.on_hover_text(text).context_menu(|ui| {
+        if ui.button(format!("{} Copy Value", icons::COPY)).clicked() {
+            ui.ctx().copy_text(text.to_string());
+            ui.close_menu();
+        }
+    });
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -313,12 +386,10 @@ fn export_csv(state: &AppState) {
         rt.block_on(async {
             if let Some(handle) = task.await {
                 let mut wtr = csv::Writer::from_writer(Vec::new());
-                let headers: Vec<&str> =
-                    columns.iter().map(|c| c.name.as_str()).collect();
+                let headers: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
                 let _ = wtr.write_record(&headers);
                 for row in &rows {
-                    let cells: Vec<String> =
-                        row.iter().map(|c| c.to_string()).collect();
+                    let cells: Vec<String> = row.iter().map(|c| c.to_string()).collect();
                     let _ = wtr.write_record(&cells);
                 }
                 if let Ok(data) = wtr.into_inner() {

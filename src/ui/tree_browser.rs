@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, RichText, Sense, Stroke};
+use eframe::egui::{self, Color32, CornerRadius, RichText, Sense, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::{AppState, ConnectionStatus};
@@ -15,8 +15,8 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
         ui.vertical_centered(|ui| {
             ui.label(
                 RichText::new(icons::DATABASE)
-                    .color(theme::TEXT_DISABLED)
-                    .size(28.0),
+                    .color(theme::with_alpha(theme::ACCENT_TEAL, 150))
+                    .size(32.0),
             );
             ui.add_space(theme::SPACE_MD);
             ui.label(
@@ -25,7 +25,7 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                     .size(12.0),
             );
             ui.label(
-                RichText::new("Click \"New\" to get started")
+                RichText::new("Create a connection to browse schemas")
                     .color(theme::TEXT_DISABLED)
                     .size(11.0),
             );
@@ -90,7 +90,7 @@ fn render_connection_node(
                 ui.horizontal(|ui| {
                     ui.spinner();
                     ui.label(
-                        RichText::new("Connecting\u{2026}")
+                        RichText::new("Connecting...")
                             .color(theme::ACCENT_YELLOW)
                             .size(12.0),
                     );
@@ -114,7 +114,7 @@ fn render_connection_node(
                 ui.horizontal(|ui| {
                     ui.spinner();
                     ui.label(
-                        RichText::new("Loading\u{2026}")
+                        RichText::new("Loading...")
                             .color(theme::TEXT_MUTED)
                             .size(11.0),
                     );
@@ -167,51 +167,49 @@ fn render_schema_node(
         .color(theme::TEXT_SECONDARY)
         .size(12.0);
 
-    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| {
-        match &tables {
-            None => {
-                if !is_loading {
-                    if let Some(c) = state.connections.get_mut(&conn_id) {
-                        c.loading_tables.insert(schema_owned.clone());
-                    }
-                    bridge.send(DbCommand::ListTables {
-                        conn_id,
-                        schema: schema_owned.clone(),
-                    });
+    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| match &tables {
+        None => {
+            if !is_loading {
+                if let Some(c) = state.connections.get_mut(&conn_id) {
+                    c.loading_tables.insert(schema_owned.clone());
                 }
-                indented(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(
-                            RichText::new("Loading\u{2026}")
-                                .color(theme::TEXT_MUTED)
-                                .size(11.0),
-                        );
-                    });
+                bridge.send(DbCommand::ListTables {
+                    conn_id,
+                    schema: schema_owned.clone(),
                 });
             }
-            Some(tables) => {
-                if tables.is_empty() {
-                    indented(ui, |ui| {
-                        ui.label(
-                            RichText::new("(empty)")
-                                .color(theme::TEXT_DISABLED)
-                                .size(11.0),
-                        );
-                    });
-                    return;
-                }
-                for table in tables {
-                    render_table_node(
-                        ui,
-                        state,
-                        bridge,
-                        conn_id,
-                        &schema_owned,
-                        &table.name.clone(),
-                        &table.table_type.clone(),
+            indented(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(
+                        RichText::new("Loading...")
+                            .color(theme::TEXT_MUTED)
+                            .size(11.0),
                     );
-                }
+                });
+            });
+        }
+        Some(tables) => {
+            if tables.is_empty() {
+                indented(ui, |ui| {
+                    ui.label(
+                        RichText::new("(empty)")
+                            .color(theme::TEXT_DISABLED)
+                            .size(11.0),
+                    );
+                });
+                return;
+            }
+            for table in tables {
+                render_table_node(
+                    ui,
+                    state,
+                    bridge,
+                    conn_id,
+                    &schema_owned,
+                    &table.name.clone(),
+                    &table.table_type.clone(),
+                );
             }
         }
     });
@@ -258,34 +256,32 @@ fn render_table_node(
         .size(12.0);
     let _ = icon_color; // used in icon selection above
 
-    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| {
-        match &columns {
-            None => {
-                if !is_loading {
-                    if let Some(c) = state.connections.get_mut(&conn_id) {
-                        c.loading_columns.insert(key.clone());
-                    }
-                    bridge.send(DbCommand::ListColumns {
-                        conn_id,
-                        schema: schema.to_string(),
-                        table: table_name.to_string(),
-                    });
+    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| match &columns {
+        None => {
+            if !is_loading {
+                if let Some(c) = state.connections.get_mut(&conn_id) {
+                    c.loading_columns.insert(key.clone());
                 }
-                indented(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(
-                            RichText::new("Loading\u{2026}")
-                                .color(theme::TEXT_MUTED)
-                                .size(11.0),
-                        );
-                    });
+                bridge.send(DbCommand::ListColumns {
+                    conn_id,
+                    schema: schema.to_string(),
+                    table: table_name.to_string(),
                 });
             }
-            Some(cols) => {
-                for col in cols {
-                    render_column_row(ui, col);
-                }
+            indented(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(
+                        RichText::new("Loading...")
+                            .color(theme::TEXT_MUTED)
+                            .size(11.0),
+                    );
+                });
+            });
+        }
+        Some(cols) => {
+            for col in cols {
+                render_column_row(ui, col);
             }
         }
     });
@@ -356,7 +352,11 @@ fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo) {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(full_width, 18.0), Sense::hover());
 
     if resp.hovered() {
-        ui.painter().rect_filled(rect, 0.0, theme::BG_LIGHT);
+        ui.painter().rect_filled(
+            rect.shrink2(egui::vec2(4.0, 1.0)),
+            CornerRadius::same(theme::RADIUS_MD),
+            theme::with_alpha(theme::ACCENT_TEAL, 16),
+        );
     }
 
     let left = rect.min + egui::vec2(indent, 0.0);
@@ -427,24 +427,35 @@ fn collapsing_node(
     let bg = if header_resp.is_pointer_button_down_on() {
         Some(theme::BG_ELEVATED)
     } else if header_resp.hovered() {
-        Some(theme::BG_LIGHT)
+        Some(theme::with_alpha(theme::ACCENT_TEAL, 20))
     } else if is_root {
-        Some(Color32::from_rgba_premultiplied(30, 32, 38, 200))
+        Some(theme::BG_DARK)
     } else {
         None
     };
 
+    let paint_rect = header_rect.shrink2(egui::vec2(if is_root { 5.0 } else { 2.0 }, 1.0));
     if let Some(color) = bg {
-        ui.painter().rect_filled(header_rect, 0.0, color);
+        ui.painter().rect_filled(
+            paint_rect,
+            CornerRadius::same(if is_root {
+                theme::RADIUS_LG
+            } else {
+                theme::RADIUS_MD
+            }),
+            color,
+        );
     }
 
     // Left copper accent stripe for root nodes
     if is_root {
-        let stripe = egui::Rect::from_min_size(
-            header_rect.min,
-            egui::vec2(2.0, header_rect.height()),
+        let stripe =
+            egui::Rect::from_min_size(paint_rect.min, egui::vec2(2.0, paint_rect.height()));
+        ui.painter().rect_filled(
+            stripe,
+            CornerRadius::same(theme::RADIUS_SM),
+            theme::ACCENT_COPPER_DIM,
         );
-        ui.painter().rect_filled(stripe, 0.0, theme::ACCENT_COPPER_DIM);
     }
 
     if header_resp.clicked() {
@@ -456,7 +467,11 @@ fn collapsing_node(
 
     // Chevron ▾ / ▸
     let chevron = if open { "\u{25BE}" } else { "\u{25B8}" };
-    let chevron_color = if open { theme::ACCENT_COPPER } else { theme::TEXT_MUTED };
+    let chevron_color = if open {
+        theme::ACCENT_COPPER
+    } else {
+        theme::TEXT_MUTED
+    };
     ui.painter().text(
         header_rect.min + egui::vec2(indent_x, row_height / 2.0),
         egui::Align2::LEFT_CENTER,
@@ -490,14 +505,20 @@ fn collapsing_node(
         egui::Align2::LEFT_CENTER,
         label.text(),
         egui::FontId::proportional(if is_root { 13.0 } else { 12.0 }),
-        if is_root { theme::TEXT_PRIMARY } else { theme::TEXT_SECONDARY },
+        if is_root {
+            theme::TEXT_PRIMARY
+        } else {
+            theme::TEXT_SECONDARY
+        },
     );
 
     if open {
         body(ui);
     }
 
-    CollapsingResult { header_response: header_resp }
+    CollapsingResult {
+        header_response: header_resp,
+    }
 }
 
 // ---------------------------------------------------------------------------
