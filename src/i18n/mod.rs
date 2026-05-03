@@ -42,6 +42,18 @@ impl Language {
         }
     }
 
+    pub fn from_code(code: &str) -> Self {
+        match code {
+            "ko" => Language::Korean,
+            "ja" => Language::Japanese,
+            "zh-CN" => Language::ChineseSimplified,
+            "es" => Language::Spanish,
+            "fr" => Language::French,
+            "de" => Language::German,
+            _ => Language::English,
+        }
+    }
+
     pub fn all() -> Vec<Language> {
         vec![
             Language::English,
@@ -83,24 +95,29 @@ pub fn init() {
     let mut en = Translation::new();
     en.insert("app_title", "FerrumGrid");
     en.insert("menu_file", "File");
+    en.insert("menu_about", "About FerrumGrid");
     en.insert("menu_new_connection", "New Connection");
     en.insert("menu_quit", "Quit");
     en.insert("menu_query", "Query");
     en.insert("menu_execute", "Execute");
     en.insert("menu_new_tab", "New Tab");
     en.insert("menu_view", "View");
+    en.insert("menu_tools", "Tools");
     en.insert("menu_light_mode", "Light Mode");
     en.insert("menu_dark_mode", "Dark Mode");
     en.insert("menu_er_diagram", "ER Diagram");
     en.insert("menu_table_designer", "Table Designer");
     en.insert("menu_prisma", "Prisma Integration");
     en.insert("menu_language", "Language");
+    en.insert("menu_settings", "Settings");
     en.insert("explorer_title", "Explorer");
     en.insert("explorer_new", "New");
     en.insert("status_connected", "Connected");
     en.insert("status_disconnected", "Disconnected");
     en.insert("status_connecting", "Connecting...");
     en.insert("connection_dialog_title", "New Connection");
+    en.insert("connection_details", "Connection Details");
+    en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_host", "Host");
     en.insert("connection_port", "Port");
@@ -108,7 +125,13 @@ pub fn init() {
     en.insert("connection_username", "Username");
     en.insert("connection_password", "Password");
     en.insert("connection_use_tls", "Use TLS");
+    en.insert("connection_encrypted", "Encrypted");
+    en.insert("connection_unencrypted", "Unencrypted");
+    en.insert("connection_ssh_tunnel", "SSH Tunnel");
+    en.insert("connection_coming_soon", "Coming soon");
     en.insert("connection_test", "Test Connection");
+    en.insert("connection_testing", "Testing connection...");
+    en.insert("connection_connect", "Connect");
     en.insert("connection_save", "Save");
     en.insert("connection_cancel", "Cancel");
     en.insert("query_editor_placeholder", "Enter your SQL query here...");
@@ -160,7 +183,10 @@ pub fn init() {
     en.insert("prisma_generate", "Generate Client");
     en.insert("prisma_validate", "Validate");
     en.insert("prisma_not_installed", "Prisma CLI not found");
-    en.insert("prisma_install_help", "Please install Prisma CLI: npm install -g prisma");
+    en.insert(
+        "prisma_install_help",
+        "Please install Prisma CLI: npm install -g prisma",
+    );
     en.insert("error", "Error");
     en.insert("warning", "Warning");
     en.insert("success", "Success");
@@ -170,30 +196,132 @@ pub fn init() {
     en.insert("no_data", "No data");
     en.insert("no_connection", "No connection");
     en.insert("select_connection", "Select a connection");
+
+    // Toolbar
+    en.insert("toolbar_connection", "Connection");
+    en.insert("toolbar_table", "Table");
+    en.insert("toolbar_view", "View");
+    en.insert("toolbar_materialized_view", "Materialized View");
+    en.insert("toolbar_function", "Function");
+    en.insert("toolbar_user", "User");
+    en.insert("toolbar_others", "Others");
+    en.insert("toolbar_query", "Query");
+    en.insert("toolbar_backup", "Backup");
+    en.insert("toolbar_automation", "Automation");
+    en.insert("toolbar_model", "Model");
+    en.insert("toolbar_bi", "BI");
+    en.insert("view_toggle_navigator", "Toggle Navigator Pane");
+    en.insert("view_toggle_results", "Toggle Results Pane");
+    en.insert("view_toggle_info", "Toggle Info Pane");
+    en.insert("settings_title", "Settings");
+    en.insert("settings_general", "General");
+    en.insert("settings_language", "Language");
+    en.insert("settings_appearance", "Appearance");
+    en.insert("settings_dark_mode", "Dark Mode");
+    en.insert("settings_database", "Database");
+    en.insert("settings_default_row_limit", "Default Row Limit");
+    en.insert("settings_auto_commit", "Auto Commit");
+    en.insert(
+        "settings_confirm_destructive",
+        "Confirm Destructive Actions",
+    );
+    en.insert("settings_saved", "Settings saved");
+    en.insert("settings_restore_defaults", "Restore Defaults");
+    en.insert("settings_tab_general", "General");
+    en.insert("settings_tab_tabs", "Tabs");
+    en.insert("settings_tab_code_completion", "Code Completion");
+    en.insert("settings_tab_editor", "Editor");
+    en.insert("settings_tab_records", "Records");
+    en.insert("settings_tab_auto_recovery", "Auto Recovery");
+    en.insert("settings_tab_ai", "AI");
+    en.insert("settings_tab_environment", "Environment");
+    en.insert("settings_tab_advanced", "Advanced");
+    en.insert("settings_appearance_system", "System Default");
+    en.insert("settings_appearance_dark", "Dark");
+    en.insert("settings_appearance_light", "Light");
+    en.insert("settings_main_window", "Main Window");
+    en.insert(
+        "settings_show_schema_objects",
+        "Show objects under schema in navigation pane",
+    );
+    en.insert(
+        "settings_show_table_objects",
+        "Show objects under table in navigation pane",
+    );
+    en.insert("settings_object_list_font", "Object List Font");
+    en.insert("settings_font", "Font");
+    en.insert("settings_use_default_font", "Use default font");
+    en.insert("settings_confirm_dialog", "Confirm Dialog");
+    en.insert("settings_safe_confirm_dialog", "Use safe confirm dialog");
+    en.insert(
+        "settings_ask_close_queries",
+        "Ask to save new queries/profiles before closing",
+    );
+    en.insert(
+        "settings_ask_close_tables",
+        "Ask to save new table profiles before closing",
+    );
+    en.insert("settings_database_items", "Database Items");
+    en.insert("settings_show_function_wizard", "Show function wizard");
+    en.insert("settings_usage_data", "Usage Data");
+    en.insert("settings_share_usage_data", "Share Usage Data");
+    en.insert(
+        "settings_usage_data_help",
+        "Help us improve FerrumGrid by automatically sending usage data.",
+    );
+    en.insert("settings_update", "Update");
+    en.insert(
+        "settings_auto_check_updates",
+        "Automatically check for updates",
+    );
+    en.insert(
+        "settings_include_system_profile",
+        "Includes anonymous system profile",
+    );
+    en.insert("settings_open_queries_in_tabs", "Open new queries in tabs");
+    en.insert("settings_enable_code_completion", "Enable code completion");
+    en.insert("settings_completion_popup", "Show suggestions while typing");
+    en.insert("settings_show_line_numbers", "Show line numbers");
+    en.insert("settings_enable_auto_recovery", "Enable auto recovery");
+    en.insert("settings_ai_assistant", "Enable AI assistant");
+    en.insert(
+        "settings_placeholder_hint",
+        "More controls for this section will land here.",
+    );
+    en.insert("about_version", "Version");
+    en.insert("about_edition", "Developer Preview");
+    en.insert("about_engine", "PostgreSQL Workbench");
+    en.insert("about_author", "FerrumGrid Studio");
+
     translations.insert(Language::English, en);
 
     // Korean
     let mut ko = Translation::new();
     ko.insert("app_title", "FerrumGrid");
     ko.insert("menu_file", "파일");
+    ko.insert("menu_about", "FerrumGrid 정보");
     ko.insert("menu_new_connection", "새 연결");
     ko.insert("menu_quit", "종료");
     ko.insert("menu_query", "쿼리");
     ko.insert("menu_execute", "실행");
     ko.insert("menu_new_tab", "새 탭");
     ko.insert("menu_view", "보기");
+    ko.insert("menu_tools", "도구");
     ko.insert("menu_light_mode", "라이트 모드");
     ko.insert("menu_dark_mode", "다크 모드");
     ko.insert("menu_er_diagram", "ER 다이어그램");
     ko.insert("menu_table_designer", "테이블 디자이너");
     ko.insert("menu_prisma", "Prisma 연동");
     ko.insert("menu_language", "언어");
+    ko.insert("menu_settings", "설정");
     ko.insert("explorer_title", "탐색기");
     ko.insert("explorer_new", "새로");
     ko.insert("status_connected", "연결됨");
     ko.insert("status_disconnected", "연결 해제");
     ko.insert("status_connecting", "연결 중...");
     ko.insert("connection_dialog_title", "새 연결");
+    ko.insert("connection_details", "연결 정보");
+    ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_host", "호스트");
     ko.insert("connection_port", "포트");
@@ -201,7 +329,13 @@ pub fn init() {
     ko.insert("connection_username", "사용자명");
     ko.insert("connection_password", "비밀번호");
     ko.insert("connection_use_tls", "TLS 사용");
+    ko.insert("connection_encrypted", "암호화됨");
+    ko.insert("connection_unencrypted", "암호화 안 됨");
+    ko.insert("connection_ssh_tunnel", "SSH 터널");
+    ko.insert("connection_coming_soon", "곧 지원 예정");
     ko.insert("connection_test", "연결 테스트");
+    ko.insert("connection_testing", "연결 테스트 중...");
+    ko.insert("connection_connect", "연결");
     ko.insert("connection_save", "저장");
     ko.insert("connection_cancel", "취소");
     ko.insert("query_editor_placeholder", "SQL 쿼리를 입력하세요...");
@@ -253,7 +387,10 @@ pub fn init() {
     ko.insert("prisma_generate", "클라이언트 생성");
     ko.insert("prisma_validate", "검증");
     ko.insert("prisma_not_installed", "Prisma CLI를 찾을 수 없습니다");
-    ko.insert("prisma_install_help", "Prisma CLI를 설치하세요: npm install -g prisma");
+    ko.insert(
+        "prisma_install_help",
+        "Prisma CLI를 설치하세요: npm install -g prisma",
+    );
     ko.insert("error", "오류");
     ko.insert("warning", "경고");
     ko.insert("success", "성공");
@@ -263,6 +400,94 @@ pub fn init() {
     ko.insert("no_data", "데이터 없음");
     ko.insert("no_connection", "연결 없음");
     ko.insert("select_connection", "연결을 선택하세요");
+
+    // Toolbar
+    ko.insert("toolbar_connection", "연결");
+    ko.insert("toolbar_table", "테이블");
+    ko.insert("toolbar_view", "뷰");
+    ko.insert("toolbar_materialized_view", "구체화된 뷰");
+    ko.insert("toolbar_function", "함수");
+    ko.insert("toolbar_user", "사용자");
+    ko.insert("toolbar_others", "기타");
+    ko.insert("toolbar_query", "쿼리");
+    ko.insert("toolbar_backup", "백업");
+    ko.insert("toolbar_automation", "자동화");
+    ko.insert("toolbar_model", "모델");
+    ko.insert("toolbar_bi", "BI");
+    ko.insert("view_toggle_navigator", "탐색기 패널 보이기/숨기기");
+    ko.insert("view_toggle_results", "결과 패널 보이기/숨기기");
+    ko.insert("view_toggle_info", "정보 패널 보이기/숨기기");
+    ko.insert("settings_title", "설정");
+    ko.insert("settings_general", "일반");
+    ko.insert("settings_language", "언어");
+    ko.insert("settings_appearance", "화면");
+    ko.insert("settings_dark_mode", "다크 모드");
+    ko.insert("settings_database", "데이터베이스");
+    ko.insert("settings_default_row_limit", "기본 행 제한");
+    ko.insert("settings_auto_commit", "자동 커밋");
+    ko.insert("settings_confirm_destructive", "삭제/변경 작업 확인");
+    ko.insert("settings_saved", "설정 저장됨");
+    ko.insert("settings_restore_defaults", "기본값 복원");
+    ko.insert("settings_tab_general", "일반");
+    ko.insert("settings_tab_tabs", "탭");
+    ko.insert("settings_tab_code_completion", "코드 완성");
+    ko.insert("settings_tab_editor", "에디터");
+    ko.insert("settings_tab_records", "레코드");
+    ko.insert("settings_tab_auto_recovery", "자동 복구");
+    ko.insert("settings_tab_ai", "AI");
+    ko.insert("settings_tab_environment", "환경");
+    ko.insert("settings_tab_advanced", "고급");
+    ko.insert("settings_appearance_system", "시스템 기본값");
+    ko.insert("settings_appearance_dark", "다크");
+    ko.insert("settings_appearance_light", "라이트");
+    ko.insert("settings_main_window", "메인 윈도우");
+    ko.insert(
+        "settings_show_schema_objects",
+        "탐색 패널의 스키마 아래에 오브젝트 표시",
+    );
+    ko.insert(
+        "settings_show_table_objects",
+        "탐색 패널의 테이블 아래에 오브젝트 표시",
+    );
+    ko.insert("settings_object_list_font", "오브젝트 목록 폰트");
+    ko.insert("settings_font", "폰트");
+    ko.insert("settings_use_default_font", "기본 폰트 사용");
+    ko.insert("settings_confirm_dialog", "확인 대화상자");
+    ko.insert("settings_safe_confirm_dialog", "안전 확인 대화상자 사용");
+    ko.insert(
+        "settings_ask_close_queries",
+        "닫기 전에 새 쿼리/프로필 저장 여부 묻기",
+    );
+    ko.insert(
+        "settings_ask_close_tables",
+        "닫기 전에 새 테이블 프로필 저장 여부 묻기",
+    );
+    ko.insert("settings_database_items", "데이터베이스 항목");
+    ko.insert("settings_show_function_wizard", "함수 마법사 표시");
+    ko.insert("settings_usage_data", "사용 데이터");
+    ko.insert("settings_share_usage_data", "사용 데이터 공유");
+    ko.insert(
+        "settings_usage_data_help",
+        "FerrumGrid 개선을 위해 사용 데이터를 자동으로 보냅니다.",
+    );
+    ko.insert("settings_update", "업데이트");
+    ko.insert("settings_auto_check_updates", "업데이트 자동 확인");
+    ko.insert("settings_include_system_profile", "익명 시스템 프로필 포함");
+    ko.insert("settings_open_queries_in_tabs", "새 쿼리를 탭으로 열기");
+    ko.insert("settings_enable_code_completion", "코드 완성 사용");
+    ko.insert("settings_completion_popup", "입력 중 추천 표시");
+    ko.insert("settings_show_line_numbers", "줄 번호 표시");
+    ko.insert("settings_enable_auto_recovery", "자동 복구 사용");
+    ko.insert("settings_ai_assistant", "AI 어시스턴트 사용");
+    ko.insert(
+        "settings_placeholder_hint",
+        "이 섹션의 추가 제어 항목이 여기에 들어갑니다.",
+    );
+    ko.insert("about_version", "버전");
+    ko.insert("about_edition", "개발자 프리뷰");
+    ko.insert("about_engine", "PostgreSQL 워크벤치");
+    ko.insert("about_author", "FerrumGrid Studio");
+
     translations.insert(Language::Korean, ko);
 
     // Japanese
@@ -346,7 +571,10 @@ pub fn init() {
     ja.insert("prisma_generate", "クライアント生成");
     ja.insert("prisma_validate", "検証");
     ja.insert("prisma_not_installed", "Prisma CLIが見つかりません");
-    ja.insert("prisma_install_help", "Prisma CLIをインストールしてください: npm install -g prisma");
+    ja.insert(
+        "prisma_install_help",
+        "Prisma CLIをインストールしてください: npm install -g prisma",
+    );
     ja.insert("error", "エラー");
     ja.insert("warning", "警告");
     ja.insert("success", "成功");
@@ -439,7 +667,10 @@ pub fn init() {
     zh.insert("prisma_generate", "生成客户端");
     zh.insert("prisma_validate", "验证");
     zh.insert("prisma_not_installed", "未找到Prisma CLI");
-    zh.insert("prisma_install_help", "请安装Prisma CLI: npm install -g prisma");
+    zh.insert(
+        "prisma_install_help",
+        "请安装Prisma CLI: npm install -g prisma",
+    );
     zh.insert("error", "错误");
     zh.insert("warning", "警告");
     zh.insert("success", "成功");
@@ -563,16 +794,7 @@ pub fn init_with_saved(saved_lang: Option<&str>) {
     init();
 
     if let Some(code) = saved_lang {
-        let lang = match code {
-            "ko" => Language::Korean,
-            "ja" => Language::Japanese,
-            "zh-CN" => Language::ChineseSimplified,
-            "es" => Language::Spanish,
-            "fr" => Language::French,
-            "de" => Language::German,
-            _ => Language::English,
-        };
-        set_language(lang);
+        set_language(Language::from_code(code));
     }
 }
 

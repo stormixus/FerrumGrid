@@ -1,6 +1,8 @@
 use eframe::egui::{
-    self, Color32, CornerRadius, FontFamily, FontId, Margin, Stroke, TextStyle, Visuals,
+    self, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Stroke,
+    TextStyle, Visuals,
 };
+use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // Design token palette — DataGrip-style dark, copper/amber accent for Ferrum
@@ -194,7 +196,98 @@ impl FerrumTheme {
 // Backward-compat entry point
 // ---------------------------------------------------------------------------
 pub fn configure_fonts(ctx: &egui::Context) {
+    let mut fonts = FontDefinitions::default();
+    install_apple_system_fonts(&mut fonts);
+    install_cjk_font_fallbacks(&mut fonts);
+    ctx.set_fonts(fonts);
+
     FerrumTheme::apply_dark(ctx);
+}
+
+pub fn apply_appearance(ctx: &egui::Context, appearance: &str) -> bool {
+    let use_dark = match appearance {
+        "light" => false,
+        "dark" => true,
+        _ => !matches!(ctx.system_theme(), Some(egui::Theme::Light)),
+    };
+
+    if use_dark {
+        FerrumTheme::apply_dark(ctx);
+    } else {
+        FerrumTheme::apply_light(ctx);
+    }
+
+    use_dark
+}
+
+fn install_apple_system_fonts(fonts: &mut FontDefinitions) {
+    install_font(
+        fonts,
+        "ferrum_sf_pro",
+        "/System/Library/Fonts/SFNS.ttf",
+        &[FontFamily::Proportional],
+        FontPlacement::Front,
+    );
+    install_font(
+        fonts,
+        "ferrum_sf_mono",
+        "/System/Library/Fonts/SFNSMono.ttf",
+        &[FontFamily::Monospace],
+        FontPlacement::Front,
+    );
+}
+
+fn install_cjk_font_fallbacks(fonts: &mut FontDefinitions) {
+    let candidates = [
+        (
+            "ferrum_apple_gothic",
+            "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+        ),
+        (
+            "ferrum_arial_unicode",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ),
+    ];
+
+    for (name, path) in candidates {
+        install_font(
+            fonts,
+            name,
+            path,
+            &[FontFamily::Proportional, FontFamily::Monospace],
+            FontPlacement::Back,
+        );
+    }
+}
+
+enum FontPlacement {
+    Front,
+    Back,
+}
+
+fn install_font(
+    fonts: &mut FontDefinitions,
+    name: &str,
+    path: &str,
+    families: &[FontFamily],
+    placement: FontPlacement,
+) {
+    let Ok(bytes) = std::fs::read(path) else {
+        return;
+    };
+
+    fonts
+        .font_data
+        .insert(name.to_owned(), Arc::new(FontData::from_owned(bytes)));
+
+    for family in families {
+        let family_fonts = fonts.families.entry(family.clone()).or_default();
+        family_fonts.retain(|font_name| font_name != name);
+        match placement {
+            FontPlacement::Front => family_fonts.insert(0, name.to_owned()),
+            FontPlacement::Back => family_fonts.push(name.to_owned()),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

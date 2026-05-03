@@ -3,7 +3,7 @@ use eframe::egui::{self, Color32, CornerRadius, RichText, Sense, Stroke};
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::{AppState, ConnectionStatus};
 use crate::types::ConnectionId;
-use crate::ui::{icons, theme};
+use crate::ui::{icon_img, icons, icons_svg, theme};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -13,11 +13,7 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     if state.connections.is_empty() {
         ui.add_space(theme::SPACE_XXL);
         ui.vertical_centered(|ui| {
-            ui.label(
-                RichText::new(icons::DATABASE)
-                    .color(theme::with_alpha(theme::ACCENT_TEAL, 150))
-                    .size(32.0),
-            );
+            icon_img(ui, icons_svg::DATABASE, "database_empty", 32.0);
             ui.add_space(theme::SPACE_MD);
             ui.label(
                 RichText::new("No connections")
@@ -74,59 +70,68 @@ fn render_connection_node(
         .size(13.0)
         .strong();
 
-    let resp = collapsing_node(ui, node_id, header_text, dot_color, true, |ui| {
-        if !is_connected && !is_connecting {
-            indented(ui, |ui| {
-                ui.label(
-                    RichText::new("Not connected")
-                        .color(theme::TEXT_MUTED)
-                        .size(12.0),
-                );
-            });
-            return;
-        }
-        if is_connecting {
-            indented(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spinner();
+    let resp = collapsing_node(
+        ui,
+        node_id,
+        header_text,
+        dot_color,
+        true,
+        icons_svg::DATABASE,
+        "conn",
+        |ui| {
+            if !is_connected && !is_connecting {
+                indented(ui, |ui| {
                     ui.label(
-                        RichText::new("Connecting...")
-                            .color(theme::ACCENT_YELLOW)
+                        RichText::new("Not connected")
+                            .color(theme::TEXT_MUTED)
                             .size(12.0),
                     );
                 });
-            });
-            return;
-        }
-
-        if schemas.is_empty() {
-            let loading = state
-                .connections
-                .get(&conn_id)
-                .map_or(false, |c| c.loading_schemas);
-            if !loading {
-                if let Some(c) = state.connections.get_mut(&conn_id) {
-                    c.loading_schemas = true;
-                }
-                bridge.send(DbCommand::ListSchemas { conn_id });
+                return;
             }
-            indented(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(
-                        RichText::new("Loading...")
-                            .color(theme::TEXT_MUTED)
-                            .size(11.0),
-                    );
+            if is_connecting {
+                indented(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(
+                            RichText::new("Connecting...")
+                                .color(theme::ACCENT_YELLOW)
+                                .size(12.0),
+                        );
+                    });
                 });
-            });
-            return;
-        }
+                return;
+            }
 
-        for schema in &schemas {
-            render_schema_node(ui, state, bridge, conn_id, schema);
-        }
-    });
+            if schemas.is_empty() {
+                let loading = state
+                    .connections
+                    .get(&conn_id)
+                    .map_or(false, |c| c.loading_schemas);
+                if !loading {
+                    if let Some(c) = state.connections.get_mut(&conn_id) {
+                        c.loading_schemas = true;
+                    }
+                    bridge.send(DbCommand::ListSchemas { conn_id });
+                }
+                indented(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(
+                            RichText::new("Loading...")
+                                .color(theme::TEXT_MUTED)
+                                .size(11.0),
+                        );
+                    });
+                });
+                return;
+            }
+
+            for schema in &schemas {
+                render_schema_node(ui, state, bridge, conn_id, schema);
+            }
+        },
+    );
 
     if is_connected {
         resp.header_response.context_menu(|ui| {
@@ -167,57 +172,66 @@ fn render_schema_node(
         .color(theme::TEXT_SECONDARY)
         .size(12.0);
 
-    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| match &tables {
-        None => {
-            if !is_loading {
-                if let Some(c) = state.connections.get_mut(&conn_id) {
-                    c.loading_tables.insert(schema_owned.clone());
+    let resp = collapsing_node(
+        ui,
+        node_id,
+        header_text,
+        None,
+        false,
+        icons_svg::SCHEMA,
+        "schema",
+        |ui| match &tables {
+            None => {
+                if !is_loading {
+                    if let Some(c) = state.connections.get_mut(&conn_id) {
+                        c.loading_tables.insert(schema_owned.clone());
+                    }
+                    bridge.send(DbCommand::ListTables {
+                        conn_id,
+                        schema: schema_owned.clone(),
+                    });
                 }
-                bridge.send(DbCommand::ListTables {
-                    conn_id,
-                    schema: schema_owned.clone(),
-                });
-            }
-            indented(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(
-                        RichText::new("Loading...")
-                            .color(theme::TEXT_MUTED)
-                            .size(11.0),
-                    );
-                });
-            });
-        }
-        Some(tables) => {
-            if tables.is_empty() {
                 indented(ui, |ui| {
-                    ui.label(
-                        RichText::new("(empty)")
-                            .color(theme::TEXT_DISABLED)
-                            .size(11.0),
-                    );
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(
+                            RichText::new("Loading...")
+                                .color(theme::TEXT_MUTED)
+                                .size(11.0),
+                        );
+                    });
                 });
-                return;
             }
-            for table in tables {
-                render_table_node(
-                    ui,
-                    state,
-                    bridge,
-                    conn_id,
-                    &schema_owned,
-                    &table.name.clone(),
-                    &table.table_type.clone(),
-                );
+            Some(tables) => {
+                if tables.is_empty() {
+                    indented(ui, |ui| {
+                        ui.label(
+                            RichText::new("(empty)")
+                                .color(theme::TEXT_DISABLED)
+                                .size(11.0),
+                        );
+                    });
+                    return;
+                }
+                for table in tables {
+                    render_table_node(
+                        ui,
+                        state,
+                        bridge,
+                        conn_id,
+                        &schema_owned,
+                        &table.name.clone(),
+                        &table.table_type.clone(),
+                    );
+                }
             }
-        }
-    });
+        },
+    );
 
     resp.header_response.context_menu(|ui| {
-        if ui.button(format!("{} New Table", icons::PLUS)).clicked() {
-            crate::ui::table_designer::open_for_new_table_with_schema(state, schema);
+        if ui.button("New Table").clicked() {
             ui.close_menu();
+            crate::ui::table_designer::open_for_new_table_with_schema(state, schema);
         }
     });
 }
@@ -245,57 +259,86 @@ fn render_table_node(
     let columns = conn.columns.get(&key).cloned();
     let is_loading = conn.loading_columns.contains(&key);
 
-    let (icon, icon_color) = match table_type {
-        "VIEW" => (icons::VIEW, theme::ACCENT_BLUE),
-        "MATERIALIZED VIEW" => (icons::MATERIALIZED_VIEW, theme::ACCENT_COPPER),
-        _ => (icons::TABLE, theme::TEXT_SECONDARY),
+    let (icon_svg, icon_name) = match table_type {
+        "VIEW" => (icons_svg::VIEW, "view"),
+        "MATERIALIZED VIEW" => (icons_svg::MATERIALIZED_VIEW, "mat_view"),
+        _ => (icons_svg::TABLE, "table"),
     };
 
-    let header_text = RichText::new(format!("{icon} {table_name}"))
+    let header_text = RichText::new(table_name)
         .color(theme::TEXT_PRIMARY)
         .size(12.0);
-    let _ = icon_color; // used in icon selection above
 
-    let resp = collapsing_node(ui, node_id, header_text, None, false, |ui| match &columns {
-        None => {
-            if !is_loading {
-                if let Some(c) = state.connections.get_mut(&conn_id) {
-                    c.loading_columns.insert(key.clone());
+    let resp = collapsing_node(
+        ui,
+        node_id,
+        header_text,
+        None,
+        false,
+        icon_svg,
+        icon_name,
+        |ui| match &columns {
+            None => {
+                if !is_loading {
+                    if let Some(c) = state.connections.get_mut(&conn_id) {
+                        c.loading_columns.insert(key.clone());
+                    }
+                    bridge.send(DbCommand::ListColumns {
+                        conn_id,
+                        schema: schema.to_string(),
+                        table: table_name.to_string(),
+                    });
                 }
-                bridge.send(DbCommand::ListColumns {
-                    conn_id,
-                    schema: schema.to_string(),
-                    table: table_name.to_string(),
+                indented(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(
+                            RichText::new("Loading...")
+                                .color(theme::TEXT_MUTED)
+                                .size(11.0),
+                        );
+                    });
                 });
             }
-            indented(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(
-                        RichText::new("Loading...")
-                            .color(theme::TEXT_MUTED)
-                            .size(11.0),
-                    );
-                });
-            });
-        }
-        Some(cols) => {
-            for col in cols {
-                render_column_row(ui, col);
+            Some(cols) => {
+                for col in cols {
+                    render_column_row(ui, col);
+                }
             }
-        }
-    });
+        },
+    );
 
     resp.header_response.context_menu(|ui| {
-        if ui.button(format!("{} Edit Table", icons::TABLE)).clicked() {
+        let edit_resp = ui.button("      Edit Table");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                edit_resp
+                    .rect
+                    .shrink2(egui::vec2(edit_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                icon_img(ui, icons_svg::TABLE, "edit_table_icon", 12.0);
+            },
+        );
+        if edit_resp.clicked() {
             crate::ui::table_designer::open_for_existing_table(state, schema, table_name, bridge);
             ui.close_menu();
         }
+
         ui.separator();
-        if ui
-            .button(format!("{} View Data (Top 100)", icons::EXECUTE))
-            .clicked()
-        {
+
+        let view_resp = ui.button("      View Data (Top 100)");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                view_resp
+                    .rect
+                    .shrink2(egui::vec2(view_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                icon_img(ui, icons_svg::EXECUTE, "view_data_icon", 12.0);
+            },
+        );
+        if view_resp.clicked() {
             let sql = format!(
                 "SELECT * FROM {}.{} LIMIT 100",
                 quote_ident(schema),
@@ -313,10 +356,19 @@ fn render_table_node(
             }
             ui.close_menu();
         }
-        if ui
-            .button(format!("{} Copy SELECT *", icons::COPY))
-            .clicked()
-        {
+
+        let copy_resp = ui.button("      Copy SELECT *");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                copy_resp
+                    .rect
+                    .shrink2(egui::vec2(copy_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                icon_img(ui, icons_svg::COPY, "copy_sql_icon", 12.0);
+            },
+        );
+        if copy_resp.clicked() {
             let sql = format!(
                 "SELECT * FROM {}.{}",
                 quote_ident(schema),
@@ -325,8 +377,21 @@ fn render_table_node(
             ui.ctx().copy_text(sql);
             ui.close_menu();
         }
+
         ui.separator();
-        if ui.button("Refresh Columns").clicked() {
+
+        let refresh_resp = ui.button("      Refresh Columns");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                refresh_resp
+                    .rect
+                    .shrink2(egui::vec2(refresh_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                icon_img(ui, icons_svg::REFRESH, "refresh_cols_icon", 12.0);
+            },
+        );
+        if refresh_resp.clicked() {
             bridge.send(DbCommand::ListColumns {
                 conn_id,
                 schema: schema.to_string(),
@@ -362,27 +427,21 @@ fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo) {
     let left = rect.min + egui::vec2(indent, 0.0);
 
     if col.is_primary_key {
-        ui.painter().text(
-            left + egui::vec2(0.0, rect.height() / 2.0),
-            egui::Align2::LEFT_CENTER,
-            icons::KEY,
-            egui::FontId::proportional(10.0),
-            theme::ACCENT_YELLOW,
-        );
+        icon_img(ui, icons_svg::KEY, "pk", 12.0);
+        ui.add_space(theme::SPACE_SM);
+    } else {
+        icon_img(ui, icons_svg::COLUMN, "col", 12.0);
+        ui.add_space(theme::SPACE_SM);
     }
 
-    let col_offset = if col.is_primary_key { 14.0 } else { 0.0 };
-
-    ui.painter().text(
-        left + egui::vec2(col_offset, rect.height() / 2.0),
-        egui::Align2::LEFT_CENTER,
-        &col.name,
-        egui::FontId::proportional(12.0),
-        if col.is_primary_key {
-            theme::ACCENT_YELLOW
-        } else {
-            theme::TEXT_SECONDARY
-        },
+    ui.label(
+        RichText::new(&col.name)
+            .color(if col.is_primary_key {
+                theme::ACCENT_YELLOW
+            } else {
+                theme::TEXT_SECONDARY
+            })
+            .size(12.0),
     );
 
     let nullable_marker = if col.is_nullable { "?" } else { "" };
@@ -410,6 +469,8 @@ fn collapsing_node(
     label: RichText,
     dot_color: Option<Color32>,
     is_root: bool,
+    icon_svg: &str,
+    icon_name: &str,
     body: impl FnOnce(&mut egui::Ui),
 ) -> CollapsingResult {
     let state_id = id.with("__open");
@@ -466,23 +527,37 @@ fn collapsing_node(
     let indent_x: f32 = if is_root { 8.0 } else { 20.0 };
 
     // Chevron ▾ / ▸
-    let chevron = if open { "\u{25BE}" } else { "\u{25B8}" };
-    let chevron_color = if open {
-        theme::ACCENT_COPPER
+    let (chevron_svg, chevron_name) = if open {
+        (icons_svg::CHEVRON_DOWN, "chevron_down")
     } else {
-        theme::TEXT_MUTED
+        (icons_svg::CHEVRON_RIGHT, "chevron_right")
     };
-    ui.painter().text(
-        header_rect.min + egui::vec2(indent_x, row_height / 2.0),
-        egui::Align2::LEFT_CENTER,
-        chevron,
-        egui::FontId::proportional(10.0),
-        chevron_color,
+
+    ui.allocate_new_ui(
+        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
+            header_rect.min + egui::vec2(indent_x + 4.0, row_height / 2.0),
+            egui::vec2(12.0, 12.0),
+        )),
+        |ui| {
+            icon_img(ui, chevron_svg, chevron_name, 10.0);
+        },
+    );
+
+    // Icon
+    let icon_start = indent_x + 12.0;
+    ui.allocate_new_ui(
+        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
+            header_rect.min + egui::vec2(icon_start + 8.0, row_height / 2.0),
+            egui::vec2(16.0, 16.0),
+        )),
+        |ui| {
+            icon_img(ui, icon_svg, icon_name, 14.0);
+        },
     );
 
     // Optional status dot
     let text_start = if let Some(color) = dot_color {
-        let dot_x = indent_x + 14.0;
+        let dot_x = icon_start + 24.0;
         let dot_center = header_rect.min + egui::vec2(dot_x, row_height / 2.0);
         ui.painter().circle_filled(dot_center, 4.0, color);
         ui.painter().circle_stroke(
@@ -495,7 +570,7 @@ fn collapsing_node(
         );
         dot_x + 12.0
     } else {
-        indent_x + 14.0
+        icon_start + 24.0
     };
 
     // Label

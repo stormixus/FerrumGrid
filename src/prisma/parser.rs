@@ -125,7 +125,11 @@ impl PrismaSchema {
         sql
     }
 
-    pub fn from_db_schema(schema_name: &str, tables: &[crate::types::TableInfo], columns: &HashMap<(String, String), Vec<crate::types::ColumnInfo>>) -> Self {
+    pub fn from_db_schema(
+        schema_name: &str,
+        tables: &[crate::types::TableInfo],
+        columns: &HashMap<(String, String), Vec<crate::types::ColumnInfo>>,
+    ) -> Self {
         let mut prisma_schema = PrismaSchema::default();
 
         // Create datasource - URL will be populated later
@@ -160,7 +164,10 @@ impl PrismaSchema {
                     name: col.name.clone(),
                     field_type,
                     attributes: Vec::new(),
-                    documentation: col.default_value.as_ref().map(|d| format!("Default: {}", d)),
+                    documentation: col
+                        .default_value
+                        .as_ref()
+                        .map(|d| format!("Default: {}", d)),
                 };
 
                 if col.is_primary_key {
@@ -188,7 +195,9 @@ impl PrismaModel {
         sql.push_str(&columns.join(",\n"));
 
         // Add primary key constraint
-        let pk_fields: Vec<&str> = self.fields.iter()
+        let pk_fields: Vec<&str> = self
+            .fields
+            .iter()
             .filter(|f| f.attributes.iter().any(|a| a.name == "id"))
             .map(|f| f.name.as_str())
             .collect();
@@ -198,7 +207,11 @@ impl PrismaModel {
             sql.push_str(&format!(
                 "    CONSTRAINT \"{}_pkey\" PRIMARY KEY ({})",
                 self.name,
-                pk_fields.iter().map(|f| format!("\"{}\"", f)).collect::<Vec<_>>().join(", ")
+                pk_fields
+                    .iter()
+                    .map(|f| format!("\"{}\"", f))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
 
@@ -212,7 +225,11 @@ impl PrismaModel {
                     self.name,
                     attr.arguments.join("_"),
                     self.name,
-                    attr.arguments.iter().map(|a| format!("\"{}\"", a)).collect::<Vec<_>>().join(", ")
+                    attr.arguments
+                        .iter()
+                        .map(|a| format!("\"{}\"", a))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ));
             }
         }
@@ -252,16 +269,14 @@ impl PrismaField {
 
 impl PrismaEnum {
     pub fn to_sql(&self) -> String {
-        let values = self.values.iter()
+        let values = self
+            .values
+            .iter()
             .map(|v| format!("'{}'", v))
             .collect::<Vec<_>>()
             .join(", ");
 
-        format!(
-            "CREATE TYPE \"{}\" AS ENUM ({});\n",
-            self.name,
-            values
-        )
+        format!("CREATE TYPE \"{}\" AS ENUM ({});\n", self.name, values)
     }
 }
 
@@ -276,7 +291,10 @@ fn parse_datasource(pair: pest::iterators::Pair<Rule>) -> Result<DatasourceBlock
             Rule::key_value => {
                 let mut kv = inner.into_inner();
                 let key = kv.next().map(|p| p.as_str()).unwrap_or("");
-                let value = kv.next().map(|p| p.as_str().trim_matches('"').to_string()).unwrap_or_default();
+                let value = kv
+                    .next()
+                    .map(|p| p.as_str().trim_matches('"').to_string())
+                    .unwrap_or_default();
 
                 match key {
                     "provider" => datasource.provider = value,
@@ -302,7 +320,10 @@ fn parse_generator(pair: pest::iterators::Pair<Rule>) -> Result<GeneratorBlock, 
             Rule::key_value => {
                 let mut kv = inner.into_inner();
                 let key = kv.next().map(|p| p.as_str()).unwrap_or("");
-                let value = kv.next().map(|p| p.as_str().trim_matches('"').to_string()).unwrap_or_default();
+                let value = kv
+                    .next()
+                    .map(|p| p.as_str().trim_matches('"').to_string())
+                    .unwrap_or_default();
 
                 match key {
                     "provider" => generator.provider = value,
@@ -368,7 +389,9 @@ fn parse_field_type(pair: pest::iterators::Pair<Rule>) -> Result<PrismaType, Str
     let type_str = pair.as_str();
 
     if type_str.starts_with("Optional<") {
-        let inner = type_str.trim_start_matches("Optional<").trim_end_matches(">");
+        let inner = type_str
+            .trim_start_matches("Optional<")
+            .trim_end_matches(">");
         let inner_type = parse_type_string(inner)?;
         Ok(PrismaType::Optional(Box::new(inner_type)))
     } else if type_str.starts_with("List<") {
@@ -412,7 +435,8 @@ fn parse_attribute(pair: pest::iterators::Pair<Rule>) -> Result<PrismaAttribute,
             Rule::attribute_args => {
                 for arg in inner.into_inner() {
                     if arg.as_rule() == Rule::identifier || arg.as_rule() == Rule::string {
-                        attr.arguments.push(arg.as_str().trim_matches('"').to_string());
+                        attr.arguments
+                            .push(arg.as_str().trim_matches('"').to_string());
                     }
                 }
             }
@@ -453,7 +477,10 @@ fn db_type_to_prisma(db_type: &str, is_nullable: bool) -> PrismaType {
         "real" | "float4" => PrismaType::Float,
         "double precision" | "float8" => PrismaType::Float,
         "numeric" | "decimal" => PrismaType::Decimal,
-        "timestamp" | "timestamptz" | "timestamp without time zone" | "timestamp with time zone" => PrismaType::DateTime,
+        "timestamp"
+        | "timestamptz"
+        | "timestamp without time zone"
+        | "timestamp with time zone" => PrismaType::DateTime,
         "date" => PrismaType::DateTime,
         "json" | "jsonb" => PrismaType::Json,
         "bytea" => PrismaType::Bytes,

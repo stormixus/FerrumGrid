@@ -147,9 +147,7 @@ fn extract_cell_value(row: &tokio_postgres::Row, idx: usize) -> CellValue {
             }
         }
         Type::TIMESTAMPTZ => {
-            if let Ok(v) =
-                row.try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(idx)
-            {
+            if let Ok(v) = row.try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(idx) {
                 return match v {
                     Some(val) => CellValue::Timestamp(val.to_string()),
                     None => CellValue::Null,

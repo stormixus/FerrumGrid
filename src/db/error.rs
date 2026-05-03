@@ -70,9 +70,7 @@ impl DbError {
                 detail: db_err.detail().map(|s| s.to_string()),
                 hint: db_err.hint().map(|s| s.to_string()),
                 position: db_err.position().map(|p| match p {
-                    tokio_postgres::error::ErrorPosition::Original(pos) => {
-                        *pos as usize
-                    }
+                    tokio_postgres::error::ErrorPosition::Original(pos) => *pos as usize,
                     tokio_postgres::error::ErrorPosition::Internal { position, .. } => {
                         *position as usize
                     }

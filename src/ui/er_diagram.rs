@@ -372,22 +372,18 @@ fn draw_foreign_keys(painter: &egui::Painter, er_state: &ERDiagramState) {
             None => continue,
         };
 
-        let source_col_idx = match er_state.get_column_index(
-            &fk.source_schema,
-            &fk.source_table,
-            &fk.source_column,
-        ) {
-            Some(idx) => idx,
-            None => continue,
-        };
-        let target_col_idx = match er_state.get_column_index(
-            &fk.target_schema,
-            &fk.target_table,
-            &fk.target_column,
-        ) {
-            Some(idx) => idx,
-            None => continue,
-        };
+        let source_col_idx =
+            match er_state.get_column_index(&fk.source_schema, &fk.source_table, &fk.source_column)
+            {
+                Some(idx) => idx,
+                None => continue,
+            };
+        let target_col_idx =
+            match er_state.get_column_index(&fk.target_schema, &fk.target_table, &fk.target_column)
+            {
+                Some(idx) => idx,
+                None => continue,
+            };
 
         let source_y = source_card.column_y(source_col_idx);
         let target_y = target_card.column_y(target_col_idx);
@@ -399,7 +395,12 @@ fn draw_foreign_keys(painter: &egui::Painter, er_state: &ERDiagramState) {
     }
 }
 
-fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, conn_id: ConnectionId) {
+fn render_toolbar(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    conn_id: ConnectionId,
+) {
     ui.horizontal(|ui| {
         let conn = state.connections.get(&conn_id).unwrap();
 
@@ -408,10 +409,10 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, co
             .width(150.0)
             .show_ui(ui, |ui| {
                 for schema in &conn.schemas {
-                    if ui.selectable_label(
-                        state.er_diagram.selected_schema == *schema,
-                        schema,
-                    ).clicked() {
+                    if ui
+                        .selectable_label(state.er_diagram.selected_schema == *schema, schema)
+                        .clicked()
+                    {
                         state.er_diagram.selected_schema = schema.clone();
                     }
                 }
@@ -472,14 +473,14 @@ fn load_schema_tables(state: &mut AppState, bridge: &DbBridge, conn_id: Connecti
         let card = TableCard {
             schema: schema.clone(),
             table_name: table.name.clone(),
-            pos: Pos2::new(50.0 + (idx % 4) as f32 * 260.0, 50.0 + (idx / 4) as f32 * 200.0),
+            pos: Pos2::new(
+                50.0 + (idx % 4) as f32 * 260.0,
+                50.0 + (idx / 4) as f32 * 200.0,
+            ),
             columns,
             is_dragging: false,
         };
-        state
-            .er_diagram
-            .cards
-            .insert(card.full_id(), card);
+        state.er_diagram.cards.insert(card.full_id(), card);
     }
 
     bridge.send(crate::db::bridge::DbCommand::ListForeignKeys {

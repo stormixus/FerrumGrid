@@ -1,6 +1,6 @@
 use eframe::egui::{
-    self, Align, Button, Color32, ComboBox, CornerRadius, Frame, Margin, RichText,
-    ScrollArea, Sense, Stroke, TextEdit, Ui, Vec2, Window,
+    self, Align, Button, Color32, ComboBox, CornerRadius, Frame, Margin, RichText, ScrollArea,
+    Sense, Stroke, TextEdit, Ui, Vec2, Window,
 };
 
 use crate::db::bridge::DbBridge;
@@ -8,10 +8,39 @@ use crate::state::AppState;
 use crate::ui::theme;
 
 const PG_TYPES: &[&str] = &[
-    "INTEGER", "BIGINT", "SMALLINT", "SERIAL", "BIGSERIAL", "BOOLEAN", "TEXT", "VARCHAR",
-    "CHAR", "NUMERIC", "DECIMAL", "REAL", "DOUBLE PRECISION", "DATE", "TIMESTAMP",
-    "TIMESTAMPTZ", "TIME", "INTERVAL", "BYTEA", "UUID", "JSON", "JSONB", "INET", "CIDR",
-    "ARRAY", "TSVECTOR", "TSQUERY", "POINT", "LINE", "LSEG", "BOX", "PATH", "POLYGON",
+    "INTEGER",
+    "BIGINT",
+    "SMALLINT",
+    "SERIAL",
+    "BIGSERIAL",
+    "BOOLEAN",
+    "TEXT",
+    "VARCHAR",
+    "CHAR",
+    "NUMERIC",
+    "DECIMAL",
+    "REAL",
+    "DOUBLE PRECISION",
+    "DATE",
+    "TIMESTAMP",
+    "TIMESTAMPTZ",
+    "TIME",
+    "INTERVAL",
+    "BYTEA",
+    "UUID",
+    "JSON",
+    "JSONB",
+    "INET",
+    "CIDR",
+    "ARRAY",
+    "TSVECTOR",
+    "TSQUERY",
+    "POINT",
+    "LINE",
+    "LSEG",
+    "BOX",
+    "PATH",
+    "POLYGON",
     "CIRCLE",
 ];
 
@@ -105,7 +134,9 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, _bridge:
 }
 
 fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool) {
-    let conn = state.active_connection.and_then(|id| state.connections.get(&id));
+    let conn = state
+        .active_connection
+        .and_then(|id| state.connections.get(&id));
     let schemas = conn.map(|c| c.schemas.clone()).unwrap_or_default();
 
     ui.horizontal(|ui| {
@@ -184,9 +215,8 @@ fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool
                     if ui.button("Copy to Clipboard").clicked() {
                         if let Some(ref ddl) = state.table_designer.generated_ddl {
                             ui.ctx().output_mut(|o| {
-                                o.commands.push(egui::output::OutputCommand::CopyText(
-                                    ddl.clone(),
-                                ));
+                                o.commands
+                                    .push(egui::output::OutputCommand::CopyText(ddl.clone()));
                             });
                         }
                     }
@@ -219,36 +249,35 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
 
             ui.add_space(8.0);
 
-            ScrollArea::vertical().id_salt("columns_list").show(ui, |ui| {
-                let mut to_delete = None;
-                let mut selection_changed = false;
-                let mut new_selection = state.table_designer.selected_column;
+            ScrollArea::vertical()
+                .id_salt("columns_list")
+                .show(ui, |ui| {
+                    let mut to_delete = None;
+                    let mut selection_changed = false;
+                    let mut new_selection = state.table_designer.selected_column;
 
-                for (idx, col) in state.table_designer.columns.iter().enumerate() {
-                    let is_selected = state.table_designer.selected_column == Some(idx);
-                    let mut frame = Frame::new()
-                        .inner_margin(Margin::same(6))
-                        .corner_radius(CornerRadius::same(4));
+                    for (idx, col) in state.table_designer.columns.iter().enumerate() {
+                        let is_selected = state.table_designer.selected_column == Some(idx);
+                        let mut frame = Frame::new()
+                            .inner_margin(Margin::same(6))
+                            .corner_radius(CornerRadius::same(4));
 
-                    if is_selected {
-                        frame = frame.fill(theme::ACCENT_COPPER_DIM).stroke(Stroke::new(
-                            1.0,
-                            theme::ACCENT_COPPER,
-                        ));
-                    } else {
-                        frame = frame.fill(theme::BG_MEDIUM);
-                    }
+                        if is_selected {
+                            frame = frame
+                                .fill(theme::ACCENT_COPPER_DIM)
+                                .stroke(Stroke::new(1.0, theme::ACCENT_COPPER));
+                        } else {
+                            frame = frame.fill(theme::BG_MEDIUM);
+                        }
 
-                    let response = frame.show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            let pk_icon = if col.is_primary_key { "🔑 " } else { "" };
-                            let fk_icon = if col.is_foreign_key { "🔗 " } else { "" };
-                            let null_text = if col.is_nullable { "NULL" } else { "NOT NULL" };
+                        let response = frame.show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                let pk_icon = if col.is_primary_key { "🔑 " } else { "" };
+                                let fk_icon = if col.is_foreign_key { "🔗 " } else { "" };
+                                let null_text = if col.is_nullable { "NULL" } else { "NOT NULL" };
 
-                            ui.label(format!("{}{}{}", pk_icon, fk_icon, col.name));
-                            ui.with_layout(
-                                egui::Layout::right_to_left(Align::Center),
-                                |ui| {
+                                ui.label(format!("{}{}{}", pk_icon, fk_icon, col.name));
+                                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                                     ui.label(
                                         RichText::new(null_text)
                                             .color(theme::TEXT_MUTED)
@@ -259,42 +288,41 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                                             .color(theme::ACCENT_BLUE)
                                             .size(11.0),
                                     );
-                                },
-                            );
+                                });
+                            });
                         });
-                    });
 
-                    let response = ui
-                        .interact(response.response.rect, ui.id().with(idx), Sense::click());
+                        let response =
+                            ui.interact(response.response.rect, ui.id().with(idx), Sense::click());
 
-                    if response.clicked() {
-                        new_selection = Some(idx);
-                        selection_changed = true;
+                        if response.clicked() {
+                            new_selection = Some(idx);
+                            selection_changed = true;
+                        }
+
+                        response.context_menu(|ui| {
+                            if ui.button("Delete").clicked() {
+                                to_delete = Some(idx);
+                                ui.close_menu();
+                            }
+                        });
                     }
 
-                    response.context_menu(|ui| {
-                        if ui.button("Delete").clicked() {
-                            to_delete = Some(idx);
-                            ui.close_menu();
-                        }
-                    });
-                }
-
-                if let Some(idx) = to_delete {
-                    state.table_designer.columns.remove(idx);
-                    if state.table_designer.selected_column == Some(idx) {
-                        state.table_designer.selected_column = None;
-                    } else if let Some(sel) = state.table_designer.selected_column {
-                        if sel > idx {
-                            state.table_designer.selected_column = Some(sel - 1);
+                    if let Some(idx) = to_delete {
+                        state.table_designer.columns.remove(idx);
+                        if state.table_designer.selected_column == Some(idx) {
+                            state.table_designer.selected_column = None;
+                        } else if let Some(sel) = state.table_designer.selected_column {
+                            if sel > idx {
+                                state.table_designer.selected_column = Some(sel - 1);
+                            }
                         }
                     }
-                }
 
-                if selection_changed {
-                    state.table_designer.selected_column = new_selection;
-                }
-            });
+                    if selection_changed {
+                        state.table_designer.selected_column = new_selection;
+                    }
+                });
         });
 }
 
@@ -322,81 +350,91 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
 
             ui.add_space(12.0);
 
-            egui::Grid::new("column_props").num_columns(2).spacing([8.0, 8.0]).show(ui, |ui| {
-                ui.label("Name:");
-                let name_edit = ui.add(TextEdit::singleline(&mut col.name).desired_width(180.0));
-                if name_edit.lost_focus() {
-                    col.name = sanitize_identifier(&col.name);
-                }
-                ui.end_row();
-
-                ui.label("Data Type:");
-                ComboBox::from_id_salt("col_type")
-                    .width(180.0)
-                    .selected_text(&col.data_type)
-                    .show_ui(ui, |ui| {
-                        for &type_name in PG_TYPES {
-                            if ui.selectable_label(col.data_type == type_name, type_name).clicked() {
-                                col.data_type = type_name.to_string();
-                            }
-                        }
-                    });
-                ui.end_row();
-
-                if needs_length(&col.data_type) {
-                    ui.label("Length:");
-                    ui.add(
-                        TextEdit::singleline(col.length.get_or_insert_with(String::new))
-                            .desired_width(80.0)
-                            .hint_text("e.g., 255"),
-                    );
+            egui::Grid::new("column_props")
+                .num_columns(2)
+                .spacing([8.0, 8.0])
+                .show(ui, |ui| {
+                    ui.label("Name:");
+                    let name_edit =
+                        ui.add(TextEdit::singleline(&mut col.name).desired_width(180.0));
+                    if name_edit.lost_focus() {
+                        col.name = sanitize_identifier(&col.name);
+                    }
                     ui.end_row();
-                }
 
-                ui.label("Default:");
-                ui.add(TextEdit::singleline(&mut col.default_value).desired_width(180.0));
-                ui.end_row();
-
-                ui.label("");
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut col.is_nullable, "Nullable");
-                    ui.checkbox(&mut col.is_primary_key, "Primary Key");
-                    ui.checkbox(&mut col.is_unique, "Unique");
-                });
-                ui.end_row();
-
-                ui.label("");
-                ui.checkbox(&mut col.is_foreign_key, "Foreign Key");
-                ui.end_row();
-
-                if col.is_foreign_key {
-                    ui.label("References:");
-                    ui.horizontal(|ui| {
-                        ComboBox::from_id_salt("fk_schema")
-                            .width(100.0)
-                            .selected_text(&col.fk_ref_schema)
-                            .show_ui(ui, |ui| {
-                                for schema in schemas {
-                                    if ui.selectable_label(&col.fk_ref_schema == schema, schema).clicked() {
-                                        col.fk_ref_schema.clone_from(schema);
-                                    }
+                    ui.label("Data Type:");
+                    ComboBox::from_id_salt("col_type")
+                        .width(180.0)
+                        .selected_text(&col.data_type)
+                        .show_ui(ui, |ui| {
+                            for &type_name in PG_TYPES {
+                                if ui
+                                    .selectable_label(col.data_type == type_name, type_name)
+                                    .clicked()
+                                {
+                                    col.data_type = type_name.to_string();
                                 }
-                            });
+                            }
+                        });
+                    ui.end_row();
 
+                    if needs_length(&col.data_type) {
+                        ui.label("Length:");
                         ui.add(
-                            TextEdit::singleline(&mut col.fk_ref_table)
-                                .desired_width(100.0)
-                                .hint_text("table"),
+                            TextEdit::singleline(col.length.get_or_insert_with(String::new))
+                                .desired_width(80.0)
+                                .hint_text("e.g., 255"),
                         );
-                        ui.add(
-                            TextEdit::singleline(&mut col.fk_ref_column)
-                                .desired_width(100.0)
-                                .hint_text("column"),
-                        );
+                        ui.end_row();
+                    }
+
+                    ui.label("Default:");
+                    ui.add(TextEdit::singleline(&mut col.default_value).desired_width(180.0));
+                    ui.end_row();
+
+                    ui.label("");
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut col.is_nullable, "Nullable");
+                        ui.checkbox(&mut col.is_primary_key, "Primary Key");
+                        ui.checkbox(&mut col.is_unique, "Unique");
                     });
                     ui.end_row();
-                }
-            });
+
+                    ui.label("");
+                    ui.checkbox(&mut col.is_foreign_key, "Foreign Key");
+                    ui.end_row();
+
+                    if col.is_foreign_key {
+                        ui.label("References:");
+                        ui.horizontal(|ui| {
+                            ComboBox::from_id_salt("fk_schema")
+                                .width(100.0)
+                                .selected_text(&col.fk_ref_schema)
+                                .show_ui(ui, |ui| {
+                                    for schema in schemas {
+                                        if ui
+                                            .selectable_label(&col.fk_ref_schema == schema, schema)
+                                            .clicked()
+                                        {
+                                            col.fk_ref_schema.clone_from(schema);
+                                        }
+                                    }
+                                });
+
+                            ui.add(
+                                TextEdit::singleline(&mut col.fk_ref_table)
+                                    .desired_width(100.0)
+                                    .hint_text("table"),
+                            );
+                            ui.add(
+                                TextEdit::singleline(&mut col.fk_ref_column)
+                                    .desired_width(100.0)
+                                    .hint_text("column"),
+                            );
+                        });
+                        ui.end_row();
+                    }
+                });
         });
 }
 
@@ -419,41 +457,43 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
 
             ui.add_space(8.0);
 
-            ScrollArea::vertical().id_salt("indexes_list").show(ui, |ui| {
-                let mut to_delete = None;
+            ScrollArea::vertical()
+                .id_salt("indexes_list")
+                .show(ui, |ui| {
+                    let mut to_delete = None;
 
-                for (idx, index) in state.table_designer.indexes.iter_mut().enumerate() {
-                    Frame::new()
-                        .fill(theme::BG_MEDIUM)
-                        .inner_margin(Margin::same(6))
-                        .corner_radius(CornerRadius::same(4))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                let unique_marker = if index.is_unique { "[U] " } else { "" };
-                                ui.label(format!("{}{}", unique_marker, index.name));
+                    for (idx, index) in state.table_designer.indexes.iter_mut().enumerate() {
+                        Frame::new()
+                            .fill(theme::BG_MEDIUM)
+                            .inner_margin(Margin::same(6))
+                            .corner_radius(CornerRadius::same(4))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    let unique_marker = if index.is_unique { "[U] " } else { "" };
+                                    ui.label(format!("{}{}", unique_marker, index.name));
 
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(Align::Center),
-                                    |ui| {
-                                        if ui.button("🗑").clicked() {
-                                            to_delete = Some(idx);
-                                        }
-                                    },
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(Align::Center),
+                                        |ui| {
+                                            if ui.button("🗑").clicked() {
+                                                to_delete = Some(idx);
+                                            }
+                                        },
+                                    );
+                                });
+
+                                ui.label(
+                                    RichText::new(format!("Columns: {}", index.columns.join(", ")))
+                                        .color(theme::TEXT_MUTED)
+                                        .size(10.0),
                                 );
                             });
+                    }
 
-                            ui.label(
-                                RichText::new(format!("Columns: {}", index.columns.join(", ")))
-                                    .color(theme::TEXT_MUTED)
-                                    .size(10.0),
-                            );
-                        });
-                }
-
-                if let Some(idx) = to_delete {
-                    state.table_designer.indexes.remove(idx);
-                }
-            });
+                    if let Some(idx) = to_delete {
+                        state.table_designer.indexes.remove(idx);
+                    }
+                });
         });
 }
 
@@ -506,8 +546,7 @@ fn generate_ddl(state: &AppState) -> String {
             pk_columns.push(&col.name);
         }
 
-        if col.is_foreign_key && !col.fk_ref_table.is_empty() && !col.fk_ref_column.is_empty()
-        {
+        if col.is_foreign_key && !col.fk_ref_table.is_empty() && !col.fk_ref_column.is_empty() {
             let fk_def = format!(
                 "    CONSTRAINT {}_{}_fk FOREIGN KEY ({}) REFERENCES {}.{}({})",
                 escape_identifier(&td.table_name),
@@ -654,12 +693,7 @@ pub fn open_for_new_table_with_schema(state: &mut AppState, schema: &str) {
     };
 }
 
-pub fn open_for_existing_table(
-    state: &mut AppState,
-    schema: &str,
-    table: &str,
-    bridge: &DbBridge,
-) {
+pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, bridge: &DbBridge) {
     let conn_id = match state.active_connection {
         Some(id) => id,
         None => return,

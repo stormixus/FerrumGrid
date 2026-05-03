@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::types::{
-    ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult,
-    TableInfo,
-};
 use crate::prisma::ui::PrismaUIState;
+use crate::storage::settings::AppSettings;
+use crate::types::{
+    ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult, TableInfo,
+};
 use crate::ui::er_diagram::ERDiagramState;
 use crate::ui::table_designer::TableDesignerState;
 
@@ -49,9 +49,25 @@ impl ConnectionState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MainView {
+    Connection,
+    Table,
+    View,
+    MaterializedView,
+    Function,
+    User,
+    Query,
+    Backup,
+    Automation,
+    Model,
+    BI,
+}
+
 pub struct AppState {
     pub connections: HashMap<ConnectionId, ConnectionState>,
     pub active_connection: Option<ConnectionId>,
+    pub active_main_view: MainView,
     pub editor_tabs: Vec<EditorTab>,
     pub active_tab: usize,
     pub current_result: Option<QueryResult>,
@@ -59,6 +75,13 @@ pub struct AppState {
     pub query_running: bool,
     pub last_error: Option<String>,
     pub show_connection_dialog: bool,
+    pub show_about_dialog: bool,
+    pub show_settings_dialog: bool,
+    pub show_tree_panel: bool,
+    pub show_result_panel: bool,
+    pub show_info_panel: bool,
+    pub active_settings_tab: usize,
+    pub settings_draft: Option<AppSettings>,
     pub connection_dialog: ConnectionDialogState,
     pub saved_connections: Vec<ConnectionConfig>,
     pub default_row_limit: usize,
@@ -73,6 +96,7 @@ impl Default for AppState {
         Self {
             connections: HashMap::new(),
             active_connection: None,
+            active_main_view: MainView::Connection,
             editor_tabs: vec![EditorTab::new("Query 1")],
             active_tab: 0,
             current_result: None,
@@ -80,6 +104,13 @@ impl Default for AppState {
             query_running: false,
             last_error: None,
             show_connection_dialog: true,
+            show_about_dialog: false,
+            show_settings_dialog: false,
+            show_tree_panel: true,
+            show_result_panel: true,
+            show_info_panel: true,
+            active_settings_tab: 0,
+            settings_draft: None,
             connection_dialog: ConnectionDialogState::default(),
             saved_connections: Vec::new(),
             default_row_limit: 1000,
@@ -127,7 +158,10 @@ impl ConnectionDialogState {
         ConnectionConfig {
             id: self.editing_id.unwrap_or_else(ConnectionId::new),
             display_name: if self.display_name.is_empty() {
-                format!("{}@{}:{}/{}", self.username, self.host, self.port, self.database)
+                format!(
+                    "{}@{}:{}/{}",
+                    self.username, self.host, self.port, self.database
+                )
             } else {
                 self.display_name.clone()
             },

@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 # GUI
 eframe = "0.31"
-egui_extras = { version = "0.31", features = ["default"] }
+egui_extras = { version = "0.31", features = ["default", "svg", "image"] }
 egui-notify = "0.19"
+muda = "0.17"
+winit = "0.30"
 
 # Prisma schema parsing
 pest = "2.7"

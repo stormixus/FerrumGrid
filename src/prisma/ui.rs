@@ -1,12 +1,10 @@
 use eframe::egui::{
-    self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText,
-    ScrollArea, Stroke, TextEdit, Window,
+    self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke,
+    TextEdit, Window,
 };
 
 use crate::db::bridge::DbBridge;
-use crate::prisma::{
-    check_prisma_installed, generate_schema_file, run_prisma_cli, PrismaCommand,
-};
+use crate::prisma::{check_prisma_installed, generate_schema_file, run_prisma_cli, PrismaCommand};
 use crate::state::{AppState, ConnectionStatus};
 use crate::ui::theme;
 
@@ -179,14 +177,42 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
 
 fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let commands = [
-        (PrismaCommandType::Introspect, "Introspect", "Pull DB schema into Prisma schema"),
-        (PrismaCommandType::MigrateDev, "Migrate Dev", "Create and apply migration"),
-        (PrismaCommandType::MigrateDeploy, "Migrate Deploy", "Deploy pending migrations"),
-        (PrismaCommandType::MigrateStatus, "Migrate Status", "Check migration status"),
-        (PrismaCommandType::Generate, "Generate", "Generate Prisma Client"),
+        (
+            PrismaCommandType::Introspect,
+            "Introspect",
+            "Pull DB schema into Prisma schema",
+        ),
+        (
+            PrismaCommandType::MigrateDev,
+            "Migrate Dev",
+            "Create and apply migration",
+        ),
+        (
+            PrismaCommandType::MigrateDeploy,
+            "Migrate Deploy",
+            "Deploy pending migrations",
+        ),
+        (
+            PrismaCommandType::MigrateStatus,
+            "Migrate Status",
+            "Check migration status",
+        ),
+        (
+            PrismaCommandType::Generate,
+            "Generate",
+            "Generate Prisma Client",
+        ),
         (PrismaCommandType::Validate, "Validate", "Validate schema"),
-        (PrismaCommandType::DBPull, "DB Pull", "Introspect without updating schema"),
-        (PrismaCommandType::DBPush, "DB Push", "Push schema to database"),
+        (
+            PrismaCommandType::DBPull,
+            "DB Pull",
+            "Introspect without updating schema",
+        ),
+        (
+            PrismaCommandType::DBPush,
+            "DB Push",
+            "Push schema to database",
+        ),
     ];
 
     for (cmd_type, label, tooltip) in &commands {
@@ -362,11 +388,7 @@ fn create_schema_from_db(state: &mut AppState, bridge: &DbBridge) {
 
         for col in &columns {
             let prisma_type = db_type_to_prisma(&col.data_type, col.is_nullable);
-            let attrs = if col.is_primary_key {
-                " @id"
-            } else {
-                ""
-            };
+            let attrs = if col.is_primary_key { " @id" } else { "" };
             schema_lines.push(format!("  {} {}{}", col.name, prisma_type, attrs));
         }
 
@@ -375,8 +397,7 @@ fn create_schema_from_db(state: &mut AppState, bridge: &DbBridge) {
     }
 
     state.prisma_ui.schema_content = schema_lines.join("\n");
-    state.prisma_ui.cli_output =
-        format!("Generated schema from database '{}'", schema_name);
+    state.prisma_ui.cli_output = format!("Generated schema from database '{}'", schema_name);
 }
 
 fn db_type_to_prisma(db_type: &str, is_nullable: bool) -> String {
@@ -388,9 +409,10 @@ fn db_type_to_prisma(db_type: &str, is_nullable: bool) -> String {
         "real" | "float4" => "Float",
         "double precision" | "float8" => "Float",
         "boolean" | "bool" => "Boolean",
-        "timestamp" | "timestamptz" | "timestamp without time zone" | "timestamp with time zone" => {
-            "DateTime"
-        }
+        "timestamp"
+        | "timestamptz"
+        | "timestamp without time zone"
+        | "timestamp with time zone" => "DateTime",
         "date" => "DateTime",
         "time" => "DateTime",
         "json" | "jsonb" => "Json",

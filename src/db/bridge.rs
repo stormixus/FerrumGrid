@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use crate::db::error::DbError;
-use crate::types::{
-    ColumnInfo, ConnectionConfig, ConnectionId, IndexInfo, QueryResult, TableInfo,
-};
+use crate::types::{ColumnInfo, ConnectionConfig, ConnectionId, IndexInfo, QueryResult, TableInfo};
 
 #[derive(Debug)]
 pub enum DbCommand {
@@ -283,10 +281,7 @@ async fn connection_task(
                 client
             }
             Err(e) => {
-                let _ = resp_tx.send(DbResponse::Error {
-                    conn_id,
-                    error: e,
-                });
+                let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
                 ctx.request_repaint();
                 return;
             }
@@ -302,10 +297,7 @@ async fn connection_task(
                 client
             }
             Err(e) => {
-                let _ = resp_tx.send(DbResponse::Error {
-                    conn_id,
-                    error: e,
-                });
+                let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
                 ctx.request_repaint();
                 return;
             }
@@ -313,10 +305,7 @@ async fn connection_task(
     };
 
     // Get server version
-    let server_version = match client
-        .query_one("SHOW server_version", &[])
-        .await
-    {
+    let server_version = match client.query_one("SHOW server_version", &[]).await {
         Ok(row) => row.get::<_, String>(0),
         Err(_) => "unknown".to_string(),
     };
@@ -338,63 +327,45 @@ async fn connection_task(
                     || trimmed.starts_with("EXPLAIN");
 
                 let response = if is_select {
-                    match crate::db::queries::execute_query(
-                        &client, &sql, row_limit, conn_id,
-                    )
-                    .await
+                    match crate::db::queries::execute_query(&client, &sql, row_limit, conn_id).await
                     {
                         Ok((result, truncated)) => DbResponse::QueryResult {
                             conn_id,
                             result,
                             truncated,
                         },
-                        Err(e) => DbResponse::Error {
-                            conn_id,
-                            error: e,
-                        },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
                     }
                 } else {
-                    match crate::db::queries::execute_statement(
-                        &client, &sql, conn_id,
-                    )
-                    .await
-                    {
+                    match crate::db::queries::execute_statement(&client, &sql, conn_id).await {
                         Ok((result, truncated)) => DbResponse::QueryResult {
                             conn_id,
                             result,
                             truncated,
                         },
-                        Err(e) => DbResponse::Error {
-                            conn_id,
-                            error: e,
-                        },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
                     }
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }
             ConnCommand::ListSchemas => {
-                let response =
-                    match crate::db::metadata::list_schemas(&client, conn_id).await {
-                        Ok(schemas) => DbResponse::SchemaList { conn_id, schemas },
-                        Err(e) => DbResponse::Error {
-                            conn_id,
-                            error: e,
-                        },
-                    };
+                let response = match crate::db::metadata::list_schemas(&client, conn_id).await {
+                    Ok(schemas) => DbResponse::SchemaList { conn_id, schemas },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
+                };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }
             ConnCommand::ListTables { schema } => {
                 let response =
-                    match crate::db::metadata::list_tables(&client, &schema, conn_id)
-                        .await
-                    {
-                        Ok(tables) => DbResponse::TableList { conn_id, schema: schema.clone(), tables },
-                        Err(e) => DbResponse::Error {
+                    match crate::db::metadata::list_tables(&client, &schema, conn_id).await {
+                        Ok(tables) => DbResponse::TableList {
                             conn_id,
-                            error: e,
+                            schema: schema.clone(),
+                            tables,
                         },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
                     };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
@@ -405,11 +376,13 @@ async fn connection_task(
                 )
                 .await
                 {
-                    Ok(columns) => DbResponse::ColumnList { conn_id, schema: schema.clone(), table: table.clone(), columns },
-                    Err(e) => DbResponse::Error {
+                    Ok(columns) => DbResponse::ColumnList {
                         conn_id,
-                        error: e,
+                        schema: schema.clone(),
+                        table: table.clone(),
+                        columns,
                     },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
@@ -420,11 +393,13 @@ async fn connection_task(
                 )
                 .await
                 {
-                    Ok(indexes) => DbResponse::IndexList { conn_id, schema: schema.clone(), table: table.clone(), indexes },
-                    Err(e) => DbResponse::Error {
+                    Ok(indexes) => DbResponse::IndexList {
                         conn_id,
-                        error: e,
+                        schema: schema.clone(),
+                        table: table.clone(),
+                        indexes,
                     },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
@@ -435,11 +410,12 @@ async fn connection_task(
                 )
                 .await
                 {
-                    Ok(foreign_keys) => DbResponse::ForeignKeyList { conn_id, schema: schema.clone(), foreign_keys },
-                    Err(e) => DbResponse::Error {
+                    Ok(foreign_keys) => DbResponse::ForeignKeyList {
                         conn_id,
-                        error: e,
+                        schema: schema.clone(),
+                        foreign_keys,
                     },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();

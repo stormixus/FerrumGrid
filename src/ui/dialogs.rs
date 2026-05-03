@@ -1,25 +1,22 @@
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
+use crate::i18n::t;
 use crate::state::{AppState, ConnectionDialogState, ConnectionState, ConnectionStatus};
-use crate::ui::{icons, theme};
+use crate::ui::theme;
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
-pub fn render_connection_dialog(
-    ctx: &egui::Context,
-    state: &mut AppState,
-    bridge: &DbBridge,
-) {
+pub fn render_connection_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
     if !state.show_connection_dialog {
         return;
     }
 
     let mut open = true;
 
-    egui::Window::new("Connect to PostgreSQL")
+    egui::Window::new(t("connection_dialog_title"))
         .open(&mut open)
         .resizable(false)
         .collapsible(false)
@@ -46,11 +43,7 @@ pub fn render_connection_dialog(
 // Dialog body
 // ---------------------------------------------------------------------------
 
-fn render_dialog_content(
-    ui: &mut egui::Ui,
-    state: &mut AppState,
-    bridge: &DbBridge,
-) {
+fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     if !state.saved_connections.is_empty() {
         render_saved_connections(ui, state);
         ui.add_space(theme::SPACE_MD);
@@ -63,7 +56,7 @@ fn render_dialog_content(
     }
 
     ui.label(
-        RichText::new("Connection Details")
+        RichText::new(t("connection_details"))
             .color(theme::TEXT_SECONDARY)
             .size(11.0)
             .strong(),
@@ -83,7 +76,7 @@ fn render_dialog_content(
         ui.horizontal(|ui| {
             ui.spinner();
             ui.label(
-                RichText::new("Testing connection\u{2026}")
+                RichText::new(t("connection_testing"))
                     .color(theme::TEXT_MUTED)
                     .size(12.0),
             );
@@ -108,7 +101,7 @@ fn render_dialog_content(
 
 fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
     ui.label(
-        RichText::new("Saved Connections")
+        RichText::new(t("connection_saved"))
             .color(theme::TEXT_SECONDARY)
             .size(11.0)
             .strong(),
@@ -145,21 +138,17 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                         .show(ui, |ui| {
                             ui.set_min_width(ui.available_width());
                             ui.horizontal(|ui| {
-                                let (dot_rect, _) = ui.allocate_exact_size(
-                                    egui::vec2(10.0, 10.0),
-                                    egui::Sense::hover(),
+                                crate::ui::icon_img(
+                                    ui,
+                                    crate::ui::icons_svg::DATABASE,
+                                    "saved_db",
+                                    10.0,
                                 );
-                                ui.painter().circle_filled(
-                                    dot_rect.center(),
-                                    3.5,
-                                    theme::TEXT_MUTED,
-                                );
+                                ui.add_space(2.0);
 
                                 let resp = ui.add(
                                     egui::Label::new(
-                                        RichText::new(&name)
-                                            .color(theme::TEXT_PRIMARY)
-                                            .size(12.0),
+                                        RichText::new(&name).color(theme::TEXT_PRIMARY).size(12.0),
                                     )
                                     .sense(egui::Sense::click()),
                                 );
@@ -167,36 +156,38 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                                     load_idx = Some(i);
                                 }
                                 if resp.hovered() {
-                                    ui.ctx().set_cursor_icon(
-                                        egui::CursorIcon::PointingHand,
-                                    );
+                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                                 }
 
                                 ui.label(
-                                    RichText::new(format!(
-                                        "{}:{}/{}",
-                                        host, port, database
-                                    ))
-                                    .color(theme::TEXT_MUTED)
-                                    .size(11.0),
+                                    RichText::new(format!("{}:{}/{}", host, port, database))
+                                        .color(theme::TEXT_MUTED)
+                                        .size(11.0),
                                 );
 
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
-                                        let del_btn = egui::Button::new(
-                                            RichText::new(icons::CLOSE)
-                                                .color(theme::TEXT_MUTED)
-                                                .size(11.0),
-                                        )
-                                        .fill(Color32::TRANSPARENT)
-                                        .stroke(Stroke::NONE);
+                                        let del_resp = ui.add(
+                                            egui::Button::new("")
+                                                .fill(Color32::TRANSPARENT)
+                                                .stroke(Stroke::NONE),
+                                        );
+                                        ui.allocate_new_ui(
+                                            egui::UiBuilder::new().max_rect(del_resp.rect),
+                                            |ui| {
+                                                crate::ui::icon_img(
+                                                    ui,
+                                                    crate::ui::icons_svg::CLOSE,
+                                                    "del_conn",
+                                                    10.0,
+                                                );
+                                            },
+                                        );
 
-                                        let del_resp = ui.add(del_btn);
                                         if del_resp.hovered() {
-                                            ui.ctx().set_cursor_icon(
-                                                egui::CursorIcon::PointingHand,
-                                            );
+                                            ui.ctx()
+                                                .set_cursor_icon(egui::CursorIcon::PointingHand);
                                         }
                                         if del_resp.clicked() {
                                             delete_idx = Some(i);
@@ -236,7 +227,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
         .min_col_width(80.0)
         .spacing([theme::SPACE_LG, theme::SPACE_MD])
         .show(ui, |ui| {
-            field_label(ui, "Name");
+            field_label(ui, t("connection_name"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.display_name)
                     .hint_text("My Database")
@@ -244,7 +235,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Host");
+            field_label(ui, t("connection_host"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.host)
                     .font(egui::TextStyle::Monospace)
@@ -253,7 +244,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Port");
+            field_label(ui, t("connection_port"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.port)
                     .font(egui::TextStyle::Monospace)
@@ -262,7 +253,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Database");
+            field_label(ui, t("connection_database"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.database)
                     .font(egui::TextStyle::Monospace)
@@ -271,7 +262,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Username");
+            field_label(ui, t("connection_username"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.username)
                     .font(egui::TextStyle::Monospace)
@@ -280,7 +271,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Password");
+            field_label(ui, t("connection_password"));
             ui.add(
                 egui::TextEdit::singleline(&mut dialog.password)
                     .password(true)
@@ -289,18 +280,20 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
 
-            field_label(ui, "Use TLS");
+            field_label(ui, t("connection_use_tls"));
             ui.horizontal(|ui| {
                 ui.checkbox(&mut dialog.use_tls, "");
                 if dialog.use_tls {
+                    crate::ui::icon_img(ui, crate::ui::icons_svg::CONNECTION, "tls_locked", 10.0);
                     ui.label(
-                        RichText::new(format!("{} Encrypted", icons::LOCK))
+                        RichText::new(t("connection_encrypted"))
                             .color(theme::ACCENT_GREEN)
                             .size(11.0),
                     );
                 } else {
+                    crate::ui::icon_img(ui, crate::ui::icons_svg::BACKUP, "tls_unlocked", 10.0);
                     ui.label(
-                        RichText::new(format!("{} Unencrypted", icons::UNLOCKED))
+                        RichText::new(t("connection_unencrypted"))
                             .color(theme::TEXT_MUTED)
                             .size(11.0),
                     );
@@ -308,11 +301,11 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             });
             ui.end_row();
 
-            field_label(ui, "SSH Tunnel");
+            field_label(ui, t("connection_ssh_tunnel"));
             ui.add_enabled(
                 false,
                 egui::Button::new(
-                    RichText::new("Coming soon")
+                    RichText::new(t("connection_coming_soon"))
                         .color(theme::TEXT_DISABLED)
                         .size(11.0),
                 )
@@ -323,7 +316,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
         });
 }
 
-fn field_label(ui: &mut egui::Ui, text: &str) {
+fn field_label(ui: &mut egui::Ui, text: String) {
     ui.label(RichText::new(text).color(theme::TEXT_MUTED).size(12.0));
 }
 
@@ -347,14 +340,9 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!("{} ", icons::SUCCESS))
-                                .color(theme::ACCENT_GREEN)
-                                .size(12.0),
-                        );
-                        ui.label(
-                            RichText::new(msg).color(theme::ACCENT_GREEN).size(12.0),
-                        );
+                        crate::ui::icon_img(ui, crate::ui::icons_svg::SUCCESS, "test_ok", 12.0);
+                        ui.add_space(4.0);
+                        ui.label(RichText::new(msg).color(theme::ACCENT_GREEN).size(12.0));
                     });
                 });
         }
@@ -372,11 +360,8 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!("{} ", icons::ERROR))
-                                .color(theme::ACCENT_RED)
-                                .size(12.0),
-                        );
+                        crate::ui::icon_img(ui, crate::ui::icons_svg::ERROR, "test_err", 12.0);
+                        ui.add_space(4.0);
                         ui.label(
                             RichText::new(msg)
                                 .color(Color32::from_rgb(220, 150, 150))
@@ -392,25 +377,29 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
 // Action buttons
 // ---------------------------------------------------------------------------
 
-fn render_action_buttons(
-    ui: &mut egui::Ui,
-    state: &mut AppState,
-    bridge: &DbBridge,
-) {
+fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let testing = state.connection_dialog.testing;
 
     ui.horizontal(|ui| {
         // Test — secondary style
-        let test_btn = egui::Button::new(
-            RichText::new(format!("{} Test", icons::CONNECT))
-                .color(theme::TEXT_PRIMARY)
-                .size(12.0),
-        )
-        .fill(theme::BG_LIGHT)
-        .stroke(Stroke::new(1.0, theme::BORDER_STRONG))
-        .corner_radius(CornerRadius::same(theme::RADIUS_SM));
+        let test_btn = ui.add_enabled(
+            !testing,
+            egui::Button::new(format!("      {}", t("connection_test")))
+                .fill(theme::BG_LIGHT)
+                .stroke(Stroke::new(1.0, theme::BORDER_STRONG)),
+        );
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                test_btn
+                    .rect
+                    .shrink2(egui::vec2(test_btn.rect.width() - 24.0, 0.0)),
+            ),
+            |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::REFRESH, "test_action", 12.0);
+            },
+        );
 
-        if ui.add_enabled(!testing, test_btn).clicked() {
+        if test_btn.clicked() {
             state.connection_dialog.testing = true;
             state.connection_dialog.test_result = None;
             let config = state.connection_dialog.to_config();
@@ -423,16 +412,31 @@ fn render_action_buttons(
         ui.add_space(theme::SPACE_SM);
 
         // Connect — copper primary
-        let connect_label = format!("{} Connect", icons::CONNECT);
-        let connect_btn = theme::primary_button(&connect_label);
-        if ui.add(connect_btn).clicked() {
+        let connect_btn = ui.add(theme::primary_button(&format!(
+            "      {}",
+            t("connection_connect")
+        )));
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                connect_btn
+                    .rect
+                    .shrink2(egui::vec2(connect_btn.rect.width() - 24.0, 0.0)),
+            ),
+            |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::CONNECTION, "conn_action", 12.0);
+            },
+        );
+
+        if connect_btn.clicked() {
             do_connect(state, bridge);
         }
 
         // Cancel — ghost, right-aligned
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let cancel_btn = egui::Button::new(
-                RichText::new("Cancel").color(theme::TEXT_MUTED).size(12.0),
+                RichText::new(t("connection_cancel"))
+                    .color(theme::TEXT_MUTED)
+                    .size(12.0),
             )
             .fill(Color32::TRANSPARENT)
             .stroke(Stroke::NONE);
@@ -453,9 +457,7 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
     let conn_id = config.id;
 
     if !state.saved_connections.iter().any(|c| {
-        c.host == config.host
-            && c.database == config.database
-            && c.username == config.username
+        c.host == config.host && c.database == config.database && c.username == config.username
     }) {
         state.saved_connections.push(config.clone());
     }

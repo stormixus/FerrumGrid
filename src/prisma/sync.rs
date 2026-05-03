@@ -32,10 +32,7 @@ pub async fn sync_schema_to_db(
 
     SyncResult {
         success: true,
-        message: format!(
-            "Applied {} models to database",
-            schema.models.len()
-        ),
+        message: format!("Applied {} models to database", schema.models.len()),
         sql_statements,
     }
 }
@@ -76,13 +73,12 @@ pub async fn sync_db_to_schema(
     // Convert tables to models
     for table in tables {
         let key = (schema_name.to_string(), table.name.clone());
-        let columns = conn
-            .columns
-            .get(&key)
-            .cloned()
-            .unwrap_or_default();
+        let columns = conn.columns.get(&key).cloned().unwrap_or_default();
 
-        let model = db_table_to_prisma_model(&table.name,&columns,&conn.indexes.get(&key).cloned().unwrap_or_default(),
+        let model = db_table_to_prisma_model(
+            &table.name,
+            &columns,
+            &conn.indexes.get(&key).cloned().unwrap_or_default(),
         );
 
         schema.models.push(model);
@@ -148,9 +144,7 @@ fn db_table_to_prisma_model(
     };
 
     for col in columns {
-        let field_type = db_type_to_prisma_field_type(&col.data_type,
-            col.is_nullable,
-        );
+        let field_type = db_type_to_prisma_field_type(&col.data_type, col.is_nullable);
 
         let mut field = PrismaField {
             name: col.name.clone(),
@@ -161,20 +155,26 @@ fn db_table_to_prisma_model(
 
         // Add @id attribute for primary keys
         if col.is_primary_key {
-            field.attributes.push(crate::prisma::parser::PrismaAttribute {
-                name: "id".to_string(),
-                arguments: Vec::new(),
-            });
+            field
+                .attributes
+                .push(crate::prisma::parser::PrismaAttribute {
+                    name: "id".to_string(),
+                    arguments: Vec::new(),
+                });
         }
 
         // Add @default for auto-increment
-        if col.default_value.as_ref().map_or(false, |d| {
-            d.contains("nextval") || d.contains("serial")
-        }) {
-            field.attributes.push(crate::prisma::parser::PrismaAttribute {
-                name: "default".to_string(),
-                arguments: vec!["autoincrement()".to_string()],
-            });
+        if col
+            .default_value
+            .as_ref()
+            .map_or(false, |d| d.contains("nextval") || d.contains("serial"))
+        {
+            field
+                .attributes
+                .push(crate::prisma::parser::PrismaAttribute {
+                    name: "default".to_string(),
+                    arguments: vec!["autoincrement()".to_string()],
+                });
         }
 
         model.fields.push(field);
@@ -198,9 +198,10 @@ fn db_type_to_prisma_field_type(db_type: &str, is_nullable: bool) -> PrismaType 
         "real" | "float4" => PrismaType::Float,
         "double precision" | "float8" => PrismaType::Float,
         "boolean" | "bool" => PrismaType::Boolean,
-        "timestamp" | "timestamp without time zone" | "timestamptz" | "timestamp with time zone" => {
-            PrismaType::DateTime
-        }
+        "timestamp"
+        | "timestamp without time zone"
+        | "timestamptz"
+        | "timestamp with time zone" => PrismaType::DateTime,
         "date" => PrismaType::DateTime,
         "time" | "time without time zone" => PrismaType::DateTime,
         "interval" => PrismaType::String, // Prisma doesn't have Interval
@@ -240,8 +241,7 @@ fn generate_alter_table(old_model: &PrismaModel, new_model: &PrismaModel) -> Str
                 "ALTER TABLE \"{}\" ADD COLUMN \"{}\" {};\n",
                 new_model.name,
                 new_field.name,
-                field_to_sql_type(&new_field.field_type
-                )
+                field_to_sql_type(&new_field.field_type)
             ));
         }
     }
@@ -264,8 +264,7 @@ fn generate_alter_table(old_model: &PrismaModel, new_model: &PrismaModel) -> Str
                     "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" TYPE {};\n",
                     new_model.name,
                     new_field.name,
-                    field_to_sql_type(&new_field.field_type
-                    )
+                    field_to_sql_type(&new_field.field_type)
                 ));
             }
         }

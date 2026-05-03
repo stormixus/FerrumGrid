@@ -1,6 +1,7 @@
 mod app;
 mod db;
 mod i18n;
+mod native_menu;
 mod prisma;
 mod state;
 mod storage;
@@ -15,11 +16,18 @@ fn main() -> eframe::Result<()> {
         )
         .init();
 
+    #[cfg(target_os = "macos")]
+    use winit::platform::macos::EventLoopBuilderExtMacOS;
+
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("FerrumGrid")
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([800.0, 600.0]),
+        #[cfg(target_os = "macos")]
+        event_loop_builder: Some(Box::new(|builder| {
+            builder.with_default_menu(false);
+        })),
         ..Default::default()
     };
 

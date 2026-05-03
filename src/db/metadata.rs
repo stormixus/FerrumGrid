@@ -3,10 +3,7 @@ use tokio_postgres::Client;
 use crate::db::error::DbError;
 use crate::types::{ColumnInfo, ConnectionId, IndexInfo, TableInfo};
 
-pub async fn list_schemas(
-    client: &Client,
-    conn_id: ConnectionId,
-) -> Result<Vec<String>, DbError> {
+pub async fn list_schemas(client: &Client, conn_id: ConnectionId) -> Result<Vec<String>, DbError> {
     let rows = client
         .query(
             "SELECT schema_name FROM information_schema.schemata \

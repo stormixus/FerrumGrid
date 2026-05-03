@@ -56,17 +56,18 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
 
             // New tab button
             ui.add_space(theme::SPACE_SM);
-            let new_tab_btn = egui::Button::new(
-                RichText::new(icons::PLUS)
-                    .color(theme::TEXT_SECONDARY)
-                    .size(14.0),
-            )
-            .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
-            .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 60)))
-            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-            .min_size(egui::vec2(24.0, 24.0));
+            let new_tab_btn = egui::Button::new("  ")
+                .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
+                .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 60)))
+                .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                .min_size(egui::vec2(24.0, 24.0));
 
-            if ui.add(new_tab_btn).clicked() {
+            let new_resp = ui.add(new_tab_btn);
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(new_resp.rect), |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::PLUS, "new_tab_icon", 12.0);
+            });
+
+            if new_resp.clicked() {
                 let n = state.editor_tabs.len() + 1;
                 state.editor_tabs.push(EditorTab::new(format!("Query {n}")));
                 state.active_tab = state.editor_tabs.len() - 1;
@@ -158,13 +159,18 @@ fn render_tab(
         Color32::TRANSPARENT
     };
 
-    ui.painter().text(
-        close_rect.center(),
-        egui::Align2::CENTER_CENTER,
-        icons::CLOSE,
-        egui::FontId::proportional(11.0),
-        close_color,
-    );
+    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(close_rect), |ui| {
+        let close_color = if close_resp.hovered() {
+            theme::ACCENT_RED
+        } else if selected {
+            theme::TEXT_MUTED
+        } else {
+            Color32::TRANSPARENT
+        };
+
+        // Use SVG for close button
+        crate::ui::icon_img(ui, crate::ui::icons_svg::CLOSE, "close_tab", 10.0);
+    });
 
     if close_resp.clicked() {
         *tab_to_close = Some(index);
@@ -210,12 +216,13 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             let has_connection = state.active_connection.is_some();
             let can_execute = has_connection && !state.query_running;
 
-            let execute_label = format!("{} Run", icons::EXECUTE);
-            let execute_btn = if can_execute {
-                theme::primary_button(&execute_label)
+            let execute_btn = if state.query_running {
+                theme::ghost_button("      Cancel")
+            } else if can_execute {
+                theme::primary_button("      Run")
             } else {
                 egui::Button::new(
-                    RichText::new(&execute_label)
+                    RichText::new("      Run")
                         .color(theme::TEXT_DISABLED)
                         .size(12.0),
                 )
@@ -224,7 +231,24 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
             };
 
-            let exec_resp = ui.add_enabled(can_execute, execute_btn);
+            let exec_resp = ui.add_enabled(can_execute || state.query_running, execute_btn);
+
+            // Icon for run/cancel
+            ui.allocate_new_ui(
+                egui::UiBuilder::new().max_rect(
+                    exec_resp
+                        .rect
+                        .shrink2(egui::vec2(exec_resp.rect.width() - 16.0, 0.0)),
+                ),
+                |ui| {
+                    let svg = if state.query_running {
+                        crate::ui::icons_svg::CANCEL
+                    } else {
+                        crate::ui::icons_svg::EXECUTE
+                    };
+                    crate::ui::icon_img(ui, svg, "run_cancel", 12.0);
+                },
+            );
 
             let shortcut_fired =
                 can_execute && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
@@ -257,10 +281,24 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                         .size(12.0),
                 );
 
-                if ui
-                    .add(theme::ghost_button(&format!("{} Cancel", icons::CANCEL)))
-                    .clicked()
-                {
+                let cancel_btn = ui.add(theme::ghost_button("      Cancel"));
+                ui.allocate_new_ui(
+                    egui::UiBuilder::new().max_rect(
+                        cancel_btn
+                            .rect
+                            .shrink2(egui::vec2(cancel_btn.rect.width() - 20.0, 0.0)),
+                    ),
+                    |ui| {
+                        crate::ui::icon_img(
+                            ui,
+                            crate::ui::icons_svg::CANCEL,
+                            "run_cancel_btn",
+                            12.0,
+                        );
+                    },
+                );
+
+                if cancel_btn.clicked() {
                     if let Some(conn_id) = state.active_connection {
                         bridge.send(DbCommand::CancelQuery { conn_id });
                     }
@@ -279,13 +317,22 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(conn_id) = state.active_connection {
                     if let Some(conn) = state.connections.get(&conn_id) {
-                        let (dot_rect, _) =
-                            ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
-                        ui.painter().circle_filled(
-                            dot_rect.center(),
-                            3.5,
-                            theme::conn_status_color(true, false),
+                        ui.allocate_new_ui(
+                            egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
+                                ui.next_widget_position() + egui::vec2(6.0, 11.0),
+                                egui::vec2(12.0, 12.0),
+                            )),
+                            |ui| {
+                                crate::ui::icon_img(
+                                    ui,
+                                    crate::ui::icons_svg::CONNECT,
+                                    "editor_status_conn",
+                                    10.0,
+                                );
+                            },
                         );
+                        ui.add_space(14.0);
+
                         ui.label(
                             RichText::new(&conn.config.display_name)
                                 .color(theme::TEXT_SECONDARY)

@@ -5,15 +5,25 @@ use crate::types::ConnectionConfig;
 
 pub async fn connect(
     config: &ConnectionConfig,
-) -> Result<(Client, tokio_postgres::Connection<Socket, postgres_native_tls::TlsStream<Socket>>), DbError>
-{
+) -> Result<
+    (
+        Client,
+        tokio_postgres::Connection<Socket, postgres_native_tls::TlsStream<Socket>>,
+    ),
+    DbError,
+> {
     connect_impl(config).await
 }
 
 async fn connect_impl(
     cfg: &ConnectionConfig,
-) -> Result<(Client, tokio_postgres::Connection<Socket, postgres_native_tls::TlsStream<Socket>>), DbError>
-{
+) -> Result<
+    (
+        Client,
+        tokio_postgres::Connection<Socket, postgres_native_tls::TlsStream<Socket>>,
+    ),
+    DbError,
+> {
     let mut pg_config = Config::new();
     pg_config
         .host(&cfg.host)

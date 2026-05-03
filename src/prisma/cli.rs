@@ -131,11 +131,7 @@ pub async fn check_prisma_installed() -> bool {
 }
 
 pub async fn get_prisma_version() -> Option<String> {
-    match Command::new("prisma")
-        .arg("--version")
-        .output()
-        .await
-    {
+    match Command::new("prisma").arg("--version").output().await {
         Ok(output) => {
             if output.status.success() {
                 Some(String::from_utf8_lossy(&output.stdout).trim().to_string())

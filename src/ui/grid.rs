@@ -39,8 +39,10 @@ fn render_error_bar(ui: &mut egui::Ui, error: &str) {
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
         ui.horizontal(|ui| {
+            crate::ui::icon_img(ui, crate::ui::icons_svg::ERROR, "grid_err", 12.0);
+            ui.add_space(4.0);
             ui.label(
-                RichText::new(format!("{} Error", icons::ERROR))
+                RichText::new("Error")
                     .color(theme::ACCENT_RED)
                     .strong()
                     .size(12.0),
@@ -73,11 +75,7 @@ fn render_empty_state(ui: &mut egui::Ui, running: bool) {
             });
         } else {
             ui.vertical_centered(|ui| {
-                ui.label(
-                    RichText::new(icons::TABLE)
-                        .color(theme::with_alpha(theme::ACCENT_TEAL, 150))
-                        .size(34.0),
-                );
+                crate::ui::icon_img(ui, crate::ui::icons_svg::TABLE, "grid_empty", 34.0);
                 ui.add_space(theme::SPACE_SM);
                 ui.label(
                     RichText::new("No result set")
@@ -149,27 +147,47 @@ fn render_result_header(ui: &mut egui::Ui, state: &mut AppState) {
             metric_chip(ui, &format!("{exec_ms}ms"), theme::ACCENT_COPPER);
 
             if truncated {
-                metric_chip(
+                metric_chip_svg(
                     ui,
-                    &format!("{} truncated", icons::TRUNCATED),
+                    "truncated",
+                    crate::ui::icons_svg::TRUNCATED,
+                    "truncated_icon",
                     theme::ACCENT_YELLOW,
                 );
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .add(theme::ghost_button(&format!("{} CSV", icons::EXPORT)))
-                    .clicked()
-                {
+                let csv_btn = ui.add(theme::ghost_button("      CSV"));
+                ui.allocate_new_ui(
+                    egui::UiBuilder::new().max_rect(
+                        csv_btn
+                            .rect
+                            .shrink2(egui::vec2(csv_btn.rect.width() - 20.0, 0.0)),
+                    ),
+                    |ui| {
+                        crate::ui::icon_img(ui, crate::ui::icons_svg::EXPORT, "export_csv", 12.0);
+                    },
+                );
+
+                if csv_btn.clicked() {
                     export_csv(state);
                 }
 
                 ui.add_space(theme::SPACE_SM);
 
-                if ui
-                    .add(theme::ghost_button(&format!("{} Copy TSV", icons::COPY)))
-                    .clicked()
-                {
+                let tsv_btn = ui.add(theme::ghost_button("      Copy TSV"));
+                ui.allocate_new_ui(
+                    egui::UiBuilder::new().max_rect(
+                        tsv_btn
+                            .rect
+                            .shrink2(egui::vec2(tsv_btn.rect.width() - 20.0, 0.0)),
+                    ),
+                    |ui| {
+                        crate::ui::icon_img(ui, crate::ui::icons_svg::COPY, "copy_tsv", 12.0);
+                    },
+                );
+
+                if tsv_btn.clicked() {
                     if let Some(ref result) = state.current_result {
                         let tsv = result_to_tsv(result);
                         ui.ctx().copy_text(tsv);
@@ -199,6 +217,41 @@ fn metric_chip(ui: &mut egui::Ui, text: &str, color: Color32) {
         .circle_filled(rect.left_center() + egui::vec2(9.0, 0.0), 2.5, color);
     ui.painter().text(
         rect.left_center() + egui::vec2(15.0, 0.0),
+        egui::Align2::LEFT_CENTER,
+        text,
+        egui::FontId::proportional(11.0),
+        theme::TEXT_SECONDARY,
+    );
+}
+
+fn metric_chip_svg(ui: &mut egui::Ui, text: &str, svg: &str, name: &str, color: Color32) {
+    let galley = ui.painter().layout_no_wrap(
+        text.to_string(),
+        egui::FontId::proportional(11.0),
+        theme::TEXT_PRIMARY,
+    );
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(galley.rect.width() + 24.0, 20.0),
+        egui::Sense::hover(),
+    );
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(theme::RADIUS_LG),
+        theme::with_alpha(color, 24),
+    );
+
+    ui.allocate_new_ui(
+        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
+            rect.left_center() + egui::vec2(10.0, 0.0),
+            egui::vec2(12.0, 12.0),
+        )),
+        |ui| {
+            crate::ui::icon_img(ui, svg, name, 10.0);
+        },
+    );
+
+    ui.painter().text(
+        rect.left_center() + egui::vec2(18.0, 0.0),
         egui::Align2::LEFT_CENTER,
         text,
         egui::FontId::proportional(11.0),
@@ -275,7 +328,16 @@ fn render_table(ui: &mut egui::Ui, state: &AppState) {
 fn render_cell(ui: &mut egui::Ui, cell: &CellValue) {
     match cell {
         CellValue::Null => {
-            value_pill(ui, icons::NULL_MARKER, theme::TEXT_MUTED);
+            let (rect, resp) = ui.allocate_exact_size(egui::vec2(24.0, 18.0), egui::Sense::hover());
+            ui.painter().rect_filled(
+                rect,
+                CornerRadius::same(theme::RADIUS_MD),
+                theme::with_alpha(theme::TEXT_MUTED, 24),
+            );
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect.shrink(2.0)), |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::NULL_MARKER, "null", 12.0);
+            });
+            resp.on_hover_text("NULL value");
         }
         CellValue::Bool(v) => {
             let (text, color) = if *v {
@@ -325,7 +387,18 @@ fn value_pill(ui: &mut egui::Ui, text: &str, color: Color32) {
         color,
     );
     resp.context_menu(|ui| {
-        if ui.button(format!("{} Copy Value", icons::COPY)).clicked() {
+        let copy_resp = ui.button("      Copy Value");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                copy_resp
+                    .rect
+                    .shrink2(egui::vec2(copy_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::COPY, "copy_cell", 10.0);
+            },
+        );
+        if copy_resp.clicked() {
             ui.ctx().copy_text(text.to_string());
             ui.close_menu();
         }
@@ -339,7 +412,18 @@ fn render_copyable_cell(ui: &mut egui::Ui, text: &str, color: Color32) {
             .color(color),
     );
     resp.on_hover_text(text).context_menu(|ui| {
-        if ui.button(format!("{} Copy Value", icons::COPY)).clicked() {
+        let copy_resp = ui.button("      Copy Value");
+        ui.allocate_new_ui(
+            egui::UiBuilder::new().max_rect(
+                copy_resp
+                    .rect
+                    .shrink2(egui::vec2(copy_resp.rect.width() - 20.0, 0.0)),
+            ),
+            |ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::COPY, "copy_cell_v", 10.0);
+            },
+        );
+        if copy_resp.clicked() {
             ui.ctx().copy_text(text.to_string());
             ui.close_menu();
         }
