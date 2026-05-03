@@ -2,10 +2,15 @@ use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke, Stroke
 
 use crate::db::bridge::DbBridge;
 use crate::i18n::t;
-use crate::state::{AppState, ConnectionStatus, MainView};
+use crate::state::{main_view_title, AppState, ConnectionStatus, MainView};
 use crate::ui::{editor, grid, icons_svg, theme, tree_browser};
 
-pub fn render_panels(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
+pub fn render_panels(
+    ctx: &egui::Context,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    settings: &mut crate::storage::settings::AppSettings,
+) {
     render_main_toolbar(ctx, state);
     render_status_bar(ctx, state);
 
@@ -18,7 +23,7 @@ pub fn render_panels(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridg
             .resizable(true)
             .frame(
                 egui::Frame::new()
-                    .fill(theme::BG_SHELL)
+                    .fill(theme::bg_shell())
                     .inner_margin(Margin::ZERO),
             )
             .show(ctx, |ui| {
@@ -35,18 +40,18 @@ pub fn render_panels(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridg
     }
 
     // Bottom panel: result grid
-    if state.show_result_panel {
+    if state.show_result_panel && state.active_main_view != MainView::Data {
         egui::TopBottomPanel::bottom("result_panel")
             .default_height(282.0)
             .min_height(108.0)
             .resizable(true)
             .frame(
                 egui::Frame::new()
-                    .fill(theme::BG_DARKEST)
+                    .fill(theme::bg_darkest())
                     .inner_margin(Margin::ZERO),
             )
             .show(ctx, |ui| {
-                grid::render_grid(ui, state);
+                grid::render_grid(ui, state, bridge);
             });
     }
 
@@ -58,26 +63,30 @@ pub fn render_panels(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridg
             .resizable(true)
             .frame(
                 egui::Frame::new()
-                    .fill(theme::BG_SHELL)
+                    .fill(theme::bg_shell())
                     .inner_margin(Margin::ZERO),
             )
             .show(ctx, |ui| {
                 egui::Frame::new()
-                    .fill(theme::BG_SHELL)
+                    .fill(theme::bg_shell())
                     .inner_margin(Margin::same(theme::SPACE_LG_I))
-                    .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+                    .stroke(Stroke::new(1.0, theme::border_subtle()))
                     .show(ui, |ui| {
                         ui.set_min_width(ui.available_width());
                         ui.horizontal(|ui| {
                             crate::ui::icon_img(ui, icons_svg::INFO, "info", 14.0);
                             ui.add_space(4.0);
-                            ui.label(RichText::new("Info").color(theme::TEXT_PRIMARY).strong());
+                            ui.label(RichText::new("Info").color(theme::text_primary()).strong());
                         });
                     });
 
                 ui.vertical_centered(|ui| {
                     ui.add_space(100.0);
-                    ui.label(RichText::new("No Info").color(theme::TEXT_MUTED).size(14.0));
+                    ui.label(
+                        RichText::new("No Info")
+                            .color(theme::text_muted())
+                            .size(14.0),
+                    );
                 });
             });
     }
@@ -86,25 +95,227 @@ pub fn render_panels(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridg
     egui::CentralPanel::default()
         .frame(
             egui::Frame::new()
-                .fill(theme::BG_DARK)
+                .fill(theme::bg_dark())
                 .inner_margin(Margin::ZERO),
         )
-        .show(ctx, |ui| match state.active_main_view {
-            crate::state::MainView::Table
-            | crate::state::MainView::View
-            | crate::state::MainView::MaterializedView
-            | crate::state::MainView::Function
-            | crate::state::MainView::User
-            | crate::state::MainView::Backup
-            | crate::state::MainView::Automation
-            | crate::state::MainView::Model
-            | crate::state::MainView::BI => {
-                crate::ui::objects::render_objects_view(ui, state, bridge);
-            }
-            crate::state::MainView::Connection | crate::state::MainView::Query => {
-                editor::render_editor(ui, state, bridge);
+        .show(ctx, |ui| {
+            render_workspace_tabs(ui, state);
+
+            match state.active_main_view {
+                crate::state::MainView::Table
+                | crate::state::MainView::View
+                | crate::state::MainView::MaterializedView
+                | crate::state::MainView::Function
+                | crate::state::MainView::User
+                | crate::state::MainView::Backup
+                | crate::state::MainView::Automation
+                | crate::state::MainView::Model
+                | crate::state::MainView::BI => {
+                    crate::ui::objects::render_objects_view(ui, state, bridge, settings);
+                }
+                crate::state::MainView::Connection | crate::state::MainView::Query => {
+                    editor::render_editor(ui, state, bridge, settings);
+                }
+                crate::state::MainView::Data => {
+                    grid::render_grid(ui, state, bridge);
+                }
             }
         });
+}
+
+fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState) {
+    if state.workspace_tabs.is_empty() {
+        state.open_workspace_main_view(state.active_main_view);
+    }
+
+    let frame = egui::Frame::new()
+        .fill(theme::bg_shell())
+        .inner_margin(Margin::symmetric(theme::SPACE_LG_I, theme::SPACE_XS_I))
+        .stroke(Stroke::new(1.0, theme::border_subtle()));
+
+    let tabs = state.workspace_tabs.clone();
+    let active = state.active_workspace_tab;
+    let mut activate: Option<usize> = None;
+    let mut close: Option<usize> = None;
+
+    frame.show(ui, |ui| {
+        ui.set_min_width(ui.available_width());
+        ui.set_min_height(36.0);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
+
+            for (index, tab) in tabs.iter().enumerate() {
+                let selected = index == active;
+                let response = render_workspace_tab(ui, tab.view, &tab.title, selected);
+                if response.clicked() {
+                    activate = Some(index);
+                }
+
+                let close_rect = egui::Rect::from_center_size(
+                    egui::pos2(response.rect.right() - 13.0, response.rect.center().y),
+                    egui::vec2(16.0, 16.0),
+                );
+                let close_resp =
+                    ui.interact(close_rect, response.id.with("close"), egui::Sense::click());
+                let close_color = if close_resp.hovered() {
+                    theme::ACCENT_RED
+                } else if selected {
+                    theme::text_muted()
+                } else {
+                    theme::text_disabled()
+                };
+                ui.painter().text(
+                    close_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "\u{00d7}",
+                    egui::FontId::proportional(13.0),
+                    close_color,
+                );
+                if close_resp.clicked() {
+                    close = Some(index);
+                }
+
+                response.context_menu(|ui| {
+                    if ui.button(t("workspace_close_tab")).clicked() {
+                        close = Some(index);
+                        ui.close_menu();
+                    }
+                });
+            }
+
+            let new_query = ui
+                .add_sized(
+                    egui::vec2(28.0, 26.0),
+                    egui::Button::new(RichText::new("+").color(theme::ACCENT_TEAL).size(15.0))
+                        .fill(theme::with_alpha(theme::ACCENT_TEAL, 16))
+                        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 70)))
+                        .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
+                )
+                .on_hover_text(t("workspace_new_query"));
+            if new_query.clicked() {
+                let n = state.editor_tabs.len() + 1;
+                state
+                    .editor_tabs
+                    .push(crate::types::EditorTab::new(format!("Query {n}")));
+                state.active_tab = state.editor_tabs.len() - 1;
+                state.open_workspace_main_view(MainView::Query);
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(
+                    RichText::new(main_view_title(state.active_main_view))
+                        .color(theme::text_muted())
+                        .size(11.0),
+                );
+            });
+        });
+    });
+
+    if let Some(index) = close {
+        state.close_workspace_tab(index);
+    } else if let Some(index) = activate {
+        state.activate_workspace_tab(index);
+    }
+}
+
+fn render_workspace_tab(
+    ui: &mut egui::Ui,
+    view: MainView,
+    title: &str,
+    selected: bool,
+) -> egui::Response {
+    let color = workspace_tab_color(view);
+    let label = truncate_tab_label(title, 26);
+    let width = tab_width(ui, &label).clamp(96.0, 240.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
+
+    let bg = if selected {
+        theme::bg_dark()
+    } else if response.hovered() {
+        theme::with_alpha(color, 22)
+    } else {
+        theme::bg_darkest()
+    };
+    let border = if selected {
+        theme::with_alpha(color, 150)
+    } else {
+        theme::border_subtle()
+    };
+    let paint_rect = rect.shrink2(egui::vec2(0.0, 1.0));
+    ui.painter()
+        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), bg);
+    ui.painter().rect_stroke(
+        paint_rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        Stroke::new(1.0, border),
+        StrokeKind::Inside,
+    );
+
+    if selected {
+        ui.painter().rect_filled(
+            egui::Rect::from_min_size(
+                egui::pos2(paint_rect.left() + 8.0, paint_rect.bottom() - 2.0),
+                egui::vec2((paint_rect.width() - 16.0).max(12.0), 2.0),
+            ),
+            CornerRadius::same(theme::RADIUS_SM),
+            color,
+        );
+    }
+
+    let dot_center = egui::pos2(rect.left() + 12.0, rect.center().y);
+    ui.painter().circle_filled(dot_center, 3.5, color);
+    ui.painter().text(
+        egui::pos2(rect.left() + 22.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(12.0),
+        if selected {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        },
+    );
+
+    response.on_hover_text(title.to_string())
+}
+
+fn tab_width(ui: &egui::Ui, label: &str) -> f32 {
+    let galley = ui.painter().layout_no_wrap(
+        label.to_owned(),
+        egui::FontId::proportional(12.0),
+        theme::text_primary(),
+    );
+    galley.rect.width() + 48.0
+}
+
+fn truncate_tab_label(label: &str, max_chars: usize) -> String {
+    if label.chars().count() <= max_chars {
+        label.to_string()
+    } else {
+        let mut truncated = label
+            .chars()
+            .take(max_chars.saturating_sub(3))
+            .collect::<String>();
+        truncated.push_str("...");
+        truncated
+    }
+}
+
+fn workspace_tab_color(view: MainView) -> Color32 {
+    match view {
+        MainView::Connection => theme::ACCENT_GREEN,
+        MainView::Table => theme::ACCENT_COPPER,
+        MainView::View => theme::ACCENT_BLUE,
+        MainView::MaterializedView => theme::ACCENT_TEAL,
+        MainView::Function => theme::ACCENT_YELLOW,
+        MainView::User => theme::ACCENT_COPPER_LIGHT,
+        MainView::Query => theme::ACCENT_BLUE,
+        MainView::Data => theme::ACCENT_TEAL,
+        MainView::Backup => theme::text_muted(),
+        MainView::Automation => theme::ACCENT_TEAL,
+        MainView::Model => theme::ACCENT_GREEN,
+        MainView::BI => theme::ACCENT_RED,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,9 +327,9 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
         .exact_height(84.0)
         .frame(
             egui::Frame::new()
-                .fill(theme::BG_DARKEST)
+                .fill(theme::bg_darkest())
                 .inner_margin(Margin::symmetric(theme::SPACE_XL_I, 0))
-                .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE)),
+                .stroke(Stroke::new(1.0, theme::border_subtle())),
         )
         .show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
@@ -178,7 +389,7 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                     state,
                     MainView::Backup,
                     t("toolbar_backup"),
-                    theme::TEXT_MUTED,
+                    theme::text_muted(),
                 );
                 render_toolbar_item(
                     ui,
@@ -205,10 +416,10 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                             egui::Button::new(
                                 RichText::new("\u{2699}")
                                     .size(16.0)
-                                    .color(theme::TEXT_PRIMARY),
+                                    .color(theme::text_primary()),
                             )
-                            .fill(theme::BG_LIGHT)
-                            .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
+                            .fill(theme::bg_light())
+                            .stroke(Stroke::new(1.0, theme::border_default()))
                             .corner_radius(CornerRadius::same(theme::RADIUS_LG)),
                         )
                         .on_hover_text(t("settings_title"));
@@ -233,8 +444,8 @@ enum PaneToggle {
 
 fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
     egui::Frame::new()
-        .fill(theme::BG_SHELL)
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+        .fill(theme::bg_shell())
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
         .corner_radius(CornerRadius::same(theme::RADIUS_MD))
         .inner_margin(Margin::symmetric(theme::SPACE_SM_I, theme::SPACE_XS_I))
         .show(ui, |ui| {
@@ -270,14 +481,14 @@ fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, visible: &mut bool, t
     let bg = if *visible {
         toolbar_alpha(theme::ACCENT_BLUE, if hovered { 45 } else { 30 })
     } else if hovered {
-        toolbar_alpha(theme::TEXT_MUTED, 22)
+        toolbar_alpha(theme::text_muted(), 22)
     } else {
         Color32::TRANSPARENT
     };
     let border = if *visible {
         toolbar_alpha(theme::ACCENT_BLUE, 160)
     } else {
-        theme::BORDER_DEFAULT
+        theme::border_default()
     };
 
     ui.painter()
@@ -296,7 +507,7 @@ fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, visible: &mut bool, t
         if *visible {
             theme::ACCENT_BLUE
         } else {
-            theme::TEXT_MUTED
+            theme::text_muted()
         },
         *visible,
     );
@@ -379,7 +590,7 @@ fn render_toolbar_item(
     response.on_hover_text(label.clone());
 
     if clicked {
-        state.active_main_view = view;
+        state.open_workspace_main_view(view);
         if view == MainView::Connection {
             state.show_connection_dialog = true;
             state.connection_dialog = Default::default();
@@ -417,7 +628,7 @@ fn render_toolbar_item(
     let label_color = if selected {
         Color32::WHITE
     } else {
-        theme::TEXT_SECONDARY
+        theme::text_secondary()
     };
     let icon_rect = egui::Rect::from_center_size(
         egui::pos2(rect.center().x, rect.min.y + 29.0),
@@ -671,6 +882,29 @@ fn paint_toolbar_icon(
                 Stroke::NONE,
             ));
         }
+        MainView::Data => {
+            let table = egui::Rect::from_center_size(r.center(), egui::vec2(25.0, 22.0));
+            painter.rect_filled(table, CornerRadius::same(theme::RADIUS_SM), fill);
+            painter.rect_stroke(
+                table,
+                CornerRadius::same(theme::RADIUS_SM),
+                stroke,
+                StrokeKind::Inside,
+            );
+            for y in [table.top() + 7.0, table.top() + 14.0] {
+                painter.line_segment(
+                    [egui::pos2(table.left(), y), egui::pos2(table.right(), y)],
+                    fine_stroke,
+                );
+            }
+            for x in [table.left() + 8.0, table.left() + 17.0] {
+                painter.line_segment(
+                    [egui::pos2(x, table.top()), egui::pos2(x, table.bottom())],
+                    fine_stroke,
+                );
+            }
+            painter.circle_filled(table.right_bottom() - egui::vec2(5.0, 5.0), 2.4, color);
+        }
         MainView::Backup => {
             painter.circle_stroke(r.center(), 9.0, fine_stroke);
             painter.add(egui::Shape::convex_polygon(
@@ -761,9 +995,9 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
         .exact_height(24.0)
         .frame(
             egui::Frame::new()
-                .fill(theme::BG_SHELL)
+                .fill(theme::bg_shell())
                 .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
-                .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE)),
+                .stroke(Stroke::new(1.0, theme::border_subtle())),
         )
         .show(ctx, |ui| {
             ui.set_min_height(24.0);
@@ -791,17 +1025,17 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
 
                         ui.label(
                             RichText::new(&conn.config.display_name)
-                                .color(theme::TEXT_PRIMARY)
+                                .color(theme::text_primary())
                                 .size(11.0),
                         );
                         ui.label(
                             RichText::new(format!("  {label}"))
-                                .color(theme::TEXT_MUTED)
+                                .color(theme::text_muted())
                                 .size(11.0),
                         );
                         ui.label(
                             RichText::new(format!("  {}", state.status_message))
-                                .color(theme::TEXT_DISABLED)
+                                .color(theme::text_disabled())
                                 .size(11.0),
                         );
                     }
@@ -809,15 +1043,15 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                     let (dot_rect, _) =
                         ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
                     ui.painter()
-                        .circle_filled(dot_rect.center(), 3.5, theme::TEXT_DISABLED);
+                        .circle_filled(dot_rect.center(), 3.5, theme::text_disabled());
                     ui.label(
                         RichText::new(t("no_connection"))
-                            .color(theme::TEXT_MUTED)
+                            .color(theme::text_muted())
                             .size(11.0),
                     );
                     ui.label(
                         RichText::new(format!("  {}", state.status_message))
-                            .color(theme::TEXT_DISABLED)
+                            .color(theme::text_disabled())
                             .size(11.0),
                     );
                 }
@@ -831,7 +1065,7 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                                 result.rows.len(),
                                 t("result_rows")
                             ))
-                            .color(theme::TEXT_MUTED)
+                            .color(theme::text_muted())
                             .size(11.0),
                         );
                     }
@@ -855,12 +1089,12 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
 
 fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
     let frame = egui::Frame::new()
-        .fill(theme::BG_SHELL)
+        .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(
             theme::SPACE_LG as i8,
             theme::SPACE_MD as i8,
         ))
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
+        .stroke(Stroke::new(1.0, theme::border_subtle()));
 
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
@@ -871,7 +1105,7 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
                     ui.add_space(4.0);
                     ui.label(
                         RichText::new(t("explorer_title"))
-                            .color(theme::TEXT_PRIMARY)
+                            .color(theme::text_primary())
                             .size(13.0)
                             .strong(),
                     );
@@ -881,7 +1115,7 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
                         "{} saved connections",
                         state.saved_connections.len()
                     ))
-                    .color(theme::TEXT_MUTED)
+                    .color(theme::text_muted())
                     .size(10.0),
                 );
             });

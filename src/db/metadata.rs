@@ -1,7 +1,9 @@
 use tokio_postgres::Client;
 
 use crate::db::error::DbError;
-use crate::types::{ColumnInfo, ConnectionId, FunctionInfo, IndexInfo, RoleInfo, TableInfo};
+use crate::types::{
+    ColumnInfo, ConnectionId, FunctionInfo, IndexInfo, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
+};
 
 pub async fn list_schemas(client: &Client, conn_id: ConnectionId) -> Result<Vec<String>, DbError> {
     let rows = client
@@ -10,6 +12,25 @@ pub async fn list_schemas(client: &Client, conn_id: ConnectionId) -> Result<Vec<
              WHERE schema_name NOT LIKE 'pg_toast%' \
              AND schema_name NOT LIKE 'pg_temp%' \
              ORDER BY schema_name",
+            &[],
+        )
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows.iter().map(|r| r.get(0)).collect())
+}
+
+pub async fn list_databases(
+    client: &Client,
+    conn_id: ConnectionId,
+) -> Result<Vec<String>, DbError> {
+    let rows = client
+        .query(
+            "SELECT datname \
+             FROM pg_catalog.pg_database \
+             WHERE datallowconn = true \
+             AND datistemplate = false \
+             ORDER BY datname",
             &[],
         )
         .await
@@ -72,11 +93,25 @@ pub async fn list_columns(
         .query(
             "SELECT \
                 c.column_name, \
-                c.data_type, \
+                CASE \
+                    WHEN c.data_type = 'USER-DEFINED' THEN c.udt_name \
+                    ELSE c.data_type \
+                END AS data_type, \
+                COALESCE(enum_labels.labels, ARRAY[]::text[]) AS enum_values, \
                 c.is_nullable = 'YES' AS is_nullable, \
                 c.column_default, \
                 COALESCE(tc.constraint_type = 'PRIMARY KEY', false) AS is_pk \
              FROM information_schema.columns c \
+             LEFT JOIN pg_catalog.pg_namespace tn \
+                ON tn.nspname = c.udt_schema \
+             LEFT JOIN pg_catalog.pg_type typ \
+                ON typ.typnamespace = tn.oid \
+                AND typ.typname = c.udt_name \
+             LEFT JOIN LATERAL ( \
+                SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder) AS labels \
+                FROM pg_catalog.pg_enum e \
+                WHERE e.enumtypid = typ.oid \
+             ) enum_labels ON true \
              LEFT JOIN information_schema.key_column_usage kcu \
                 ON c.table_schema = kcu.table_schema \
                 AND c.table_name = kcu.table_name \
@@ -97,9 +132,10 @@ pub async fn list_columns(
         .map(|r| ColumnInfo {
             name: r.get(0),
             data_type: r.get(1),
-            is_nullable: r.get(2),
-            default_value: r.get(3),
-            is_primary_key: r.get(4),
+            enum_values: r.get(2),
+            is_nullable: r.get(3),
+            default_value: r.get(4),
+            is_primary_key: r.get(5),
         })
         .collect())
 }
@@ -144,6 +180,74 @@ pub async fn list_indexes(
                 is_primary: r.get(3),
                 index_type: r.get(4),
             }
+        })
+        .collect())
+}
+
+pub async fn list_rules(
+    client: &Client,
+    schema: &str,
+    table: &str,
+    conn_id: ConnectionId,
+) -> Result<Vec<RuleInfo>, DbError> {
+    let rows = client
+        .query(
+            "SELECT
+                r.rulename,
+                pg_get_ruledef(r.oid, true) AS definition,
+                r.ev_enabled <> 'D' AS enabled
+             FROM pg_catalog.pg_rewrite r
+             JOIN pg_catalog.pg_class c ON c.oid = r.ev_class
+             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = $1
+               AND c.relname = $2
+               AND r.rulename <> '_RETURN'
+             ORDER BY r.rulename",
+            &[&schema, &table],
+        )
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| RuleInfo {
+            name: r.get(0),
+            definition: r.get(1),
+            enabled: r.get(2),
+        })
+        .collect())
+}
+
+pub async fn list_triggers(
+    client: &Client,
+    schema: &str,
+    table: &str,
+    conn_id: ConnectionId,
+) -> Result<Vec<TriggerInfo>, DbError> {
+    let rows = client
+        .query(
+            "SELECT
+                tg.tgname,
+                pg_get_triggerdef(tg.oid, true) AS definition,
+                tg.tgenabled <> 'D' AS enabled
+             FROM pg_catalog.pg_trigger tg
+             JOIN pg_catalog.pg_class c ON c.oid = tg.tgrelid
+             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = $1
+               AND c.relname = $2
+               AND NOT tg.tgisinternal
+             ORDER BY tg.tgname",
+            &[&schema, &table],
+        )
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| TriggerInfo {
+            name: r.get(0),
+            definition: r.get(1),
+            enabled: r.get(2),
         })
         .collect())
 }

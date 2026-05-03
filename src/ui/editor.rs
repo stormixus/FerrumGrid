@@ -1,7 +1,9 @@
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
-use crate::state::AppState;
+use crate::i18n::t;
+use crate::state::{AppState, ConnectionStatus};
+use crate::storage::settings::AppSettings;
 use crate::types::EditorTab;
 use crate::ui::theme;
 
@@ -9,10 +11,15 @@ use crate::ui::theme;
 // Public entry point
 // ---------------------------------------------------------------------------
 
-pub fn render_editor(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+pub fn render_editor(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    settings: &AppSettings,
+) {
     render_tab_bar(ui, state);
     render_toolbar(ui, state, bridge);
-    render_editor_body(ui, state);
+    render_editor_body(ui, state, bridge, settings);
 }
 
 // ---------------------------------------------------------------------------
@@ -21,9 +28,9 @@ pub fn render_editor(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge)
 
 fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
     let tab_frame = egui::Frame::new()
-        .fill(theme::BG_SHELL)
+        .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
+        .stroke(Stroke::new(1.0, theme::border_subtle()));
 
     tab_frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
@@ -71,6 +78,7 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
                 let n = state.editor_tabs.len() + 1;
                 state.editor_tabs.push(EditorTab::new(format!("Query {n}")));
                 state.active_tab = state.editor_tabs.len() - 1;
+                state.open_workspace_main_view(crate::state::MainView::Query);
             }
         });
     });
@@ -107,7 +115,7 @@ fn render_tab(
 
     // Background
     let bg = if selected {
-        theme::BG_DARK
+        theme::bg_dark()
     } else if resp.hovered() {
         theme::with_alpha(theme::ACCENT_TEAL, 18)
     } else {
@@ -137,9 +145,9 @@ fn render_tab(
         display_title,
         egui::FontId::proportional(12.0),
         if selected {
-            theme::TEXT_PRIMARY
+            theme::text_primary()
         } else {
-            theme::TEXT_MUTED
+            theme::text_muted()
         },
     );
 
@@ -154,7 +162,7 @@ fn render_tab(
     let close_color = if close_resp.hovered() {
         theme::ACCENT_RED
     } else if selected {
-        theme::TEXT_MUTED
+        theme::text_muted()
     } else {
         Color32::TRANSPARENT
     };
@@ -172,7 +180,7 @@ fn render_tab(
     }
 
     resp.context_menu(|ui| {
-        if ui.button("Close Tab").clicked() {
+        if ui.button(t("workspace_close_tab")).clicked() {
             *tab_to_close = Some(index);
             ui.close_menu();
         }
@@ -198,12 +206,12 @@ fn truncate_label(text: &str, max_chars: usize) -> String {
 
 fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let toolbar_frame = egui::Frame::new()
-        .fill(theme::BG_DARK)
+        .fill(theme::bg_dark())
         .inner_margin(Margin::symmetric(
             theme::SPACE_LG as i8,
             theme::SPACE_SM as i8,
         ))
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE));
+        .stroke(Stroke::new(1.0, theme::border_subtle()));
 
     toolbar_frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
@@ -218,11 +226,11 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             } else {
                 egui::Button::new(
                     RichText::new("      Run")
-                        .color(theme::TEXT_DISABLED)
+                        .color(theme::text_disabled())
                         .size(12.0),
                 )
-                .fill(theme::BG_LIGHT)
-                .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+                .fill(theme::bg_light())
+                .stroke(Stroke::new(1.0, theme::border_subtle()))
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
             };
 
@@ -260,7 +268,7 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                     |ui| {
                         ui.label(
                             RichText::new("Cmd+Return")
-                                .color(theme::TEXT_MUTED)
+                                .color(theme::text_muted())
                                 .size(11.0),
                         );
                     },
@@ -303,7 +311,7 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             ui.add_space(theme::SPACE_MD);
             ui.label(
                 RichText::new("Cmd+Return")
-                    .color(theme::TEXT_MUTED)
+                    .color(theme::text_muted())
                     .monospace()
                     .size(10.0),
             );
@@ -330,14 +338,14 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 
                         ui.label(
                             RichText::new(&conn.config.display_name)
-                                .color(theme::TEXT_SECONDARY)
+                                .color(theme::text_secondary())
                                 .size(11.0),
                         );
                     }
                 } else {
                     ui.label(
                         RichText::new("No connection")
-                            .color(theme::TEXT_DISABLED)
+                            .color(theme::text_disabled())
                             .size(11.0),
                     );
                 }
@@ -350,76 +358,537 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 // Editor body
 // ---------------------------------------------------------------------------
 
-fn render_editor_body(ui: &mut egui::Ui, state: &mut AppState) {
+fn render_editor_body(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    settings: &AppSettings,
+) {
+    if settings.enable_code_completion {
+        ensure_completion_metadata(state, bridge);
+    }
+
     let editor_frame = egui::Frame::new()
-        .fill(theme::BG_EDITOR)
+        .fill(theme::bg_editor())
         .inner_margin(Margin::ZERO);
 
     editor_frame.show(ui, |ui| {
-        if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+        let active_tab = state.active_tab;
+        if active_tab >= state.editor_tabs.len() {
+            return;
+        }
+
+        let (title, line_count, char_count) = {
+            let tab = &state.editor_tabs[active_tab];
             let line_count = if tab.content.is_empty() {
                 1
             } else {
                 tab.content.lines().count()
             };
             let char_count = tab.content.chars().count();
-            render_editor_meta(ui, &tab.title, line_count, char_count);
+            (tab.title.clone(), line_count, char_count)
+        };
+        render_editor_meta(ui, &title, line_count, char_count);
 
+        let mut editor_rect = egui::Rect::NOTHING;
+        let mut cursor_index = None;
+        let mut content_snapshot = String::new();
+        let tab_id = state.editor_tabs[active_tab].id;
+
+        {
+            let tab = &mut state.editor_tabs[active_tab];
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                 let layout_job = highlight_sql(text, wrap_width);
                 ui.fonts(|f| f.layout_job(layout_job))
             };
 
             egui::Frame::new()
-                .fill(theme::BG_EDITOR)
+                .fill(theme::bg_editor())
                 .inner_margin(Margin::same(theme::SPACE_LG as i8))
                 .show(ui, |ui| {
                     egui::ScrollArea::vertical()
                         .id_salt(("editor_scroll", tab.id))
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
-                            ui.add(
-                                egui::TextEdit::multiline(&mut tab.content)
-                                    .font(egui::TextStyle::Monospace)
-                                    .code_editor()
-                                    .desired_width(f32::INFINITY)
-                                    .desired_rows(12)
-                                    .hint_text("SELECT *\nFROM public.table_name\nLIMIT 100;")
-                                    .frame(false)
-                                    .layouter(&mut layouter),
-                            );
+                            let output = egui::TextEdit::multiline(&mut tab.content)
+                                .font(egui::TextStyle::Monospace)
+                                .code_editor()
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(12)
+                                .hint_text("SELECT *\nFROM public.table_name\nLIMIT 100;")
+                                .frame(false)
+                                .layouter(&mut layouter)
+                                .show(ui);
+                            editor_rect = output.response.rect;
+                            cursor_index =
+                                output.cursor_range.map(|range| range.primary.ccursor.index);
+                            content_snapshot = tab.content.clone();
                         });
                 });
+        }
+
+        if settings.enable_code_completion && settings.code_completion_popup {
+            if let Some(insert) = render_completion_popup(
+                ui,
+                state,
+                tab_id,
+                editor_rect,
+                &content_snapshot,
+                cursor_index,
+            ) {
+                if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
+                    apply_completion(&mut tab.content, &insert);
+                }
+            }
         }
     });
 }
 
 fn render_editor_meta(ui: &mut egui::Ui, title: &str, line_count: usize, char_count: usize) {
     egui::Frame::new()
-        .fill(theme::BG_DARKEST)
+        .fill(theme::bg_darkest())
         .inner_margin(Margin::symmetric(
             theme::SPACE_LG as i8,
             theme::SPACE_SM as i8,
         ))
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(
                     RichText::new(title)
-                        .color(theme::TEXT_SECONDARY)
+                        .color(theme::text_secondary())
                         .strong()
                         .size(11.0),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
                         RichText::new(format!("{line_count} lines  |  {char_count} chars"))
-                            .color(theme::TEXT_MUTED)
+                            .color(theme::text_muted())
                             .monospace()
                             .size(10.0),
                     );
                 });
             });
         });
+}
+
+// ---------------------------------------------------------------------------
+// SQL completion
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct CompletionItem {
+    label: String,
+    detail: &'static str,
+    insert_text: String,
+    color: Color32,
+}
+
+struct CompletionContext {
+    token: String,
+    fragment: String,
+    start_char: usize,
+    end_char: usize,
+}
+
+struct CompletionInsert {
+    start_char: usize,
+    end_char: usize,
+    text: String,
+}
+
+fn ensure_completion_metadata(state: &mut AppState, bridge: &DbBridge) {
+    let Some(conn_id) = state.active_connection else {
+        return;
+    };
+    let Some(conn) = state.connections.get(&conn_id) else {
+        return;
+    };
+    if !matches!(conn.status, ConnectionStatus::Connected { .. }) {
+        return;
+    }
+
+    let missing_schemas: Vec<String> = conn
+        .schemas
+        .iter()
+        .filter(|schema| {
+            !conn.tables.contains_key(*schema) && !conn.loading_tables.contains(*schema)
+        })
+        .cloned()
+        .collect();
+
+    if missing_schemas.is_empty() {
+        return;
+    }
+
+    if let Some(conn) = state.connections.get_mut(&conn_id) {
+        for schema in &missing_schemas {
+            conn.loading_tables.insert(schema.clone());
+        }
+    }
+
+    for schema in missing_schemas {
+        bridge.send(DbCommand::ListTables { conn_id, schema });
+    }
+}
+
+fn render_completion_popup(
+    ui: &mut egui::Ui,
+    state: &AppState,
+    tab_id: uuid::Uuid,
+    editor_rect: egui::Rect,
+    content: &str,
+    cursor_index: Option<usize>,
+) -> Option<CompletionInsert> {
+    if editor_rect == egui::Rect::NOTHING {
+        return None;
+    }
+
+    let cursor = cursor_index.unwrap_or_else(|| content.chars().count());
+    let context = completion_context(content, cursor)?;
+    let suggestions = collect_completions(state, &context);
+    if suggestions.is_empty() {
+        return None;
+    }
+
+    let accept_first = ui.input(|input| input.key_pressed(egui::Key::Tab));
+    if accept_first {
+        return Some(CompletionInsert {
+            start_char: context.start_char,
+            end_char: context.end_char,
+            text: suggestions[0].insert_text.clone(),
+        });
+    }
+
+    let mut picked = None;
+    let pos = editor_rect.left_top() + egui::vec2(18.0, 28.0);
+    egui::Area::new(egui::Id::new(("sql_completion_popup", tab_id)))
+        .order(egui::Order::Foreground)
+        .fixed_pos(pos)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style())
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                .inner_margin(Margin::same(theme::SPACE_SM as i8))
+                .show(ui, |ui| {
+                    ui.set_min_width(430.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(270.0)
+                        .show(ui, |ui| {
+                            for item in suggestions {
+                                if render_completion_item(ui, &item).clicked() {
+                                    picked = Some(CompletionInsert {
+                                        start_char: context.start_char,
+                                        end_char: context.end_char,
+                                        text: item.insert_text,
+                                    });
+                                }
+                            }
+                        });
+                });
+        });
+
+    picked
+}
+
+fn render_completion_item(ui: &mut egui::Ui, item: &CompletionItem) -> egui::Response {
+    let width = ui.available_width().max(360.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
+    let fill = if response.hovered() {
+        theme::with_alpha(theme::ACCENT_TEAL, 28)
+    } else {
+        Color32::TRANSPARENT
+    };
+    ui.painter().rect_filled(
+        rect.shrink2(egui::vec2(1.0, 1.0)),
+        CornerRadius::same(theme::RADIUS_SM),
+        fill,
+    );
+
+    let kind_rect = egui::Rect::from_min_size(
+        rect.left_center() + egui::vec2(8.0, -8.0),
+        egui::vec2(72.0, 16.0),
+    );
+    ui.painter().rect_filled(
+        kind_rect,
+        CornerRadius::same(theme::RADIUS_SM),
+        theme::with_alpha(item.color, 30),
+    );
+    ui.painter().text(
+        kind_rect.center(),
+        egui::Align2::CENTER_CENTER,
+        item.detail,
+        egui::FontId::monospace(9.5),
+        item.color,
+    );
+    ui.painter().text(
+        rect.left_center() + egui::vec2(92.0, 0.0),
+        egui::Align2::LEFT_CENTER,
+        &item.label,
+        egui::FontId::monospace(12.0),
+        theme::text_primary(),
+    );
+
+    response
+}
+
+fn completion_context(content: &str, cursor: usize) -> Option<CompletionContext> {
+    let chars: Vec<char> = content.chars().collect();
+    let end = cursor.min(chars.len());
+    let mut start = end;
+    while start > 0 && is_completion_char(chars[start - 1]) {
+        start -= 1;
+    }
+
+    let token: String = chars[start..end].iter().collect();
+    if token.is_empty() {
+        return None;
+    }
+
+    let fragment = token
+        .rsplit_once('.')
+        .map(|(_, fragment)| fragment)
+        .unwrap_or(&token)
+        .trim_matches('"')
+        .to_lowercase();
+
+    if fragment.is_empty() && !token.ends_with('.') {
+        return None;
+    }
+
+    Some(CompletionContext {
+        token,
+        fragment,
+        start_char: start,
+        end_char: end,
+    })
+}
+
+fn is_completion_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | '"')
+}
+
+fn collect_completions(state: &AppState, context: &CompletionContext) -> Vec<CompletionItem> {
+    let mut items = Vec::new();
+    let qualifier = context
+        .token
+        .rsplit_once('.')
+        .map(|(qualifier, _)| qualifier.trim_matches('"').to_lowercase());
+    let has_qualifier = qualifier.is_some();
+
+    if !has_qualifier {
+        for keyword in SQL_KEYWORDS {
+            if completion_matches(keyword, &context.fragment) {
+                items.push(CompletionItem {
+                    label: (*keyword).to_string(),
+                    detail: "COMMAND",
+                    insert_text: format!("{keyword} "),
+                    color: theme::KEYWORD_COLOR,
+                });
+            }
+        }
+    }
+
+    let Some(conn_id) = state.active_connection else {
+        return trim_completion_items(items);
+    };
+    let Some(conn) = state.connections.get(&conn_id) else {
+        return trim_completion_items(items);
+    };
+
+    if !has_qualifier {
+        for database in &conn.databases {
+            push_completion(
+                &mut items,
+                database,
+                "DATABASE",
+                sql_ident(database),
+                theme::ACCENT_BLUE,
+                &context.fragment,
+            );
+        }
+
+        for schema in &conn.schemas {
+            push_completion(
+                &mut items,
+                schema,
+                "SCHEMA",
+                sql_ident(schema),
+                theme::ACCENT_TEAL,
+                &context.fragment,
+            );
+        }
+    }
+
+    for (schema, tables) in &conn.tables {
+        for table in tables {
+            let table_name = table.name.as_str();
+            let qualified_label = format!("{schema}.{table_name}");
+            let qualified_insert = format!("{}.{}", sql_ident(schema), sql_ident(table_name));
+            let table_matches_qualifier = qualifier
+                .as_deref()
+                .map(|qualifier| qualifier == schema.to_lowercase())
+                .unwrap_or(true);
+
+            if table_matches_qualifier
+                && (completion_matches(table_name, &context.fragment)
+                    || completion_matches(&qualified_label, &context.fragment))
+            {
+                items.push(CompletionItem {
+                    label: qualified_label.clone(),
+                    detail: table.table_type_label(),
+                    insert_text: qualified_insert.clone(),
+                    color: table_type_completion_color(&table.table_type),
+                });
+            }
+
+            for ((column_schema, column_table), columns) in &conn.columns {
+                if column_schema != schema || column_table != table_name {
+                    continue;
+                }
+
+                let table_qualifier = table_name.to_lowercase();
+                let schema_table_qualifier =
+                    format!("{}.{}", schema.to_lowercase(), table_name.to_lowercase());
+                let column_matches_qualifier = qualifier
+                    .as_deref()
+                    .map(|qualifier| {
+                        qualifier == table_qualifier || qualifier == schema_table_qualifier
+                    })
+                    .unwrap_or(false);
+
+                for column in columns {
+                    if !completion_matches(&column.name, &context.fragment) {
+                        continue;
+                    }
+                    let insert_text = if column_matches_qualifier {
+                        format!("{}.{}", context.token_prefix(), sql_ident(&column.name))
+                    } else {
+                        sql_ident(&column.name)
+                    };
+                    items.push(CompletionItem {
+                        label: format!("{schema}.{table_name}.{}", column.name),
+                        detail: "COLUMN",
+                        insert_text,
+                        color: theme::ACCENT_COPPER_LIGHT,
+                    });
+                }
+            }
+        }
+    }
+
+    for (schema, functions) in &conn.functions {
+        for function in functions {
+            if completion_matches(&function.name, &context.fragment) {
+                items.push(CompletionItem {
+                    label: format!("{schema}.{}({})", function.name, function.arguments),
+                    detail: "FUNCTION",
+                    insert_text: format!("{}.{}()", sql_ident(schema), sql_ident(&function.name)),
+                    color: theme::ACCENT_YELLOW,
+                });
+            }
+        }
+    }
+
+    trim_completion_items(items)
+}
+
+trait TableTypeLabel {
+    fn table_type_label(&self) -> &'static str;
+}
+
+impl TableTypeLabel for crate::types::TableInfo {
+    fn table_type_label(&self) -> &'static str {
+        match self.table_type.as_str() {
+            "VIEW" => "VIEW",
+            "MATERIALIZED VIEW" => "MAT VIEW",
+            _ => "TABLE",
+        }
+    }
+}
+
+trait CompletionContextExt {
+    fn token_prefix(&self) -> String;
+}
+
+impl CompletionContextExt for CompletionContext {
+    fn token_prefix(&self) -> String {
+        self.token
+            .rsplit_once('.')
+            .map(|(prefix, _)| prefix.to_string())
+            .unwrap_or_default()
+    }
+}
+
+fn push_completion(
+    items: &mut Vec<CompletionItem>,
+    label: &str,
+    detail: &'static str,
+    insert_text: String,
+    color: Color32,
+    fragment: &str,
+) {
+    if completion_matches(label, fragment) {
+        items.push(CompletionItem {
+            label: label.to_string(),
+            detail,
+            insert_text,
+            color,
+        });
+    }
+}
+
+fn completion_matches(candidate: &str, fragment: &str) -> bool {
+    fragment.is_empty() || candidate.to_lowercase().contains(fragment)
+}
+
+fn trim_completion_items(mut items: Vec<CompletionItem>) -> Vec<CompletionItem> {
+    items.sort_by(|a, b| {
+        a.detail
+            .cmp(b.detail)
+            .then_with(|| a.label.to_lowercase().cmp(&b.label.to_lowercase()))
+    });
+    items.dedup_by(|a, b| a.detail == b.detail && a.label.eq_ignore_ascii_case(&b.label));
+    items.truncate(14);
+    items
+}
+
+fn table_type_completion_color(table_type: &str) -> Color32 {
+    match table_type {
+        "VIEW" => theme::ACCENT_BLUE,
+        "MATERIALIZED VIEW" => theme::ACCENT_TEAL,
+        _ => theme::ACCENT_COPPER,
+    }
+}
+
+fn sql_ident(identifier: &str) -> String {
+    let safe = identifier.chars().enumerate().all(|(idx, ch)| {
+        if idx == 0 {
+            ch.is_ascii_lowercase() || ch == '_'
+        } else {
+            ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_'
+        }
+    }) && !SQL_KEYWORDS.contains(&identifier.to_uppercase().as_str());
+
+    if safe {
+        identifier.to_string()
+    } else {
+        format!("\"{}\"", identifier.replace('"', "\"\""))
+    }
+}
+
+fn apply_completion(content: &mut String, insert: &CompletionInsert) {
+    let start = char_to_byte_index(content, insert.start_char);
+    let end = char_to_byte_index(content, insert.end_char);
+    content.replace_range(start..end, &insert.text);
+}
+
+fn char_to_byte_index(text: &str, char_index: usize) -> usize {
+    text.char_indices()
+        .nth(char_index)
+        .map(|(idx, _)| idx)
+        .unwrap_or_else(|| text.len())
 }
 
 // ---------------------------------------------------------------------------
@@ -538,7 +1007,7 @@ fn highlight_sql(text: &str, wrap_width: f32) -> egui::text::LayoutJob {
     job.wrap.max_width = wrap_width;
 
     let font_id = egui::FontId::monospace(13.0);
-    let default_color = theme::TEXT_PRIMARY;
+    let default_color = theme::text_primary();
 
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;

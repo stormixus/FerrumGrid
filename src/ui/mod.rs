@@ -12,11 +12,33 @@ pub mod settings;
 pub mod table_designer;
 pub mod theme;
 pub mod tree_browser;
+pub mod vault;
 
 /// Helper to render an SVG icon as a small image inline.
 pub fn icon_img(ui: &mut egui::Ui, svg_content: &str, name: &str, size: f32) {
     let uri = format!("bytes://{}.svg", name);
     ui.ctx()
         .include_bytes(uri.clone(), svg_content.as_bytes().to_vec());
+    ui.add(egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size)));
+}
+
+/// Render an SVG that uses `currentColor` with an explicit egui theme color.
+pub fn icon_img_tinted(
+    ui: &mut egui::Ui,
+    svg_content: &str,
+    name: &str,
+    size: f32,
+    color: egui::Color32,
+) {
+    let hex = format!("#{:02X}{:02X}{:02X}", color.r(), color.g(), color.b());
+    let svg = svg_content.replace("currentColor", &hex);
+    let uri = format!(
+        "bytes://{}_{:02x}{:02x}{:02x}.svg",
+        name,
+        color.r(),
+        color.g(),
+        color.b()
+    );
+    ui.ctx().include_bytes(uri.clone(), svg.into_bytes());
     ui.add(egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size)));
 }

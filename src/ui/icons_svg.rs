@@ -2,38 +2,46 @@
 /// Designed to match Navicat's aesthetic.
 
 pub const CONNECTION: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 40C12 37.7909 13.7909 36 16 36H24V32H16C11.5817 32 8 35.5817 8 40V48C8 52.4183 11.5817 56 16 56H48C52.4183 56 56 52.4183 56 48V40C56 35.5817 52.4183 32 48 32H40V36H48C50.2091 36 52 37.7909 52 40V48C52 50.2091 50.2091 52 48 52H16C13.7909 52 12 50.2091 12 48V40Z" fill="#4EBE64"/>
-    <rect x="26" y="8" width="12" height="32" rx="2" fill="#4EBE64"/>
-    <path d="M22 14H42V22C42 27.5228 37.5228 32 32 32V32C26.4772 32 22 27.5228 22 22V14Z" fill="#4EBE64" fill-opacity="0.3"/>
-    <circle cx="32" cy="44" r="6" fill="#4EBE64"/>
+    <defs><linearGradient id="connection_g" x1="12" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#74F2A2"/><stop offset="1" stop-color="#28B86D"/></linearGradient></defs>
+    <rect x="10" y="34" width="44" height="20" rx="7" fill="#16231D" stroke="url(#connection_g)" stroke-width="3"/>
+    <path d="M23 34V27C23 22.0294 27.0294 18 32 18C36.9706 18 41 22.0294 41 27V34" stroke="url(#connection_g)" stroke-width="5" stroke-linecap="round"/>
+    <rect x="27" y="8" width="10" height="22" rx="3" fill="url(#connection_g)"/>
+    <circle cx="32" cy="44" r="5" fill="#74F2A2"/>
+    <path d="M18 44H25M39 44H46" stroke="#74F2A2" stroke-width="2" stroke-linecap="round" opacity=".65"/>
 </svg>"##;
 
 pub const TABLE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="8" y="12" width="48" height="40" rx="4" fill="#CC7832"/>
-    <rect x="12" y="16" width="40" height="8" rx="1" fill="white" fill-opacity="0.2"/>
-    <rect x="12" y="28" width="12" height="6" rx="1" fill="white" fill-opacity="0.1"/>
-    <rect x="26" y="28" width="26" height="6" rx="1" fill="white" fill-opacity="0.1"/>
-    <rect x="12" y="38" width="12" height="6" rx="1" fill="white" fill-opacity="0.1"/>
-    <rect x="26" y="38" width="26" height="6" rx="1" fill="white" fill-opacity="0.1"/>
+    <defs><linearGradient id="table_g" x1="9" y1="10" x2="55" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#F6A15A"/><stop offset="1" stop-color="#B65F24"/></linearGradient></defs>
+    <rect x="9" y="11" width="46" height="42" rx="6" fill="#1B1410" stroke="url(#table_g)" stroke-width="3"/>
+    <rect x="13" y="15" width="38" height="9" rx="2" fill="url(#table_g)"/>
+    <path d="M14 31H50M14 41H50M25 25V51M39 25V51" stroke="#F6A15A" stroke-width="2" stroke-linecap="round" opacity=".58"/>
+    <rect x="17" y="31" width="5" height="4" rx="1" fill="#FFD0A6" opacity=".55"/>
+    <rect x="29" y="41" width="6" height="4" rx="1" fill="#FFD0A6" opacity=".38"/>
 </svg>"##;
 
 pub const VIEW: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="8" y="12" width="48" height="40" rx="4" stroke="#569CD6" stroke-width="4"/>
-    <circle cx="32" cy="32" r="10" stroke="#569CD6" stroke-width="3"/>
-    <circle cx="32" cy="32" r="4" fill="#569CD6"/>
+    <defs><linearGradient id="view_g" x1="10" y1="14" x2="54" y2="50" gradientUnits="userSpaceOnUse"><stop stop-color="#8BCBFF"/><stop offset="1" stop-color="#3D8ED6"/></linearGradient></defs>
+    <rect x="9" y="12" width="46" height="40" rx="7" fill="#0F1B27" stroke="url(#view_g)" stroke-width="3"/>
+    <path d="M14 32C19 23.5 25.5 20 32 20C38.5 20 45 23.5 50 32C45 40.5 38.5 44 32 44C25.5 44 19 40.5 14 32Z" fill="#142A3C" stroke="url(#view_g)" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="32" cy="32" r="8" fill="#8BCBFF"/>
+    <circle cx="32" cy="32" r="4" fill="#0F1B27"/>
 </svg>"##;
 
 pub const MATERIALIZED_VIEW: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="8" y="12" width="48" height="40" rx="4" fill="#34BEAB"/>
-    <circle cx="32" cy="32" r="10" stroke="white" stroke-width="3"/>
-    <circle cx="32" cy="32" r="4" fill="white"/>
+    <defs><linearGradient id="mat_g" x1="9" y1="9" x2="55" y2="55" gradientUnits="userSpaceOnUse"><stop stop-color="#5BF0E2"/><stop offset="1" stop-color="#1D9CBA"/></linearGradient></defs>
+    <rect x="12" y="8" width="40" height="40" rx="7" fill="#102326" stroke="url(#mat_g)" stroke-width="3"/>
+    <rect x="8" y="16" width="40" height="40" rx="7" fill="#122A2E" stroke="url(#mat_g)" stroke-width="3" opacity=".86"/>
+    <path d="M15 36C19 29 24 26 29 26C34 26 39 29 43 36C39 43 34 46 29 46C24 46 19 43 15 36Z" stroke="#9CFBF2" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="29" cy="36" r="5" fill="#9CFBF2"/>
 </svg>"##;
 
 pub const FUNCTION: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 48V42C20 38.6863 22.6863 36 26 36H38C41.3137 36 44 33.3137 44 30V16" stroke="#DCC950" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="20" cy="48" r="6" fill="#DCC950"/>
-    <circle cx="44" cy="16" r="6" fill="#DCC950"/>
-    <path d="M30 26L38 26" stroke="#DCC950" stroke-width="4" stroke-linecap="round"/>
+    <defs><linearGradient id="fn_g" x1="14" y1="10" x2="50" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE88A"/><stop offset="1" stop-color="#D9A51E"/></linearGradient></defs>
+    <path d="M18 51C23 51 23 43 24 35L26 21C27 13 31 9 39 9" stroke="url(#fn_g)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M15 28H41" stroke="#FFE88A" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+    <path d="M36 23L49 36L36 49" stroke="url(#fn_g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="39" cy="9" r="4" fill="#FFF2A6"/>
+    <circle cx="18" cy="51" r="4" fill="#D9A51E"/>
 </svg>"##;
 
 pub const USER: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -42,15 +50,18 @@ pub const USER: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill=
 </svg>"##;
 
 pub const QUERY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="12" y="8" width="40" height="48" rx="4" fill="#569CD6"/>
-    <path d="M40 24L28 32L40 40V24Z" fill="white"/>
-    <rect x="20" y="16" width="24" height="3" rx="1.5" fill="white" fill-opacity="0.3"/>
+    <defs><linearGradient id="query_g" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#9AD7FF"/><stop offset="1" stop-color="#3279D6"/></linearGradient></defs>
+    <rect x="13" y="8" width="38" height="48" rx="7" fill="#102033" stroke="url(#query_g)" stroke-width="3"/>
+    <path d="M22 22H42M22 31H35M22 40H39" stroke="#9AD7FF" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+    <path d="M39 29L47 34L39 39V29Z" fill="#9AD7FF"/>
 </svg>"##;
 
 pub const BACKUP: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M32 12C20.9543 12 12 20.9543 12 32C12 43.0457 20.9543 52 32 52C43.0457 52 52 43.0457 52 32" stroke="#646A7A" stroke-width="6" stroke-linecap="round"/>
-    <path d="M44 20L52 32L60 20" fill="#646A7A"/>
-    <rect x="24" y="28" width="16" height="12" rx="2" fill="#646A7A"/>
+    <defs><linearGradient id="backup_g" x1="10" y1="10" x2="54" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#AAB4C6"/><stop offset="1" stop-color="#626E84"/></linearGradient></defs>
+    <path d="M50 32C50 42 42 50 32 50C22 50 14 42 14 32C14 22 22 14 32 14C38 14 43 17 46 21" stroke="url(#backup_g)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M45 12V23H56" stroke="url(#backup_g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="22" y="28" width="20" height="14" rx="4" fill="#10151D" stroke="#AAB4C6" stroke-width="3"/>
+    <path d="M28 28V24C28 21.7909 29.7909 20 32 20C34.2091 20 36 21.7909 36 24V28" stroke="#AAB4C6" stroke-width="3" stroke-linecap="round"/>
 </svg>"##;
 
 pub const AUTOMATION: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -69,24 +80,61 @@ pub const MODEL: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill
 </svg>"##;
 
 pub const DATABASE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M32 8C16 8 8 14 8 20V44C8 50 16 56 32 56C48 56 56 50 56 44V20C56 14 48 8 32 8Z" fill="#569CD6" fill-opacity="0.2" stroke="#569CD6" stroke-width="4"/>
-    <path d="M56 20C56 26 48 32 32 32C16 32 8 26 8 20" stroke="#569CD6" stroke-width="4"/>
-    <path d="M56 32C56 38 48 44 32 44C16 44 8 38 8 32" stroke="#569CD6" stroke-width="4"/>
+    <defs><linearGradient id="db_g" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#7FC4FF"/><stop offset="1" stop-color="#2F7FD0"/></linearGradient></defs>
+    <path d="M10 19C10 12.3726 19.8497 7 32 7C44.1503 7 54 12.3726 54 19V45C54 51.6274 44.1503 57 32 57C19.8497 57 10 51.6274 10 45V19Z" fill="#0F1C2A" stroke="url(#db_g)" stroke-width="3"/>
+    <ellipse cx="32" cy="19" rx="22" ry="12" fill="#132A40" stroke="url(#db_g)" stroke-width="3"/>
+    <path d="M54 32C54 38.6274 44.1503 44 32 44C19.8497 44 10 38.6274 10 32" stroke="#7FC4FF" stroke-width="3" opacity=".7"/>
+    <path d="M54 44C54 50.6274 44.1503 56 32 56C19.8497 56 10 50.6274 10 44" stroke="#7FC4FF" stroke-width="3" opacity=".55"/>
 </svg>"##;
 
 pub const SCHEMA: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="12" y="12" width="40" height="40" rx="4" stroke="#34BEAB" stroke-width="4"/>
-    <path d="M12 28H52M12 40H52M28 12V52M40 12V52" stroke="#34BEAB" stroke-width="2" stroke-opacity="0.5"/>
+    <defs><linearGradient id="schema_g" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#63F2D8"/><stop offset="1" stop-color="#24A89D"/></linearGradient></defs>
+    <rect x="10" y="10" width="44" height="44" rx="8" fill="#102423" stroke="url(#schema_g)" stroke-width="3"/>
+    <path d="M20 22H44M20 32H44M20 42H44M22 20V44M32 20V44M42 20V44" stroke="#63F2D8" stroke-width="2" stroke-linecap="round" opacity=".62"/>
+    <rect x="18" y="18" width="28" height="28" rx="4" stroke="#A5FFF0" stroke-width="2" opacity=".42"/>
 </svg>"##;
 
 pub const COLUMN: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="24" y="8" width="16" height="48" rx="2" fill="#646A7A"/>
-    <path d="M24 24H40M24 40H40" stroke="white" stroke-width="2" stroke-opacity="0.3"/>
+    <defs><linearGradient id="column_g" x1="20" y1="8" x2="44" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#C3CAD8"/><stop offset="1" stop-color="#6C7588"/></linearGradient></defs>
+    <rect x="20" y="8" width="24" height="48" rx="5" fill="#141922" stroke="url(#column_g)" stroke-width="3"/>
+    <path d="M25 21H39M25 32H39M25 43H39" stroke="#C3CAD8" stroke-width="3" stroke-linecap="round" opacity=".58"/>
+</svg>"##;
+
+pub const INDEX: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="index_g" x1="12" y1="10" x2="52" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#9AD7FF"/><stop offset="1" stop-color="#3279D6"/></linearGradient></defs>
+    <rect x="13" y="12" width="38" height="40" rx="6" fill="#102033" stroke="url(#index_g)" stroke-width="3"/>
+    <path d="M22 22H43M22 32H38M22 42H45" stroke="#9AD7FF" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="18" cy="22" r="3" fill="#9AD7FF"/>
+    <circle cx="18" cy="32" r="3" fill="#9AD7FF" opacity=".75"/>
+    <circle cx="18" cy="42" r="3" fill="#9AD7FF" opacity=".55"/>
 </svg>"##;
 
 pub const KEY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="12" stroke="#DCC950" stroke-width="6"/>
-    <path d="M32 32L48 48M42 42L46 38M45 45L49 41" stroke="#DCC950" stroke-width="6" stroke-linecap="round"/>
+    <defs><linearGradient id="key_g" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF09A"/><stop offset="1" stop-color="#D29A18"/></linearGradient></defs>
+    <circle cx="24" cy="24" r="12" fill="#16140B" stroke="url(#key_g)" stroke-width="5"/>
+    <circle cx="24" cy="24" r="4" fill="#FFF09A"/>
+    <path d="M33 33L52 52M43 43L48 38M47 47L52 42" stroke="url(#key_g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>"##;
+
+pub const UNIQUE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="unique_g" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF09A"/><stop offset="1" stop-color="#E69850"/></linearGradient></defs>
+    <path d="M18 30V23C18 15.268 24.268 9 32 9C39.732 9 46 15.268 46 23V30" stroke="url(#unique_g)" stroke-width="5" stroke-linecap="round"/>
+    <rect x="13" y="28" width="38" height="27" rx="7" fill="#1B160E" stroke="url(#unique_g)" stroke-width="4"/>
+    <circle cx="32" cy="41" r="5" fill="#FFF09A"/>
+    <path d="M32 45V50" stroke="#FFF09A" stroke-width="4" stroke-linecap="round"/>
+</svg>"##;
+
+pub const RULE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="rule_g" x1="13" y1="8" x2="51" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#C3CAD8"/><stop offset="1" stop-color="#7E8AA0"/></linearGradient></defs>
+    <rect x="14" y="8" width="36" height="48" rx="6" fill="#141922" stroke="url(#rule_g)" stroke-width="3"/>
+    <path d="M23 22H41M23 32H36M23 42H40" stroke="#C3CAD8" stroke-width="3" stroke-linecap="round"/>
+    <path d="M19 16L25 10M45 54L51 48" stroke="#7E8AA0" stroke-width="3" stroke-linecap="round"/>
+</svg>"##;
+
+pub const TRIGGER: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="trigger_g" x1="13" y1="8" x2="51" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#5BF0E2"/><stop offset="1" stop-color="#24A89D"/></linearGradient></defs>
+    <path d="M32 7L19 32H31L25 57L45 26H33L32 7Z" fill="#102423" stroke="url(#trigger_g)" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M33 14L25 29H35L31 44L41 28H32L33 14Z" fill="#9CFBF2" opacity=".72"/>
 </svg>"##;
 
 pub const CLOSE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -108,6 +156,15 @@ pub const BI: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="n
     <rect x="12" y="40" width="8" height="12" rx="1" fill="#D24646"/>
     <rect x="28" y="24" width="8" height="28" rx="1" fill="#D24646"/>
     <rect x="44" y="12" width="8" height="40" rx="1" fill="#D24646"/>
+</svg>"##;
+
+pub const CHEVRON_LEFT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M40 16L24 32L40 48" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>"##;
+
+pub const CHEVRON_DOUBLE_LEFT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M35 16L19 32L35 48" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M49 16L33 32L49 48" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
 </svg>"##;
 
 pub const CHEVRON_RIGHT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -153,6 +210,21 @@ pub const TRUNCATED: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" 
 pub const NULL_MARKER: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="32" cy="32" r="20" stroke="currentColor" stroke-width="4" stroke-dasharray="8 4"/>
     <path d="M20 20L44 44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+</svg>"##;
+
+pub const SORT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22 12V52M22 12L14 20M22 12L30 20" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M42 52V12M42 52L34 44M42 52L50 44" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
+</svg>"##;
+
+pub const SORT_ASC: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 52V14M21 14L12 23M21 14L30 23" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M38 22H52M38 32H48M38 42H44" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+</svg>"##;
+
+pub const SORT_DESC: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 12V50M21 50L12 41M21 50L30 41" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M38 22H44M38 32H48M38 42H52" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>"##;
 
 pub const CANCEL: &str = CLOSE;

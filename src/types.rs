@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ConnectionId(pub uuid::Uuid);
@@ -23,11 +23,62 @@ pub struct ConnectionConfig {
     pub port: u16,
     pub database: String,
     pub username: String,
-    #[serde(skip)]
+    #[serde(default)]
     pub password: String,
     pub use_tls: bool,
     pub color_tag: Option<String>,
     pub ssh_tunnel: Option<SshTunnelConfig>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupFormat {
+    Custom,
+    Plain,
+}
+
+impl BackupFormat {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Custom => "Custom archive",
+            Self::Plain => "Plain SQL",
+        }
+    }
+
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Custom => "dump",
+            Self::Plain => "sql",
+        }
+    }
+
+    pub fn pg_dump_format(self) -> &'static str {
+        match self {
+            Self::Custom => "custom",
+            Self::Plain => "plain",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BackupRequest {
+    pub conn_id: ConnectionId,
+    pub config: ConnectionConfig,
+    pub output_dir: PathBuf,
+    pub schema: Option<String>,
+    pub format: BackupFormat,
+}
+
+#[derive(Debug, Clone)]
+pub struct BackupRecord {
+    pub conn_id: ConnectionId,
+    pub connection_name: String,
+    pub database: String,
+    pub schema: Option<String>,
+    pub format: BackupFormat,
+    pub file_path: PathBuf,
+    pub size_bytes: u64,
+    pub duration_ms: u128,
+    pub completed_at: String,
 }
 
 impl Default for ConnectionConfig {
@@ -67,7 +118,7 @@ pub struct ColumnMeta {
     pub type_name: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CellValue {
     Null,
     Bool(bool),
@@ -79,6 +130,29 @@ pub enum CellValue {
     Uuid(uuid::Uuid),
     Bytes(Vec<u8>),
     Unknown(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct DataCellEdit {
+    pub schema: String,
+    pub table: String,
+    pub column: String,
+    pub column_type: String,
+    pub pk: Vec<DataKeyValue>,
+    pub value: DataEditValue,
+}
+
+#[derive(Debug, Clone)]
+pub struct DataKeyValue {
+    pub column: String,
+    pub column_type: String,
+    pub value: CellValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum DataEditValue {
+    Null,
+    Text(String),
 }
 
 impl fmt::Display for CellValue {
@@ -112,6 +186,7 @@ pub struct TableInfo {
 pub struct ColumnInfo {
     pub name: String,
     pub data_type: String,
+    pub enum_values: Vec<String>,
     pub is_nullable: bool,
     pub default_value: Option<String>,
     pub is_primary_key: bool,
@@ -124,6 +199,20 @@ pub struct IndexInfo {
     pub is_unique: bool,
     pub is_primary: bool,
     pub index_type: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuleInfo {
+    pub name: String,
+    pub definition: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct TriggerInfo {
+    pub name: String,
+    pub definition: String,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone)]

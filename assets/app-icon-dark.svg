@@ -1,0 +1,38 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="80" x2="928" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070B12"/>
+      <stop offset="0.62" stop-color="#122033"/>
+      <stop offset="1" stop-color="#1B2F3F"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(188 142) rotate(49) scale(760)">
+      <stop stop-color="#21485C" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="#21485C" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="112" height="112" patternUnits="userSpaceOnUse">
+      <path d="M112 0H0V112" stroke="#75B5D4" stroke-opacity="0.16" stroke-width="3"/>
+      <circle cx="0" cy="0" r="4" fill="#75B5D4" fill-opacity="0.18"/>
+    </pattern>
+    <linearGradient id="fg" x1="194" y1="214" x2="855" y2="836" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8F54"/>
+      <stop offset="0.52" stop-color="#16D8C2"/>
+      <stop offset="1" stop-color="#6886FF"/>
+    </linearGradient>
+    <filter id="shadow" x="90" y="118" width="864" height="840" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="18" dy="22" stdDeviation="22" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+    <clipPath id="clip">
+      <rect x="34" y="34" width="956" height="956" rx="188"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect x="34" y="34" width="956" height="956" rx="188" fill="url(#bg)"/>
+    <rect x="34" y="34" width="956" height="956" rx="188" fill="url(#glow)"/>
+    <rect x="34" y="34" width="956" height="956" rx="188" fill="url(#grid)"/>
+  </g>
+  <rect x="34" y="34" width="956" height="956" rx="188" stroke="#536F89" stroke-opacity="0.74" stroke-width="5"/>
+  <g filter="url(#shadow)">
+    <text x="150" y="718" font-family="SF Pro Display, -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif" font-size="540" font-weight="800" letter-spacing="-36" fill="url(#fg)">Fg</text>
+    <text x="150" y="718" font-family="SF Pro Display, -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif" font-size="540" font-weight="800" letter-spacing="-36" fill="white" opacity="0.12">Fg</text>
+  </g>
+</svg>

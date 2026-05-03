@@ -99,7 +99,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
     ui.horizontal(|ui| {
         ui.label("Schema Path:");
         ui.add(
-            TextEdit::singleline(&mut state.prisma_ui.schema_path)
+            theme::text_input(&mut state.prisma_ui.schema_path)
                 .desired_width(300.0)
                 .hint_text("./prisma/schema.prisma"),
         );
@@ -135,7 +135,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             if ui.button("× Close").clicked() {
                 state.prisma_ui.show_window = false;
             } else if let Some(version) = &state.prisma_ui.prisma_version {
-                ui.label(RichText::new(version).color(theme::TEXT_MUTED).size(10.0));
+                ui.label(RichText::new(version).color(theme::text_muted()).size(10.0));
             }
         });
     });
@@ -166,7 +166,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             ui.add_space(8.0);
 
             Frame::new()
-                .fill(theme::BG_DARKEST)
+                .fill(theme::bg_darkest())
                 .inner_margin(Margin::same(8))
                 .show(ui, |ui| {
                     let available = ui.available_size();
@@ -192,7 +192,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             ui.add_space(8.0);
 
             Frame::new()
-                .fill(theme::BG_DARKEST)
+                .fill(theme::bg_darkest())
                 .inner_margin(Margin::same(8))
                 .show(ui, |ui| {
                     ScrollArea::vertical().show(ui, |ui| {
@@ -257,9 +257,9 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
                 .fill(if selected {
                     theme::ACCENT_COPPER
                 } else {
-                    theme::BG_LIGHT
+                    theme::bg_light()
                 })
-                .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
+                .stroke(Stroke::new(1.0, theme::border_default()))
                 .corner_radius(CornerRadius::same(4));
 
             if ui.add(btn).on_hover_text(*tooltip).clicked() {
@@ -270,7 +270,7 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             match cmd_type {
                 PrismaCommandType::MigrateDev => {
                     ui.add(
-                        TextEdit::singleline(&mut state.prisma_ui.migration_name)
+                        theme::text_input(&mut state.prisma_ui.migration_name)
                             .desired_width(150.0)
                             .hint_text("migration_name"),
                     );

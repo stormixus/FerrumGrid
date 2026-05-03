@@ -26,6 +26,8 @@ pub struct AppSettings {
     pub show_line_numbers: bool,
     pub enable_auto_recovery: bool,
     pub ai_assistant_enabled: bool,
+    pub backup_directory: String,
+    pub data_timezone: String,
 }
 
 impl Default for AppSettings {
@@ -54,6 +56,8 @@ impl Default for AppSettings {
             show_line_numbers: true,
             enable_auto_recovery: true,
             ai_assistant_enabled: false,
+            backup_directory: String::new(),
+            data_timezone: "Asia/Seoul".to_string(),
         }
     }
 }
@@ -65,6 +69,9 @@ impl AppSettings {
         }
         self.default_row_limit = self.default_row_limit.clamp(1, 1_000_000);
         self.font_size = self.font_size.clamp(9.0, 24.0);
+        if self.data_timezone.trim().is_empty() {
+            self.data_timezone = "Asia/Seoul".to_string();
+        }
     }
 }
 

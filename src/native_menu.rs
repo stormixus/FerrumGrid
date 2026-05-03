@@ -14,6 +14,12 @@ pub struct NativeMenu {
     installed: bool,
     about_id: MenuId,
     settings_id: MenuId,
+    edit_undo_id: MenuId,
+    edit_redo_id: MenuId,
+    edit_cut_id: MenuId,
+    edit_copy_id: MenuId,
+    edit_paste_id: MenuId,
+    edit_select_all_id: MenuId,
     new_connection_id: MenuId,
     new_tab_id: MenuId,
     query_view_id: MenuId,
@@ -92,6 +98,60 @@ impl NativeMenu {
             Submenu::with_items(crate::i18n::t("menu_query"), true, &[&query_view, &new_tab])
                 .expect("failed to build FerrumGrid query menu");
 
+        let edit_undo = MenuItem::with_id(
+            "edit_undo",
+            "Undo",
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyZ)),
+        );
+        let edit_redo = MenuItem::with_id(
+            "edit_redo",
+            "Redo",
+            true,
+            Some(Accelerator::new(
+                Some(Modifiers::SUPER | Modifiers::SHIFT),
+                Code::KeyZ,
+            )),
+        );
+        let edit_cut = MenuItem::with_id(
+            "edit_cut",
+            "Cut",
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyX)),
+        );
+        let edit_copy = MenuItem::with_id(
+            "edit_copy",
+            "Copy",
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyC)),
+        );
+        let edit_paste = MenuItem::with_id(
+            "edit_paste",
+            "Paste",
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyV)),
+        );
+        let edit_select_all = MenuItem::with_id(
+            "edit_select_all",
+            "Select All",
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyA)),
+        );
+        let edit_menu = Submenu::with_items(
+            "Edit",
+            true,
+            &[
+                &edit_undo,
+                &edit_redo,
+                &PredefinedMenuItem::separator(),
+                &edit_cut,
+                &edit_copy,
+                &edit_paste,
+                &edit_select_all,
+            ],
+        )
+        .expect("failed to build FerrumGrid edit menu");
+
         let toggle_theme = MenuItem::with_id(
             "toggle_theme",
             format!(
@@ -133,21 +193,6 @@ impl NativeMenu {
         )
         .expect("failed to build FerrumGrid tools menu");
 
-        let edit_menu = Submenu::with_items(
-            "Edit",
-            true,
-            &[
-                &PredefinedMenuItem::undo(None),
-                &PredefinedMenuItem::redo(None),
-                &PredefinedMenuItem::separator(),
-                &PredefinedMenuItem::cut(None),
-                &PredefinedMenuItem::copy(None),
-                &PredefinedMenuItem::paste(None),
-                &PredefinedMenuItem::select_all(None),
-            ],
-        )
-        .expect("failed to build FerrumGrid edit menu");
-
         let window_menu = Submenu::with_items(
             "Window",
             true,
@@ -178,6 +223,12 @@ impl NativeMenu {
             installed: true,
             about_id: about.id().clone(),
             settings_id: settings.id().clone(),
+            edit_undo_id: edit_undo.id().clone(),
+            edit_redo_id: edit_redo.id().clone(),
+            edit_cut_id: edit_cut.id().clone(),
+            edit_copy_id: edit_copy.id().clone(),
+            edit_paste_id: edit_paste.id().clone(),
+            edit_select_all_id: edit_select_all.id().clone(),
             new_connection_id: new_connection.id().clone(),
             new_tab_id: new_tab.id().clone(),
             query_view_id: query_view.id().clone(),
@@ -216,6 +267,22 @@ impl NativeMenu {
                 state.show_about_dialog = true;
             } else if id == &self.settings_id {
                 state.show_settings_dialog = true;
+            } else if id == &self.edit_undo_id {
+                push_key_event(ctx, egui::Key::Z, egui::Modifiers::COMMAND);
+            } else if id == &self.edit_redo_id {
+                push_key_event(
+                    ctx,
+                    egui::Key::Z,
+                    egui::Modifiers::SHIFT | egui::Modifiers::COMMAND,
+                );
+            } else if id == &self.edit_cut_id {
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestCut);
+            } else if id == &self.edit_copy_id {
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestCopy);
+            } else if id == &self.edit_paste_id {
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaste);
+            } else if id == &self.edit_select_all_id {
+                push_key_event(ctx, egui::Key::A, egui::Modifiers::COMMAND);
             } else if id == &self.new_connection_id {
                 state.show_connection_dialog = true;
                 state.connection_dialog = Default::default();
@@ -225,9 +292,9 @@ impl NativeMenu {
                     .editor_tabs
                     .push(crate::types::EditorTab::new(format!("Query {n}")));
                 state.active_tab = state.editor_tabs.len() - 1;
-                state.active_main_view = MainView::Query;
+                state.open_workspace_main_view(MainView::Query);
             } else if id == &self.query_view_id {
-                state.active_main_view = MainView::Query;
+                state.open_workspace_main_view(MainView::Query);
             } else if id == &self.toggle_theme_id {
                 if ctx.style().visuals.dark_mode {
                     crate::ui::theme::FerrumTheme::apply_light(ctx);
@@ -240,6 +307,7 @@ impl NativeMenu {
                 }
                 crate::storage::settings::save_settings(settings);
             } else if id == &self.er_diagram_id {
+                state.open_workspace_main_view(MainView::Model);
                 state.er_diagram.show_diagram = !state.er_diagram.show_diagram;
             } else if id == &self.table_designer_id {
                 crate::ui::table_designer::open_for_new_table(state);
@@ -257,6 +325,19 @@ impl NativeMenu {
         _settings: &mut AppSettings,
     ) {
     }
+}
+
+#[cfg(target_os = "macos")]
+fn push_key_event(ctx: &egui::Context, key: egui::Key, modifiers: egui::Modifiers) {
+    ctx.input_mut(|input| {
+        input.events.push(egui::Event::Key {
+            key,
+            physical_key: Some(key),
+            pressed: true,
+            repeat: false,
+            modifiers,
+        });
+    });
 }
 
 #[cfg(target_os = "macos")]

@@ -1,10 +1,10 @@
 use eframe::egui::{
     self, pos2, vec2, Align, Align2, Color32, ComboBox, CornerRadius, FontId, Frame, Layout,
-    Margin, Rect, RichText, Sense, Stroke, StrokeKind, TextEdit, UiBuilder,
+    Margin, Rect, RichText, Sense, Stroke, StrokeKind, UiBuilder,
 };
 
 use crate::i18n::{set_language, t, Language};
-use crate::state::AppState;
+use crate::state::{data_timezone_label, data_timezone_options, AppState};
 use crate::storage;
 use crate::ui::theme;
 
@@ -17,16 +17,81 @@ const TAB_HEIGHT: f32 = 58.0;
 const LABEL_WIDTH: f32 = 210.0;
 const CONTROL_GAP: f32 = 10.0;
 
-const WINDOW_BG: Color32 = Color32::from_rgb(31, 31, 31);
-const HEADER_BG: Color32 = Color32::from_rgb(28, 28, 28);
-const CONTENT_BG: Color32 = Color32::from_rgb(38, 38, 38);
-const FIELD_BG: Color32 = Color32::from_rgb(48, 48, 48);
-const FOOTER_BG: Color32 = Color32::from_rgb(29, 29, 29);
-const BORDER: Color32 = Color32::from_rgb(58, 58, 58);
-const TEXT: Color32 = Color32::from_rgb(224, 224, 224);
-const TEXT_SOFT: Color32 = Color32::from_rgb(172, 172, 172);
-const TEXT_MUTED: Color32 = Color32::from_rgb(116, 116, 116);
-const ACTIVE_BLUE: Color32 = Color32::from_rgb(24, 130, 255);
+fn window_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(31, 31, 31)
+    } else {
+        theme::bg_medium()
+    }
+}
+
+fn header_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(28, 28, 28)
+    } else {
+        Color32::from_rgb(247, 248, 250)
+    }
+}
+
+fn content_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(38, 38, 38)
+    } else {
+        theme::bg_dark()
+    }
+}
+
+fn field_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(48, 48, 48)
+    } else {
+        theme::bg_light()
+    }
+}
+
+fn footer_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(29, 29, 29)
+    } else {
+        Color32::from_rgb(247, 248, 250)
+    }
+}
+
+fn text_color() -> Color32 {
+    theme::text_primary()
+}
+
+fn text_soft() -> Color32 {
+    theme::text_secondary()
+}
+
+fn active_blue() -> Color32 {
+    Color32::from_rgb(24, 130, 255)
+}
+
+fn tab_active_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(34, 38, 42)
+    } else {
+        Color32::from_rgb(230, 241, 255)
+    }
+}
+
+fn tab_hover_bg() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(33, 33, 33)
+    } else {
+        Color32::from_rgb(238, 241, 246)
+    }
+}
+
+fn inactive_tab_text() -> Color32 {
+    if theme::is_dark() {
+        Color32::from_rgb(154, 154, 154)
+    } else {
+        theme::text_muted()
+    }
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum CloseAction {
@@ -122,8 +187,8 @@ pub fn render_settings_window(
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .frame(
             Frame::window(&ctx.style())
-                .fill(WINDOW_BG)
-                .stroke(Stroke::new(1.0, BORDER))
+                .fill(window_bg())
+                .stroke(Stroke::new(1.0, theme::border_default()))
                 .corner_radius(CornerRadius::same(10))
                 .inner_margin(Margin::same(0)),
         )
@@ -163,6 +228,7 @@ pub fn render_settings_window(
             next.normalize();
             next.dark_mode = theme::apply_appearance(ctx, &next.appearance);
             state.default_row_limit = next.default_row_limit;
+            state.data_timezone = next.data_timezone.clone();
             set_language(Language::from_code(&next.language));
 
             *settings = next;
@@ -179,16 +245,16 @@ fn render_header(ui: &mut egui::Ui, state: &mut AppState) {
     let (rect, _) = ui.allocate_exact_size(vec2(PREF_WIDTH, HEADER_HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
 
-    painter.rect_filled(rect, CornerRadius::same(10), HEADER_BG);
+    painter.rect_filled(rect, CornerRadius::same(10), header_bg());
     painter.rect_filled(
         Rect::from_min_max(pos2(rect.left(), rect.bottom() - 8.0), rect.right_bottom()),
         CornerRadius::same(0),
-        HEADER_BG,
+        header_bg(),
     );
     painter.hline(
         rect.x_range(),
         rect.bottom() - 1.0,
-        Stroke::new(1.0, Color32::from_rgb(34, 34, 34)),
+        Stroke::new(1.0, theme::border_subtle()),
     );
 
     paint_traffic_lights(&painter, rect.left_top() + vec2(18.0, 14.0));
@@ -197,7 +263,7 @@ fn render_header(ui: &mut egui::Ui, state: &mut AppState) {
         Align2::LEFT_CENTER,
         t(TABS[state.active_settings_tab].label_key),
         FontId::proportional(12.0),
-        TEXT_SOFT,
+        text_soft(),
     );
 
     let tabs_rect = Rect::from_min_max(
@@ -227,31 +293,23 @@ fn render_tab(ui: &mut egui::Ui, idx: usize, tab: TabSpec, state: &mut AppState)
     let painter = ui.painter_at(rect);
     let tab_rect = rect.shrink2(vec2(3.0, 1.0));
     if active {
-        painter.rect_filled(
-            tab_rect,
-            CornerRadius::same(5),
-            Color32::from_rgb(34, 38, 42),
-        );
+        painter.rect_filled(tab_rect, CornerRadius::same(5), tab_active_bg());
         painter.rect_filled(
             Rect::from_min_max(
                 pos2(tab_rect.left() + 5.0, tab_rect.bottom() - 2.0),
                 pos2(tab_rect.right() - 5.0, tab_rect.bottom()),
             ),
             CornerRadius::same(1),
-            ACTIVE_BLUE,
+            active_blue(),
         );
     } else if response.hovered() {
-        painter.rect_filled(
-            tab_rect,
-            CornerRadius::same(5),
-            Color32::from_rgb(33, 33, 33),
-        );
+        painter.rect_filled(tab_rect, CornerRadius::same(5), tab_hover_bg());
     }
 
     let color = if active {
-        ACTIVE_BLUE
+        active_blue()
     } else {
-        Color32::from_rgb(154, 154, 154)
+        inactive_tab_text()
     };
     paint_pref_icon(
         &painter,
@@ -277,7 +335,7 @@ fn render_content(
     let content_height = PREF_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT;
     let (rect, _) = ui.allocate_exact_size(vec2(PREF_WIDTH, content_height), Sense::hover());
     ui.painter_at(rect)
-        .rect_filled(rect, CornerRadius::same(0), CONTENT_BG);
+        .rect_filled(rect, CornerRadius::same(0), content_bg());
 
     ui.allocate_new_ui(
         UiBuilder::new()
@@ -435,6 +493,16 @@ fn render_records_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
             draft.default_row_limit = row_limit.clamp(1, 1_000_000) as usize;
         }
     });
+    form_row(ui, &t("settings_data_timezone"), |ui| {
+        ComboBox::from_id_salt("settings_data_timezone_combo")
+            .width(260.0)
+            .selected_text(data_timezone_label(&draft.data_timezone))
+            .show_ui(ui, |ui| {
+                for (code, label) in data_timezone_options() {
+                    ui.selectable_value(&mut draft.data_timezone, (*code).to_string(), *label);
+                }
+            });
+    });
     checkbox_row(
         ui,
         &t("settings_database"),
@@ -505,11 +573,11 @@ fn render_advanced_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSett
 fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
     let (rect, _) = ui.allocate_exact_size(vec2(PREF_WIDTH, FOOTER_HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, CornerRadius::same(0), FOOTER_BG);
+    painter.rect_filled(rect, CornerRadius::same(0), footer_bg());
     painter.hline(
         rect.x_range(),
         rect.top(),
-        Stroke::new(1.0, Color32::from_rgb(25, 25, 25)),
+        Stroke::new(1.0, theme::border_subtle()),
     );
 
     ui.allocate_new_ui(
@@ -519,10 +587,12 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
         |ui| {
             if ui
                 .add(
-                    egui::Button::new(RichText::new(t("settings_restore_defaults")).color(TEXT))
-                        .fill(Color32::from_rgb(68, 68, 68))
-                        .stroke(Stroke::new(1.0, Color32::from_rgb(72, 72, 72)))
-                        .corner_radius(CornerRadius::same(5)),
+                    egui::Button::new(
+                        RichText::new(t("settings_restore_defaults")).color(text_color()),
+                    )
+                    .fill(theme::bg_light())
+                    .stroke(Stroke::new(1.0, theme::border_default()))
+                    .corner_radius(CornerRadius::same(5)),
                 )
                 .clicked()
             {
@@ -533,7 +603,7 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
                 if ui
                     .add(
                         egui::Button::new(RichText::new(t("button_ok")).color(Color32::WHITE))
-                            .fill(ACTIVE_BLUE)
+                            .fill(active_blue())
                             .stroke(Stroke::new(1.0, Color32::from_rgb(55, 154, 255)))
                             .corner_radius(CornerRadius::same(5)),
                     )
@@ -543,9 +613,9 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
                 }
                 if ui
                     .add(
-                        egui::Button::new(RichText::new(t("button_cancel")).color(TEXT))
-                            .fill(Color32::from_rgb(68, 68, 68))
-                            .stroke(Stroke::new(1.0, Color32::from_rgb(72, 72, 72)))
+                        egui::Button::new(RichText::new(t("button_cancel")).color(text_color()))
+                            .fill(theme::bg_light())
+                            .stroke(Stroke::new(1.0, theme::border_default()))
                             .corner_radius(CornerRadius::same(5)),
                     )
                     .clicked()
@@ -583,7 +653,7 @@ fn checkbox_row(ui: &mut egui::Ui, label: &str, value: &mut bool, text: &str) {
     ui.horizontal(|ui| {
         label_cell(ui, label);
         ui.add_space(CONTROL_GAP);
-        ui.checkbox(value, RichText::new(text).color(TEXT).size(13.0));
+        ui.checkbox(value, RichText::new(text).color(text_color()).size(13.0));
     });
     ui.add_space(5.0);
 }
@@ -591,7 +661,7 @@ fn checkbox_row(ui: &mut egui::Ui, label: &str, value: &mut bool, text: &str) {
 fn checkbox_subrow(ui: &mut egui::Ui, value: &mut bool, text: &str) {
     ui.horizontal(|ui| {
         ui.add_space(LABEL_WIDTH + CONTROL_GAP + 22.0);
-        ui.checkbox(value, RichText::new(text).color(TEXT).size(13.0));
+        ui.checkbox(value, RichText::new(text).color(text_color()).size(13.0));
     });
     ui.add_space(5.0);
 }
@@ -605,14 +675,14 @@ fn label_cell_sized(ui: &mut egui::Ui, label: &str, height: f32) {
         vec2(LABEL_WIDTH, height),
         Layout::right_to_left(Align::Center),
         |ui| {
-            ui.label(RichText::new(label).color(TEXT).size(13.0).strong());
+            ui.label(RichText::new(label).color(text_color()).size(13.0).strong());
         },
     );
 }
 
 fn section_heading(ui: &mut egui::Ui, title: String) {
     ui.add_space(10.0);
-    ui.label(RichText::new(title).color(TEXT).size(15.0).strong());
+    ui.label(RichText::new(title).color(text_color()).size(15.0).strong());
     ui.add_space(16.0);
 }
 
@@ -622,7 +692,7 @@ fn hint(ui: &mut egui::Ui) {
         ui.add_space(LABEL_WIDTH + CONTROL_GAP);
         ui.label(
             RichText::new(t("settings_placeholder_hint"))
-                .color(TEXT_MUTED)
+                .color(theme::text_muted())
                 .size(12.0),
         );
     });
@@ -633,7 +703,7 @@ fn font_panel(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
         label_cell(ui, &t("settings_object_list_font"));
         ui.add_space(CONTROL_GAP);
         Frame::new()
-            .fill(FIELD_BG)
+            .fill(field_bg())
             .corner_radius(CornerRadius::same(9))
             .inner_margin(Margin::symmetric(12, 8))
             .show(ui, |ui| {
@@ -641,14 +711,14 @@ fn font_panel(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(t("settings_font"))
-                            .color(TEXT)
+                            .color(text_color())
                             .size(13.0)
                             .strong(),
                     );
                     let mut font_name = ".AppleSystemUIFont 12.0".to_string();
                     ui.add_enabled(
                         !draft.use_default_object_font,
-                        TextEdit::singleline(&mut font_name).desired_width(180.0),
+                        theme::text_input(&mut font_name).desired_width(180.0),
                     );
                     ui.add_enabled(!draft.use_default_object_font, egui::Button::new("..."));
                 });
@@ -657,7 +727,7 @@ fn font_panel(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
                     ui.checkbox(
                         &mut draft.use_default_object_font,
                         RichText::new(t("settings_use_default_font"))
-                            .color(TEXT)
+                            .color(text_color())
                             .size(13.0),
                     );
                 });
@@ -673,7 +743,7 @@ fn usage_data_row(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings)
         ui.checkbox(
             &mut draft.share_usage_data,
             RichText::new(t("settings_share_usage_data"))
-                .color(TEXT)
+                .color(text_color())
                 .size(13.0),
         );
         ui.add_enabled(false, egui::Button::new(t("settings_usage_data")));
@@ -682,12 +752,12 @@ fn usage_data_row(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings)
         ui.add_space(LABEL_WIDTH + CONTROL_GAP + 22.0);
         ui.label(
             RichText::new(t("settings_usage_data_help"))
-                .color(TEXT_SOFT)
+                .color(text_soft())
                 .size(11.0),
         );
         ui.label(
             RichText::new("Learn More...")
-                .color(Color32::from_rgb(82, 171, 255))
+                .color(active_blue())
                 .size(11.0),
         );
     });
@@ -771,7 +841,7 @@ fn paint_theme_preview(ui: &mut egui::Ui) {
             Rect::from_min_size(pos2(rect.left() + 8.0, y), vec2(12.0, 2.0)),
             CornerRadius::same(1),
             if i % 2 == 0 {
-                ACTIVE_BLUE
+                active_blue()
             } else {
                 Color32::from_rgb(89, 188, 99)
             },
@@ -820,7 +890,7 @@ fn paint_pref_icon(painter: &egui::Painter, icon: PrefIcon, center: egui::Pos2, 
             let back = Rect::from_center_size(center + vec2(3.5, 2.0), vec2(20.0, 12.0));
             let front = Rect::from_center_size(center + vec2(-2.5, -2.0), vec2(20.0, 12.0));
             painter.rect_stroke(back, CornerRadius::same(2), stroke, StrokeKind::Inside);
-            painter.rect_filled(front, CornerRadius::same(2), HEADER_BG);
+            painter.rect_filled(front, CornerRadius::same(2), header_bg());
             painter.rect_stroke(front, CornerRadius::same(2), stroke, StrokeKind::Inside);
             painter.line_segment(
                 [

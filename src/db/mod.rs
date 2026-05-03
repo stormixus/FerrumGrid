@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod bridge;
 pub mod connection;
 pub mod error;

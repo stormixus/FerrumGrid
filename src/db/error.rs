@@ -122,7 +122,6 @@ impl std::fmt::Display for DbError {
         if let Some(code) = &self.sqlstate {
             write!(f, " [SQLSTATE: {code}]")?;
         }
-        write!(f, " [Connection: {}]", self.conn_id)?;
         Ok(())
     }
 }

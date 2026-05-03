@@ -1,7 +1,7 @@
 use tokio_postgres::Client;
 
 use crate::db::error::DbError;
-use crate::types::{CellValue, ColumnMeta, ConnectionId, QueryResult};
+use crate::types::{CellValue, ColumnMeta, ConnectionId, DataCellEdit, DataEditValue, QueryResult};
 
 pub async fn execute_query(
     client: &Client,
@@ -109,6 +109,157 @@ pub async fn execute_statement(
         },
         false,
     ))
+}
+
+pub async fn apply_data_edits(
+    client: &Client,
+    edits: &[DataCellEdit],
+    conn_id: ConnectionId,
+) -> Result<usize, DbError> {
+    if edits.is_empty() {
+        return Ok(0);
+    }
+
+    client
+        .batch_execute("BEGIN")
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    let mut applied = 0usize;
+    for edit in edits {
+        let sql = build_update_sql(edit, conn_id)?;
+        match client.execute(sql.as_str(), &[]).await {
+            Ok(affected) if affected == 1 => {
+                applied += 1;
+            }
+            Ok(affected) => {
+                let _ = client.batch_execute("ROLLBACK").await;
+                return Err(DbError::internal(
+                    conn_id,
+                    format!(
+                        "Expected to update exactly 1 row for {}.{}, but PostgreSQL reported {affected}.",
+                        edit.schema, edit.table
+                    ),
+                ));
+            }
+            Err(err) => {
+                let _ = client.batch_execute("ROLLBACK").await;
+                return Err(DbError::from_pg(&err, conn_id));
+            }
+        }
+    }
+
+    client
+        .batch_execute("COMMIT")
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(applied)
+}
+
+fn build_update_sql(edit: &DataCellEdit, conn_id: ConnectionId) -> Result<String, DbError> {
+    if edit.pk.is_empty() {
+        return Err(DbError::internal(
+            conn_id,
+            "Table data edits require a primary key.",
+        ));
+    }
+
+    let set_value = match &edit.value {
+        DataEditValue::Null => "NULL".to_string(),
+        DataEditValue::Text(value) => sql_literal(value, &edit.column_type),
+    };
+    let where_clause = edit
+        .pk
+        .iter()
+        .map(|pk| {
+            format!(
+                "{} = {}",
+                quote_ident(&pk.column),
+                cell_to_sql_literal(&pk.value, &pk.column_type)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" AND ");
+
+    Ok(format!(
+        "UPDATE {}.{} SET {} = {} WHERE {}",
+        quote_ident(&edit.schema),
+        quote_ident(&edit.table),
+        quote_ident(&edit.column),
+        set_value,
+        where_clause
+    ))
+}
+
+fn cell_to_sql_literal(value: &CellValue, type_name: &str) -> String {
+    match value {
+        CellValue::Null => "NULL".to_string(),
+        CellValue::Bool(v) => v.to_string(),
+        CellValue::Int(v) => v.to_string(),
+        CellValue::Float(v) => v.to_string(),
+        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
+            sql_literal(v, type_name)
+        }
+        CellValue::Json(v) => sql_literal(&v.to_string(), type_name),
+        CellValue::Uuid(v) => sql_literal(&v.to_string(), type_name),
+        CellValue::Bytes(v) => sql_literal(&format!("\\x{}", hex_encode(v)), type_name),
+    }
+}
+
+fn sql_literal(value: &str, type_name: &str) -> String {
+    let lower = type_name.to_ascii_lowercase();
+    if is_numeric_type(&lower) && value.trim().parse::<f64>().is_ok() {
+        return value.trim().to_string();
+    }
+    if is_bool_type(&lower) {
+        return normalize_bool_literal(value)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| quote_literal(value));
+    }
+    quote_literal(value)
+}
+
+fn quote_ident(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
+fn quote_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn is_numeric_type(type_name: &str) -> bool {
+    matches!(
+        type_name,
+        "smallint"
+            | "integer"
+            | "bigint"
+            | "int2"
+            | "int4"
+            | "int8"
+            | "real"
+            | "double precision"
+            | "float4"
+            | "float8"
+            | "numeric"
+            | "decimal"
+    )
+}
+
+fn is_bool_type(type_name: &str) -> bool {
+    matches!(type_name, "boolean" | "bool")
+}
+
+fn normalize_bool_literal(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "t" | "1" | "yes" | "y" | "on" => Some(true),
+        "false" | "f" | "0" | "no" | "n" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn extract_cell_value(row: &tokio_postgres::Row, idx: usize) -> CellValue {

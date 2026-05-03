@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::db::error::DbError;
 use crate::types::{
-    ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, QueryResult, RoleInfo,
-    TableInfo,
+    BackupRecord, BackupRequest, ColumnInfo, ConnectionConfig, ConnectionId, DataCellEdit,
+    FunctionInfo, IndexInfo, QueryResult, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
 };
 
 #[derive(Debug)]
@@ -20,7 +20,14 @@ pub enum DbCommand {
         sql: String,
         row_limit: Option<usize>,
     },
+    ApplyDataEdits {
+        conn_id: ConnectionId,
+        edits: Vec<DataCellEdit>,
+    },
     ListSchemas {
+        conn_id: ConnectionId,
+    },
+    ListDatabases {
         conn_id: ConnectionId,
     },
     ListTables {
@@ -41,6 +48,16 @@ pub enum DbCommand {
         conn_id: ConnectionId,
         schema: String,
     },
+    ListRules {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+    },
+    ListTriggers {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+    },
     ListFunctions {
         conn_id: ConnectionId,
         schema: String,
@@ -50,6 +67,9 @@ pub enum DbCommand {
     },
     CancelQuery {
         conn_id: ConnectionId,
+    },
+    RunBackup {
+        request: BackupRequest,
     },
 }
 
@@ -67,9 +87,17 @@ pub enum DbResponse {
         result: QueryResult,
         truncated: bool,
     },
+    DataEditsApplied {
+        conn_id: ConnectionId,
+        applied: usize,
+    },
     SchemaList {
         conn_id: ConnectionId,
         schemas: Vec<String>,
+    },
+    DatabaseList {
+        conn_id: ConnectionId,
+        databases: Vec<String>,
     },
     TableList {
         conn_id: ConnectionId,
@@ -93,6 +121,18 @@ pub enum DbResponse {
         schema: String,
         foreign_keys: Vec<crate::ui::er_diagram::ForeignKey>,
     },
+    RuleList {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        rules: Vec<RuleInfo>,
+    },
+    TriggerList {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        triggers: Vec<TriggerInfo>,
+    },
     FunctionList {
         conn_id: ConnectionId,
         schema: String,
@@ -104,6 +144,13 @@ pub enum DbResponse {
     },
     QueryCancelled {
         conn_id: ConnectionId,
+    },
+    BackupCompleted {
+        record: BackupRecord,
+    },
+    BackupFailed {
+        conn_id: ConnectionId,
+        error: String,
     },
     Error {
         conn_id: ConnectionId,
@@ -164,7 +211,11 @@ enum ConnCommand {
         sql: String,
         row_limit: Option<usize>,
     },
+    ApplyDataEdits {
+        edits: Vec<DataCellEdit>,
+    },
     ListSchemas,
+    ListDatabases,
     ListTables {
         schema: String,
     },
@@ -178,6 +229,14 @@ enum ConnCommand {
     },
     ListForeignKeys {
         schema: String,
+    },
+    ListRules {
+        schema: String,
+        table: String,
+    },
+    ListTriggers {
+        schema: String,
+        table: String,
     },
     ListFunctions {
         schema: String,
@@ -226,9 +285,22 @@ async fn dispatch_loop(
                         .await;
                 }
             }
+            DbCommand::ApplyDataEdits { conn_id, edits } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ApplyDataEdits { edits })
+                        .await;
+                }
+            }
             DbCommand::ListSchemas { conn_id } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::ListSchemas).await;
+                }
+            }
+            DbCommand::ListDatabases { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListDatabases).await;
                 }
             }
             DbCommand::ListTables { conn_id, schema } => {
@@ -271,6 +343,30 @@ async fn dispatch_loop(
                         .await;
                 }
             }
+            DbCommand::ListRules {
+                conn_id,
+                schema,
+                table,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ListRules { schema, table })
+                        .await;
+                }
+            }
+            DbCommand::ListTriggers {
+                conn_id,
+                schema,
+                table,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ListTriggers { schema, table })
+                        .await;
+                }
+            }
             DbCommand::ListFunctions { conn_id, schema } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle
@@ -288,6 +384,19 @@ async fn dispatch_loop(
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::CancelQuery).await;
                 }
+            }
+            DbCommand::RunBackup { request } => {
+                let resp_tx = resp_tx.clone();
+                let ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let conn_id = request.conn_id;
+                    let response = match crate::db::backup::run_backup(request).await {
+                        Ok(record) => DbResponse::BackupCompleted { record },
+                        Err(error) => DbResponse::BackupFailed { conn_id, error },
+                    };
+                    let _ = resp_tx.send(response);
+                    ctx.request_repaint();
+                });
             }
         }
     }
@@ -385,9 +494,26 @@ async fn connection_task(
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }
+            ConnCommand::ApplyDataEdits { edits } => {
+                let response =
+                    match crate::db::queries::apply_data_edits(&client, &edits, conn_id).await {
+                        Ok(applied) => DbResponse::DataEditsApplied { conn_id, applied },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
+                    };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
             ConnCommand::ListSchemas => {
                 let response = match crate::db::metadata::list_schemas(&client, conn_id).await {
                     Ok(schemas) => DbResponse::SchemaList { conn_id, schemas },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListDatabases => {
+                let response = match crate::db::metadata::list_databases(&client, conn_id).await {
+                    Ok(databases) => DbResponse::DatabaseList { conn_id, databases },
                     Err(e) => DbResponse::Error { conn_id, error: e },
                 };
                 let _ = resp_tx.send(response);
@@ -453,6 +579,39 @@ async fn connection_task(
                     },
                     Err(e) => DbResponse::Error { conn_id, error: e },
                 };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListRules { schema, table } => {
+                let response = match crate::db::metadata::list_rules(
+                    &client, &schema, &table, conn_id,
+                )
+                .await
+                {
+                    Ok(rules) => DbResponse::RuleList {
+                        conn_id,
+                        schema: schema.clone(),
+                        table: table.clone(),
+                        rules,
+                    },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListTriggers { schema, table } => {
+                let response =
+                    match crate::db::metadata::list_triggers(&client, &schema, &table, conn_id)
+                        .await
+                    {
+                        Ok(triggers) => DbResponse::TriggerList {
+                            conn_id,
+                            schema: schema.clone(),
+                            table: table.clone(),
+                            triggers,
+                        },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
+                    };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }

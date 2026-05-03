@@ -1,5 +1,6 @@
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 
+use crate::connection_url::{parse_postgres_connection_url, PostgresConnectionUrl};
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::t;
 use crate::state::{AppState, ConnectionDialogState, ConnectionState, ConnectionStatus};
@@ -25,8 +26,8 @@ pub fn render_connection_dialog(ctx: &egui::Context, state: &mut AppState, bridg
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .frame(
             egui::Frame::window(&ctx.style())
-                .fill(theme::BG_MEDIUM)
-                .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_default()))
                 .corner_radius(CornerRadius::same(theme::RADIUS_LG))
                 .inner_margin(Margin::same(theme::SPACE_XXL as i8)),
         )
@@ -44,20 +45,24 @@ pub fn render_connection_dialog(ctx: &egui::Context, state: &mut AppState, bridg
 // ---------------------------------------------------------------------------
 
 fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    detect_clipboard_import(&mut state.connection_dialog);
+
     if !state.saved_connections.is_empty() {
         render_saved_connections(ui, state);
         ui.add_space(theme::SPACE_MD);
         ui.painter().hline(
             ui.available_rect_before_wrap().x_range(),
             ui.cursor().top(),
-            Stroke::new(1.0, theme::BORDER_SUBTLE),
+            Stroke::new(1.0, theme::border_subtle()),
         );
         ui.add_space(theme::SPACE_MD);
     }
 
+    render_clipboard_import_prompt(ui, &mut state.connection_dialog);
+
     ui.label(
         RichText::new(t("connection_details"))
-            .color(theme::TEXT_SECONDARY)
+            .color(theme::text_secondary())
             .size(11.0)
             .strong(),
     );
@@ -77,7 +82,7 @@ fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             ui.spinner();
             ui.label(
                 RichText::new(t("connection_testing"))
-                    .color(theme::TEXT_MUTED)
+                    .color(theme::text_muted())
                     .size(12.0),
             );
         });
@@ -88,11 +93,159 @@ fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     ui.painter().hline(
         ui.available_rect_before_wrap().x_range(),
         ui.cursor().top(),
-        Stroke::new(1.0, theme::BORDER_SUBTLE),
+        Stroke::new(1.0, theme::border_subtle()),
     );
     ui.add_space(theme::SPACE_LG);
 
     render_action_buttons(ui, state, bridge);
+}
+
+// ---------------------------------------------------------------------------
+// Clipboard PostgreSQL URL import
+// ---------------------------------------------------------------------------
+
+fn detect_clipboard_import(dialog: &mut ConnectionDialogState) {
+    if dialog.clipboard_import_checked || dialog.editing_id.is_some() {
+        return;
+    }
+
+    dialog.clipboard_import_checked = true;
+
+    let Some(text) = read_clipboard_text() else {
+        return;
+    };
+
+    if let Some(candidate) = parse_postgres_connection_url(&text) {
+        dialog.pending_clipboard_import = Some(candidate);
+    }
+}
+
+fn read_clipboard_text() -> Option<String> {
+    let mut clipboard = arboard::Clipboard::new().ok()?;
+    clipboard.get_text().ok()
+}
+
+fn render_clipboard_import_prompt(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
+    let Some(candidate) = dialog.pending_clipboard_import.clone() else {
+        return;
+    };
+
+    let mut action = ClipboardImportAction::None;
+    let password_label = if candidate.has_password() {
+        t("connection_clipboard_password_present")
+    } else {
+        t("connection_clipboard_password_empty")
+    };
+
+    egui::Frame::new()
+        .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
+        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 86)))
+        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+        .inner_margin(Margin::same(theme::SPACE_LG as i8))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                crate::ui::icon_img(
+                    ui,
+                    crate::ui::icons_svg::CONNECTION,
+                    "clipboard_postgres_url",
+                    14.0,
+                );
+                ui.add_space(theme::SPACE_SM);
+                ui.vertical(|ui| {
+                    ui.label(
+                        RichText::new(t("connection_clipboard_title"))
+                            .color(theme::text_primary())
+                            .size(12.0)
+                            .strong(),
+                    );
+                    ui.label(
+                        RichText::new(t("connection_clipboard_message"))
+                            .color(theme::text_secondary())
+                            .size(11.0),
+                    );
+                });
+            });
+
+            ui.add_space(theme::SPACE_SM);
+            ui.horizontal_wrapped(|ui| {
+                clipboard_import_chip(ui, format!("{}:{}", candidate.host, candidate.port));
+                clipboard_import_chip(ui, candidate.database.clone());
+                clipboard_import_chip(ui, candidate.username.clone());
+                clipboard_import_chip(ui, password_label.clone());
+                if candidate.use_tls {
+                    clipboard_import_chip(ui, "TLS".to_string());
+                }
+            });
+
+            ui.add_space(theme::SPACE_SM);
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), 28.0),
+                egui::Layout::right_to_left(egui::Align::Center),
+                |ui| {
+                    if ui
+                        .add(theme::primary_button(&t("connection_clipboard_apply")))
+                        .clicked()
+                    {
+                        action = ClipboardImportAction::Apply;
+                    }
+                    if ui
+                        .add(theme::ghost_button(&t("connection_clipboard_ignore")))
+                        .clicked()
+                    {
+                        action = ClipboardImportAction::Ignore;
+                    }
+                },
+            );
+        });
+
+    ui.add_space(theme::SPACE_MD);
+
+    match action {
+        ClipboardImportAction::Apply => {
+            apply_clipboard_import(dialog, &candidate);
+            dialog.pending_clipboard_import = None;
+        }
+        ClipboardImportAction::Ignore => {
+            dialog.pending_clipboard_import = None;
+        }
+        ClipboardImportAction::None => {}
+    }
+}
+
+fn clipboard_import_chip(ui: &mut egui::Ui, text: String) {
+    egui::Frame::new()
+        .fill(Color32::from_rgba_unmultiplied(255, 255, 255, 18))
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
+        .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_MD as i8,
+            theme::SPACE_XS as i8,
+        ))
+        .show(ui, |ui| {
+            ui.label(
+                RichText::new(text)
+                    .color(theme::text_secondary())
+                    .font(egui::FontId::monospace(11.0)),
+            );
+        });
+}
+
+fn apply_clipboard_import(dialog: &mut ConnectionDialogState, candidate: &PostgresConnectionUrl) {
+    dialog.display_name = candidate.suggested_display_name();
+    dialog.host = candidate.host.clone();
+    dialog.port = candidate.port.to_string();
+    dialog.database = candidate.database.clone();
+    dialog.username = candidate.username.clone();
+    dialog.password = candidate.password.clone();
+    dialog.use_tls = candidate.use_tls;
+    dialog.test_result = None;
+}
+
+enum ClipboardImportAction {
+    None,
+    Apply,
+    Ignore,
 }
 
 // ---------------------------------------------------------------------------
@@ -102,15 +255,15 @@ fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
 fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
     ui.label(
         RichText::new(t("connection_saved"))
-            .color(theme::TEXT_SECONDARY)
+            .color(theme::text_secondary())
             .size(11.0)
             .strong(),
     );
     ui.add_space(theme::SPACE_SM);
 
     let frame = egui::Frame::new()
-        .fill(theme::BG_DARK)
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
+        .fill(theme::bg_dark())
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
         .corner_radius(CornerRadius::same(theme::RADIUS_MD))
         .inner_margin(Margin::same(theme::SPACE_SM as i8));
 
@@ -148,7 +301,9 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
 
                                 let resp = ui.add(
                                     egui::Label::new(
-                                        RichText::new(&name).color(theme::TEXT_PRIMARY).size(12.0),
+                                        RichText::new(&name)
+                                            .color(theme::text_primary())
+                                            .size(12.0),
                                     )
                                     .sense(egui::Sense::click()),
                                 );
@@ -161,7 +316,7 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
 
                                 ui.label(
                                     RichText::new(format!("{}:{}/{}", host, port, database))
-                                        .color(theme::TEXT_MUTED)
+                                        .color(theme::text_muted())
                                         .size(11.0),
                                 );
 
@@ -201,7 +356,7 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                         ui.painter().hline(
                             ui.available_rect_before_wrap().x_range(),
                             ui.cursor().top(),
-                            Stroke::new(1.0, theme::BORDER_SUBTLE),
+                            Stroke::new(1.0, theme::border_subtle()),
                         );
                     }
                 }
@@ -211,9 +366,8 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                         ConnectionDialogState::from_config(&state.saved_connections[i]);
                 }
                 if let Some(i) = delete_idx {
-                    let removed = state.saved_connections.remove(i);
-                    crate::storage::connections::delete_password(&removed.id);
-                    crate::storage::connections::save_connections(&state.saved_connections);
+                    state.saved_connections.remove(i);
+                    save_vault_connections(state);
                 }
             });
     });
@@ -231,7 +385,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
         .show(ui, |ui| {
             field_label(ui, t("connection_name"));
             ui.add(
-                egui::TextEdit::singleline(&mut dialog.display_name)
+                theme::text_input(&mut dialog.display_name)
                     .hint_text("My Database")
                     .desired_width(f32::INFINITY),
             );
@@ -239,8 +393,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
 
             field_label(ui, t("connection_host"));
             ui.add(
-                egui::TextEdit::singleline(&mut dialog.host)
-                    .font(egui::TextStyle::Monospace)
+                theme::mono_text_input(&mut dialog.host)
                     .hint_text("localhost")
                     .desired_width(f32::INFINITY),
             );
@@ -248,17 +401,15 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
 
             field_label(ui, t("connection_port"));
             ui.add(
-                egui::TextEdit::singleline(&mut dialog.port)
-                    .font(egui::TextStyle::Monospace)
+                theme::mono_text_input(&mut dialog.port)
                     .hint_text("5432")
-                    .desired_width(72.0),
+                    .desired_width(92.0),
             );
             ui.end_row();
 
             field_label(ui, t("connection_database"));
             ui.add(
-                egui::TextEdit::singleline(&mut dialog.database)
-                    .font(egui::TextStyle::Monospace)
+                theme::mono_text_input(&mut dialog.database)
                     .hint_text("postgres")
                     .desired_width(f32::INFINITY),
             );
@@ -266,20 +417,41 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
 
             field_label(ui, t("connection_username"));
             ui.add(
-                egui::TextEdit::singleline(&mut dialog.username)
-                    .font(egui::TextStyle::Monospace)
+                theme::mono_text_input(&mut dialog.username)
                     .hint_text("postgres")
                     .desired_width(f32::INFINITY),
             );
             ui.end_row();
 
             field_label(ui, t("connection_password"));
-            ui.add(
-                egui::TextEdit::singleline(&mut dialog.password)
-                    .password(true)
-                    .hint_text("\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}")
-                    .desired_width(f32::INFINITY),
-            );
+            ui.horizontal(|ui| {
+                let response = ui.add(
+                    theme::password_input(&mut dialog.password, dialog.show_password)
+                        .hint_text(
+                            "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}",
+                        )
+                        .desired_width(f32::INFINITY),
+                );
+                if response.changed() {
+                    crate::korean_keyboard::normalize_password_input(&mut dialog.password);
+                }
+                let toggle_label = if dialog.show_password { "Hide" } else { "Show" };
+                if ui
+                    .add_sized(
+                        egui::vec2(54.0, theme::INPUT_HEIGHT),
+                        egui::Button::new(
+                            RichText::new(toggle_label)
+                                .color(theme::text_secondary())
+                                .size(11.0),
+                        )
+                        .fill(theme::bg_light())
+                        .stroke(Stroke::new(1.0, theme::border_default())),
+                    )
+                    .clicked()
+                {
+                    dialog.show_password = !dialog.show_password;
+                }
+            });
             ui.end_row();
 
             field_label(ui, t("connection_use_tls"));
@@ -296,7 +468,7 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
                     crate::ui::icon_img(ui, crate::ui::icons_svg::BACKUP, "tls_unlocked", 10.0);
                     ui.label(
                         RichText::new(t("connection_unencrypted"))
-                            .color(theme::TEXT_MUTED)
+                            .color(theme::text_muted())
                             .size(11.0),
                     );
                 }
@@ -308,18 +480,18 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
                 false,
                 egui::Button::new(
                     RichText::new(t("connection_coming_soon"))
-                        .color(theme::TEXT_DISABLED)
+                        .color(theme::text_disabled())
                         .size(11.0),
                 )
                 .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE)),
+                .stroke(Stroke::new(1.0, theme::border_subtle())),
             );
             ui.end_row();
         });
 }
 
 fn field_label(ui: &mut egui::Ui, text: String) {
-    ui.label(RichText::new(text).color(theme::TEXT_MUTED).size(12.0));
+    ui.label(RichText::new(text).color(theme::text_muted()).size(12.0));
 }
 
 // ---------------------------------------------------------------------------
@@ -330,14 +502,14 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
     match result {
         Ok(msg) => {
             egui::Frame::new()
-                .fill(Color32::from_rgba_premultiplied(78, 190, 100, 20))
+                .fill(Color32::from_rgba_unmultiplied(78, 190, 100, 20))
                 .inner_margin(Margin::symmetric(
                     theme::SPACE_LG as i8,
                     theme::SPACE_SM as i8,
                 ))
                 .stroke(Stroke::new(
                     1.0,
-                    Color32::from_rgba_premultiplied(78, 190, 100, 80),
+                    Color32::from_rgba_unmultiplied(78, 190, 100, 80),
                 ))
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
@@ -350,14 +522,14 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
         }
         Err(msg) => {
             egui::Frame::new()
-                .fill(Color32::from_rgba_premultiplied(210, 70, 70, 20))
+                .fill(Color32::from_rgba_unmultiplied(210, 70, 70, 20))
                 .inner_margin(Margin::symmetric(
                     theme::SPACE_LG as i8,
                     theme::SPACE_SM as i8,
                 ))
                 .stroke(Stroke::new(
                     1.0,
-                    Color32::from_rgba_premultiplied(210, 70, 70, 80),
+                    Color32::from_rgba_unmultiplied(210, 70, 70, 80),
                 ))
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
@@ -387,8 +559,8 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         let test_btn = ui.add_enabled(
             !testing,
             egui::Button::new(format!("      {}", t("connection_test")))
-                .fill(theme::BG_LIGHT)
-                .stroke(Stroke::new(1.0, theme::BORDER_STRONG)),
+                .fill(theme::bg_light())
+                .stroke(Stroke::new(1.0, theme::border_strong())),
         );
         ui.allocate_new_ui(
             egui::UiBuilder::new().max_rect(
@@ -437,7 +609,7 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let cancel_btn = egui::Button::new(
                 RichText::new(t("connection_cancel"))
-                    .color(theme::TEXT_MUTED)
+                    .color(theme::text_muted())
                     .size(12.0),
             )
             .fill(Color32::TRANSPARENT)
@@ -458,12 +630,6 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
     let config = state.connection_dialog.to_config();
     let conn_id = config.id;
 
-    if config.password.is_empty() {
-        crate::storage::connections::delete_password(&config.id);
-    } else {
-        crate::storage::connections::store_password(&config.id, &config.password);
-    }
-
     if let Some(saved) = state.saved_connections.iter_mut().find(|c| {
         c.id == config.id
             || (c.host == config.host
@@ -475,7 +641,7 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
     } else {
         state.saved_connections.push(config.clone());
     }
-    crate::storage::connections::save_connections(&state.saved_connections);
+    save_vault_connections(state);
 
     let conn_state = ConnectionState::new(config.clone());
     state.connections.insert(conn_id, conn_state);
@@ -487,4 +653,18 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
 
     bridge.send(DbCommand::Connect { conn_id, config });
     state.show_connection_dialog = false;
+}
+
+fn save_vault_connections(state: &mut AppState) {
+    let Some(session) = state.vault.session.as_ref() else {
+        state.last_error = Some(t("vault_error_locked"));
+        return;
+    };
+
+    if let Err(err) =
+        crate::storage::connections::save_connections(&state.saved_connections, session)
+    {
+        state.last_error = Some(err.to_string());
+        state.status_message = err.to_string();
+    }
 }

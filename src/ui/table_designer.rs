@@ -114,6 +114,16 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, bridge: 
         return;
     }
 
+    if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+        if state.table_designer.show_ddl_preview {
+            state.table_designer.show_ddl_preview = false;
+        } else {
+            state.table_designer.show = false;
+        }
+        return;
+    }
+
+    let mut open = state.table_designer.show;
     let mut should_close = false;
 
     Window::new(if state.table_designer.editing_table.is_some() {
@@ -123,14 +133,16 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, bridge: 
     })
     .default_size([900.0, 700.0])
     .resizable(true)
-    .collapsible(true)
+    .collapsible(false)
+    .open(&mut open)
     .show(ctx, |ui| {
         render_designer_ui(ui, state, bridge, &mut should_close);
     });
 
     if should_close {
-        state.table_designer.show = false;
+        open = false;
     }
+    state.table_designer.show = open;
 }
 
 fn render_designer_ui(
@@ -164,7 +176,7 @@ fn render_designer_ui(
 
         ui.label("Table Name:");
         let name_edit = ui.add(
-            TextEdit::singleline(&mut state.table_designer.table_name)
+            theme::text_input(&mut state.table_designer.table_name)
                 .desired_width(200.0)
                 .hint_text("table_name"),
         );
@@ -212,10 +224,14 @@ fn render_designer_ui(
     });
 
     if state.table_designer.show_ddl_preview {
+        let mut ddl_preview_open = state.table_designer.show_ddl_preview;
+        let mut should_close_ddl_preview = false;
+
         Window::new("Generated DDL")
             .default_size([600.0, 400.0])
             .resizable(true)
-            .collapsible(true)
+            .collapsible(false)
+            .open(&mut ddl_preview_open)
             .show(ui.ctx(), |ui| {
                 if let Some(ref ddl) = state.table_designer.generated_ddl {
                     ui.add_sized(
@@ -236,16 +252,21 @@ fn render_designer_ui(
                         }
                     }
                     if ui.button("Close").clicked() {
-                        state.table_designer.show_ddl_preview = false;
+                        should_close_ddl_preview = true;
                     }
                 });
             });
+
+        if should_close_ddl_preview {
+            ddl_preview_open = false;
+        }
+        state.table_designer.show_ddl_preview = ddl_preview_open;
     }
 }
 
 fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
     Frame::new()
-        .fill(theme::BG_DARK)
+        .fill(theme::bg_dark())
         .inner_margin(Margin::same(8))
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
@@ -279,10 +300,10 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
 
                         if is_selected {
                             frame = frame
-                                .fill(theme::ACCENT_COPPER_DIM)
+                                .fill(theme::accent_copper_dim())
                                 .stroke(Stroke::new(1.0, theme::ACCENT_COPPER));
                         } else {
-                            frame = frame.fill(theme::BG_MEDIUM);
+                            frame = frame.fill(theme::bg_medium());
                         }
 
                         let response = frame.show(ui, |ui| {
@@ -299,7 +320,7 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                                     ui.label(
                                         RichText::new(null_text)
-                                            .color(theme::TEXT_MUTED)
+                                            .color(theme::text_muted())
                                             .size(10.0),
                                     );
                                     ui.label(
@@ -353,7 +374,7 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
     let col = &mut state.table_designer.columns[idx];
 
     Frame::new()
-        .fill(theme::BG_DARK)
+        .fill(theme::bg_dark())
         .inner_margin(Margin::same(12))
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
@@ -374,8 +395,7 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
                     ui.label("Name:");
-                    let name_edit =
-                        ui.add(TextEdit::singleline(&mut col.name).desired_width(180.0));
+                    let name_edit = ui.add(theme::text_input(&mut col.name).desired_width(180.0));
                     if name_edit.lost_focus() {
                         col.name = sanitize_identifier(&col.name);
                     }
@@ -400,7 +420,7 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                     if needs_length(&col.data_type) {
                         ui.label("Length:");
                         ui.add(
-                            TextEdit::singleline(col.length.get_or_insert_with(String::new))
+                            theme::text_input(col.length.get_or_insert_with(String::new))
                                 .desired_width(80.0)
                                 .hint_text("e.g., 255"),
                         );
@@ -408,7 +428,7 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                     }
 
                     ui.label("Default:");
-                    ui.add(TextEdit::singleline(&mut col.default_value).desired_width(180.0));
+                    ui.add(theme::text_input(&mut col.default_value).desired_width(180.0));
                     ui.end_row();
 
                     ui.label("");
@@ -441,12 +461,12 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                                 });
 
                             ui.add(
-                                TextEdit::singleline(&mut col.fk_ref_table)
+                                theme::text_input(&mut col.fk_ref_table)
                                     .desired_width(100.0)
                                     .hint_text("table"),
                             );
                             ui.add(
-                                TextEdit::singleline(&mut col.fk_ref_column)
+                                theme::text_input(&mut col.fk_ref_column)
                                     .desired_width(100.0)
                                     .hint_text("column"),
                             );
@@ -467,7 +487,7 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
         .collect();
 
     Frame::new()
-        .fill(theme::BG_DARK)
+        .fill(theme::bg_dark())
         .inner_margin(Margin::same(8))
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
@@ -491,14 +511,14 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
 
                     for (idx, index) in state.table_designer.indexes.iter_mut().enumerate() {
                         Frame::new()
-                            .fill(theme::BG_MEDIUM)
+                            .fill(theme::bg_medium())
                             .inner_margin(Margin::same(6))
                             .corner_radius(CornerRadius::same(4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     ui.label("Name:");
                                     ui.add(
-                                        TextEdit::singleline(&mut index.name)
+                                        theme::text_input(&mut index.name)
                                             .desired_width(130.0)
                                             .hint_text("idx_name"),
                                     );
@@ -536,7 +556,7 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(
                                         RichText::new("Columns:")
-                                            .color(theme::TEXT_MUTED)
+                                            .color(theme::text_muted())
                                             .size(10.0),
                                     );
                                     for column in &column_names {
@@ -761,8 +781,8 @@ fn primary_button(text: &str) -> Button<'_> {
 
 fn small_button(text: &str) -> Button<'_> {
     Button::new(text)
-        .fill(theme::BG_LIGHT)
-        .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
+        .fill(theme::bg_light())
+        .stroke(Stroke::new(1.0, theme::border_default()))
         .corner_radius(CornerRadius::same(4))
         .min_size(Vec2::new(24.0, 24.0))
 }

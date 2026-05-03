@@ -88,6 +88,456 @@ impl Translation {
     }
 }
 
+fn insert_recent_ui_en(en: &mut Translation) {
+    en.insert("ctx_close_connection", "Close Connection");
+    en.insert("ctx_open_connection", "Open Connection");
+    en.insert("ctx_switch_connection_profile", "Switch Connection Profile");
+    en.insert("ctx_no_saved_profiles", "No saved profiles");
+    en.insert("ctx_edit_connection", "Edit Connection...");
+    en.insert("ctx_new_connection", "New Connection");
+    en.insert("ctx_delete_connection", "Delete Connection");
+    en.insert("ctx_duplicate_connection", "Duplicate Connection...");
+    en.insert("ctx_new_database", "New Database...");
+    en.insert("ctx_new_table", "New Table");
+    en.insert("ctx_new_query", "New Query");
+    en.insert("ctx_console", "Console");
+    en.insert("ctx_execute_sql_file", "Execute SQL File...");
+    en.insert("ctx_add_star", "Add Star");
+    en.insert("ctx_color", "Color:");
+    en.insert("ctx_manage_group", "Manage Group");
+    en.insert("ctx_create_group", "Create Group...");
+    en.insert("ctx_move_to_group", "Move to Group...");
+    en.insert("ctx_share", "Share...");
+    en.insert("ctx_refresh", "Refresh");
+    en.insert("ctx_close_all_connections", "Close All Connections");
+    en.insert("ctx_manage_connections", "Manage Connections...");
+    en.insert("ctx_new_group", "New Group");
+
+    en.insert("tree_no_connections", "No connections");
+    en.insert(
+        "tree_create_connection",
+        "Create a connection to browse schemas",
+    );
+    en.insert("tree_empty", "(empty)");
+    en.insert("tree_tables", "Tables");
+    en.insert("tree_views", "Views");
+    en.insert("tree_materialized_views", "Materialized Views");
+    en.insert("tree_functions", "Functions");
+    en.insert("tree_queries", "Queries");
+    en.insert("tree_backups", "Backups");
+    en.insert("tree_schema_backup", "Schema Backup");
+    en.insert("tree_full_database_backup", "Full Database Backup");
+    en.insert("tree_fields", "Fields");
+    en.insert("tree_indexes", "Indexes");
+    en.insert("tree_foreign_keys", "Foreign Keys");
+    en.insert("tree_unique", "Unique");
+    en.insert("tree_rules", "Rules");
+    en.insert("tree_triggers", "Triggers");
+    en.insert("tree_edit_table", "Edit Table");
+    en.insert("tree_view_data_top_100", "View Data (Top 100)");
+    en.insert("tree_copy_select", "Copy SELECT *");
+    en.insert("tree_refresh_metadata", "Refresh Metadata");
+    en.insert("tree_copy_signature", "Copy Signature");
+    en.insert("tree_copy_rule_ddl", "Copy Rule DDL");
+    en.insert("tree_copy_trigger_ddl", "Copy Trigger DDL");
+    en.insert("tree_show_functions", "Show Functions");
+    en.insert("tree_show_group", "Show {0}");
+    en.insert("tree_showing_group", "Showing {0} in {1}");
+    en.insert("tree_showing_functions", "Showing Functions in {0}");
+    en.insert("tree_backup_schema_title", "Backup: {0}");
+    en.insert("tree_backup_full_title", "Backup: full");
+    en.insert("tree_backup_scope_schema", "Backup scope: {0} schema");
+    en.insert("tree_backup_scope_full", "Backup scope: full database");
+    en.insert(
+        "tree_refreshing_connections",
+        "Refreshing {0} connection(s)...",
+    );
+    en.insert("tree_explorer_refreshed", "Explorer refreshed");
+    en.insert("tree_closing_all_connections", "Closing all connections...");
+
+    en.insert("objects_all_schemas", "All Schemas");
+    en.insert("objects_schema", "Schema");
+    en.insert("objects_name", "Name");
+    en.insert("objects_type", "Type");
+    en.insert("objects_columns", "Columns");
+    en.insert("objects_indexes", "Indexes");
+    en.insert("objects_actions", "Actions");
+    en.insert("objects_search", "Search");
+    en.insert("objects_new_table", "New Table");
+    en.insert("objects_open_model", "Open ER Diagram");
+    en.insert("objects_signature", "Signature");
+    en.insert("objects_returns", "Returns");
+    en.insert("objects_lang", "Lang");
+    en.insert("objects_role", "Role");
+    en.insert("objects_login", "Login");
+    en.insert("objects_privileges", "Privileges");
+    en.insert("objects_valid_until", "Valid Until");
+    en.insert("objects_column", "Column");
+    en.insert("objects_non_null", "Non-null");
+    en.insert("objects_min", "Min");
+    en.insert("objects_max", "Max");
+    en.insert("objects_average", "Average");
+    en.insert("objects_no_active_connection", "No active connection");
+    en.insert(
+        "objects_no_active_connection_help",
+        "Connect to PostgreSQL to browse and operate on database objects.",
+    );
+    en.insert("objects_tables_title", "Tables");
+    en.insert(
+        "objects_tables_subtitle",
+        "Base tables and editable relations",
+    );
+    en.insert("objects_views_title", "Views");
+    en.insert("objects_views_subtitle", "Virtual query-backed objects");
+    en.insert("objects_materialized_title", "Materialized Views");
+    en.insert("objects_materialized_subtitle", "Stored query snapshots");
+    en.insert("objects_functions_title", "Functions");
+    en.insert(
+        "objects_functions_subtitle",
+        "PostgreSQL routines by schema",
+    );
+    en.insert("objects_users_title", "Users");
+    en.insert("objects_users_subtitle", "Roles and login permissions");
+    en.insert("objects_backup_title", "Backup");
+    en.insert(
+        "objects_backup_subtitle",
+        "pg_dump and restore command builder",
+    );
+    en.insert("objects_automation_title", "Automation");
+    en.insert("objects_automation_subtitle", "Maintenance query presets");
+    en.insert("objects_model_title", "Model");
+    en.insert("objects_model_subtitle", "ER diagram and schema modeling");
+    en.insert("objects_bi_title", "BI");
+    en.insert("objects_bi_subtitle", "Quick result-set profiling");
+    en.insert("objects_connections_title", "Connections");
+    en.insert("objects_connections_subtitle", "Database connection setup");
+    en.insert("objects_query_title", "Query");
+    en.insert("objects_query_subtitle", "SQL editor");
+    en.insert("objects_data_title", "Data");
+    en.insert("objects_data_subtitle", "Browse table rows");
+
+    en.insert("backup_schema", "Schema Backup");
+    en.insert("backup_full_database", "Full Database Backup");
+    en.insert("backup_no_folder_selected", "No backup folder selected");
+    en.insert("backup_folder_title", "FerrumGrid Backup Folder");
+    en.insert("backup_choose_folder", "Choose Folder");
+    en.insert("backup_open_folder", "Open Folder");
+    en.insert("backup_folder_updated", "Backup folder updated");
+    en.insert("backup_format", "Format");
+    en.insert("backup_custom_archive", "Custom archive (.dump)");
+    en.insert("backup_plain_sql", "Plain SQL (.sql)");
+    en.insert("backup_running_label", "Backing Up...");
+    en.insert("backup_running_status", "Backing up {0}...");
+    en.insert("backup_run", "Run Backup");
+    en.insert("backup_pg_dump_running", "pg_dump is running");
+    en.insert("backup_recent", "Recent FerrumGrid Backups");
+    en.insert("backup_no_session", "No backups in this session");
+
+    en.insert("schema_visualizer_title", "Schema Visualizer");
+    en.insert(
+        "schema_visualizer_desc",
+        "Explore tables, columns, and foreign-key relationships.",
+    );
+    en.insert("schema_visualizer_open", "Open Visualizer");
+    en.insert("visualizer_schema", "Schema");
+    en.insert("visualizer_search_hint", "Search tables or columns");
+    en.insert("visualizer_reload", "Reload");
+    en.insert("visualizer_auto_layout", "Auto Layout");
+    en.insert("visualizer_fit", "Fit");
+    en.insert("visualizer_zoom", "Zoom");
+    en.insert("visualizer_close_tooltip", "Close Schema Visualizer");
+    en.insert("visualizer_loading_columns", "Loading columns...");
+    en.insert("visualizer_loading_title", "Loading schema visualizer...");
+    en.insert(
+        "visualizer_loading_subtitle",
+        "Tables, columns, and relationships will appear here automatically.",
+    );
+    en.insert("visualizer_no_matching_tables", "No matching tables");
+    en.insert(
+        "visualizer_clear_search_hint",
+        "Clear the search box to show the full schema.",
+    );
+    en.insert("visualizer_count", "{0} tables  |  {1} relations");
+
+    en.insert("workspace_close_tab", "Close Tab");
+    en.insert("workspace_new_query", "New Query");
+    en.insert("grid_revert", "Revert");
+    en.insert("grid_edits", "{0} edits");
+    en.insert("grid_pk_required", "Primary key required to update rows");
+    en.insert("grid_invalid_values", "{0} invalid value(s)");
+    en.insert("grid_toggle_null", "Toggle NULL");
+    en.insert("grid_null_value", "NULL value");
+    en.insert("grid_copy_value", "Copy Value");
+    en.insert("grid_no_active_data_source", "No active data source");
+    en.insert("grid_no_result_set", "No result set");
+    en.insert(
+        "grid_column_missing",
+        "Edited column is no longer available",
+    );
+    en.insert(
+        "grid_pk_missing",
+        "Primary key column {0} is not in the result set",
+    );
+    en.insert(
+        "grid_pk_value_missing",
+        "Primary key value is not available",
+    );
+    en.insert("grid_not_null", "This column does not allow NULL");
+    en.insert("grid_bool_error", "Use true or false");
+    en.insert("grid_number_error", "Enter a valid number");
+    en.insert("grid_json_error", "Enter valid JSON");
+    en.insert("grid_uuid_error", "Enter a valid UUID");
+    en.insert(
+        "grid_bytes_error",
+        "Enter hex bytes, for example \\xDEADBEEF",
+    );
+    en.insert("grid_date_error", "Enter a date as YYYY-MM-DD");
+    en.insert(
+        "grid_datetime_error",
+        "Enter date and time as YYYY-MM-DD HH:MM:SS",
+    );
+    en.insert("grid_now", "Now");
+    en.insert("grid_sort_asc", "Sort Ascending");
+    en.insert("grid_sort_desc", "Sort Descending");
+    en.insert("grid_sort_remove", "Remove Sort");
+    en.insert("grid_sort_clear_all", "Clear All Sorts");
+    en.insert("grid_sort_unsaved", "Apply or revert edits before sorting");
+    en.insert(
+        "grid_page_unsaved",
+        "Apply or revert edits before changing pages",
+    );
+    en.insert("grid_first_page", "First Page");
+    en.insert("grid_prev_page", "Previous Page");
+    en.insert("grid_next_page", "Next Page");
+    en.insert("grid_page", "Page");
+    en.insert("grid_page_n", "Page {0}");
+    en.insert("grid_limit", "Limit");
+    en.insert("grid_limit_n", "Limit {0}");
+    en.insert("grid_limit_error", "Enter a valid row limit");
+    en.insert("grid_enum_select", "Select value");
+    en.insert("grid_enum_error", "Select one of the allowed values");
+    en.insert("grid_visible_range", "{0}-{1}");
+}
+
+fn insert_recent_ui_ko(ko: &mut Translation) {
+    ko.insert("ctx_close_connection", "연결 닫기");
+    ko.insert("ctx_open_connection", "연결 열기");
+    ko.insert("ctx_switch_connection_profile", "연결 프로필 전환");
+    ko.insert("ctx_no_saved_profiles", "저장된 프로필 없음");
+    ko.insert("ctx_edit_connection", "연결 편집...");
+    ko.insert("ctx_new_connection", "새 연결");
+    ko.insert("ctx_delete_connection", "연결 삭제");
+    ko.insert("ctx_duplicate_connection", "연결 복제...");
+    ko.insert("ctx_new_database", "새 데이터베이스...");
+    ko.insert("ctx_new_table", "새 테이블");
+    ko.insert("ctx_new_query", "새 쿼리");
+    ko.insert("ctx_console", "콘솔");
+    ko.insert("ctx_execute_sql_file", "SQL 파일 실행...");
+    ko.insert("ctx_add_star", "즐겨찾기 추가");
+    ko.insert("ctx_color", "색상:");
+    ko.insert("ctx_manage_group", "그룹 관리");
+    ko.insert("ctx_create_group", "그룹 만들기...");
+    ko.insert("ctx_move_to_group", "그룹으로 이동...");
+    ko.insert("ctx_share", "공유...");
+    ko.insert("ctx_refresh", "새로고침");
+    ko.insert("ctx_close_all_connections", "모든 연결 닫기");
+    ko.insert("ctx_manage_connections", "연결 관리...");
+    ko.insert("ctx_new_group", "새 그룹");
+
+    ko.insert("tree_no_connections", "연결 없음");
+    ko.insert(
+        "tree_create_connection",
+        "스키마를 탐색하려면 연결을 생성하세요",
+    );
+    ko.insert("tree_empty", "(비어 있음)");
+    ko.insert("tree_tables", "테이블");
+    ko.insert("tree_views", "뷰");
+    ko.insert("tree_materialized_views", "구체화된 뷰");
+    ko.insert("tree_functions", "함수");
+    ko.insert("tree_queries", "쿼리");
+    ko.insert("tree_backups", "백업");
+    ko.insert("tree_schema_backup", "스키마 백업");
+    ko.insert("tree_full_database_backup", "전체 데이터베이스 백업");
+    ko.insert("tree_fields", "필드");
+    ko.insert("tree_indexes", "인덱스");
+    ko.insert("tree_foreign_keys", "외래키");
+    ko.insert("tree_unique", "유니크");
+    ko.insert("tree_rules", "룰");
+    ko.insert("tree_triggers", "트리거");
+    ko.insert("tree_edit_table", "테이블 편집");
+    ko.insert("tree_view_data_top_100", "데이터 보기 (상위 100)");
+    ko.insert("tree_copy_select", "SELECT * 복사");
+    ko.insert("tree_refresh_metadata", "메타데이터 새로고침");
+    ko.insert("tree_copy_signature", "시그니처 복사");
+    ko.insert("tree_copy_rule_ddl", "룰 DDL 복사");
+    ko.insert("tree_copy_trigger_ddl", "트리거 DDL 복사");
+    ko.insert("tree_show_functions", "함수 보기");
+    ko.insert("tree_show_group", "{0} 보기");
+    ko.insert("tree_showing_group", "{1}의 {0} 표시 중");
+    ko.insert("tree_showing_functions", "{0}의 함수 표시 중");
+    ko.insert("tree_backup_schema_title", "백업: {0}");
+    ko.insert("tree_backup_full_title", "백업: 전체");
+    ko.insert("tree_backup_scope_schema", "백업 범위: {0} 스키마");
+    ko.insert("tree_backup_scope_full", "백업 범위: 전체 데이터베이스");
+    ko.insert("tree_refreshing_connections", "{0}개 연결 새로고침 중...");
+    ko.insert("tree_explorer_refreshed", "탐색기를 새로고침했습니다");
+    ko.insert("tree_closing_all_connections", "모든 연결을 닫는 중...");
+
+    ko.insert("objects_all_schemas", "모든 스키마");
+    ko.insert("objects_schema", "스키마");
+    ko.insert("objects_name", "이름");
+    ko.insert("objects_type", "타입");
+    ko.insert("objects_columns", "컬럼");
+    ko.insert("objects_indexes", "인덱스");
+    ko.insert("objects_actions", "작업");
+    ko.insert("objects_search", "검색");
+    ko.insert("objects_new_table", "새 테이블");
+    ko.insert("objects_open_model", "ER 다이어그램 열기");
+    ko.insert("objects_signature", "시그니처");
+    ko.insert("objects_returns", "반환값");
+    ko.insert("objects_lang", "언어");
+    ko.insert("objects_role", "역할");
+    ko.insert("objects_login", "로그인");
+    ko.insert("objects_privileges", "권한");
+    ko.insert("objects_valid_until", "유효 기간");
+    ko.insert("objects_column", "컬럼");
+    ko.insert("objects_non_null", "Null 아님");
+    ko.insert("objects_min", "최소");
+    ko.insert("objects_max", "최대");
+    ko.insert("objects_average", "평균");
+    ko.insert("objects_no_active_connection", "활성 연결 없음");
+    ko.insert(
+        "objects_no_active_connection_help",
+        "PostgreSQL에 연결하면 데이터베이스 오브젝트를 탐색하고 조작할 수 있습니다.",
+    );
+    ko.insert("objects_tables_title", "테이블");
+    ko.insert("objects_tables_subtitle", "기본 테이블과 편집 가능한 관계");
+    ko.insert("objects_views_title", "뷰");
+    ko.insert("objects_views_subtitle", "쿼리 기반 가상 오브젝트");
+    ko.insert("objects_materialized_title", "구체화된 뷰");
+    ko.insert("objects_materialized_subtitle", "저장된 쿼리 스냅샷");
+    ko.insert("objects_functions_title", "함수");
+    ko.insert("objects_functions_subtitle", "스키마별 PostgreSQL 루틴");
+    ko.insert("objects_users_title", "사용자");
+    ko.insert("objects_users_subtitle", "역할 및 로그인 권한");
+    ko.insert("objects_backup_title", "백업");
+    ko.insert("objects_backup_subtitle", "pg_dump 및 복원 명령 빌더");
+    ko.insert("objects_automation_title", "자동화");
+    ko.insert("objects_automation_subtitle", "유지보수 쿼리 프리셋");
+    ko.insert("objects_model_title", "모델");
+    ko.insert("objects_model_subtitle", "ER 다이어그램 및 스키마 모델링");
+    ko.insert("objects_bi_title", "BI");
+    ko.insert("objects_bi_subtitle", "결과셋 빠른 프로파일링");
+    ko.insert("objects_connections_title", "연결");
+    ko.insert("objects_connections_subtitle", "데이터베이스 연결 설정");
+    ko.insert("objects_query_title", "쿼리");
+    ko.insert("objects_query_subtitle", "SQL 에디터");
+    ko.insert("objects_data_title", "데이터");
+    ko.insert("objects_data_subtitle", "테이블 행 탐색");
+
+    ko.insert("backup_schema", "스키마 백업");
+    ko.insert("backup_full_database", "전체 데이터베이스 백업");
+    ko.insert("backup_no_folder_selected", "선택된 백업 폴더 없음");
+    ko.insert("backup_folder_title", "FerrumGrid 백업 폴더");
+    ko.insert("backup_choose_folder", "폴더 선택");
+    ko.insert("backup_open_folder", "폴더 열기");
+    ko.insert("backup_folder_updated", "백업 폴더가 업데이트되었습니다");
+    ko.insert("backup_format", "형식");
+    ko.insert("backup_custom_archive", "커스텀 아카이브 (.dump)");
+    ko.insert("backup_plain_sql", "Plain SQL (.sql)");
+    ko.insert("backup_running_label", "백업 중...");
+    ko.insert("backup_running_status", "{0} 백업 중...");
+    ko.insert("backup_run", "백업 실행");
+    ko.insert("backup_pg_dump_running", "pg_dump 실행 중");
+    ko.insert("backup_recent", "최근 FerrumGrid 백업");
+    ko.insert("backup_no_session", "이번 세션에 백업 없음");
+
+    ko.insert("schema_visualizer_title", "스키마 비주얼라이저");
+    ko.insert(
+        "schema_visualizer_desc",
+        "테이블, 컬럼, 외래키 관계를 시각적으로 탐색합니다.",
+    );
+    ko.insert("schema_visualizer_open", "비주얼라이저 열기");
+    ko.insert("visualizer_schema", "스키마");
+    ko.insert("visualizer_search_hint", "테이블 또는 컬럼 검색");
+    ko.insert("visualizer_reload", "다시 불러오기");
+    ko.insert("visualizer_auto_layout", "자동 배치");
+    ko.insert("visualizer_fit", "맞춤");
+    ko.insert("visualizer_zoom", "확대/축소");
+    ko.insert("visualizer_close_tooltip", "스키마 비주얼라이저 닫기");
+    ko.insert("visualizer_loading_columns", "컬럼 불러오는 중...");
+    ko.insert(
+        "visualizer_loading_title",
+        "스키마 비주얼라이저 불러오는 중...",
+    );
+    ko.insert(
+        "visualizer_loading_subtitle",
+        "테이블, 컬럼, 관계가 자동으로 여기에 표시됩니다.",
+    );
+    ko.insert("visualizer_no_matching_tables", "일치하는 테이블 없음");
+    ko.insert(
+        "visualizer_clear_search_hint",
+        "전체 스키마를 보려면 검색어를 지우세요.",
+    );
+    ko.insert("visualizer_count", "{0}개 테이블  |  {1}개 관계");
+
+    ko.insert("workspace_close_tab", "탭 닫기");
+    ko.insert("workspace_new_query", "새 쿼리");
+    ko.insert("grid_revert", "되돌리기");
+    ko.insert("grid_edits", "{0}개 수정");
+    ko.insert("grid_pk_required", "행 업데이트에는 기본키가 필요합니다");
+    ko.insert("grid_invalid_values", "잘못된 값 {0}개");
+    ko.insert("grid_toggle_null", "NULL 전환");
+    ko.insert("grid_null_value", "NULL 값");
+    ko.insert("grid_copy_value", "값 복사");
+    ko.insert("grid_no_active_data_source", "활성 데이터 소스 없음");
+    ko.insert("grid_no_result_set", "결과 없음");
+    ko.insert(
+        "grid_column_missing",
+        "수정한 컬럼을 더 이상 찾을 수 없습니다",
+    );
+    ko.insert("grid_pk_missing", "기본키 컬럼 {0}이 결과셋에 없습니다");
+    ko.insert("grid_pk_value_missing", "기본키 값을 찾을 수 없습니다");
+    ko.insert("grid_not_null", "이 컬럼은 NULL을 허용하지 않습니다");
+    ko.insert("grid_bool_error", "true 또는 false를 입력하세요");
+    ko.insert("grid_number_error", "올바른 숫자를 입력하세요");
+    ko.insert("grid_json_error", "올바른 JSON을 입력하세요");
+    ko.insert("grid_uuid_error", "올바른 UUID를 입력하세요");
+    ko.insert(
+        "grid_bytes_error",
+        "16진수 바이트를 입력하세요. 예: \\xDEADBEEF",
+    );
+    ko.insert("grid_date_error", "날짜를 YYYY-MM-DD 형식으로 입력하세요");
+    ko.insert(
+        "grid_datetime_error",
+        "날짜와 시간을 YYYY-MM-DD HH:MM:SS 형식으로 입력하세요",
+    );
+    ko.insert("grid_now", "지금");
+    ko.insert("grid_sort_asc", "오름차순 정렬");
+    ko.insert("grid_sort_desc", "내림차순 정렬");
+    ko.insert("grid_sort_remove", "정렬 해제");
+    ko.insert("grid_sort_clear_all", "전체 정렬 해제");
+    ko.insert(
+        "grid_sort_unsaved",
+        "정렬하기 전에 수정사항을 적용하거나 되돌리세요",
+    );
+    ko.insert(
+        "grid_page_unsaved",
+        "페이지를 바꾸기 전에 수정사항을 적용하거나 되돌리세요",
+    );
+    ko.insert("grid_first_page", "첫 페이지");
+    ko.insert("grid_prev_page", "이전 페이지");
+    ko.insert("grid_next_page", "다음 페이지");
+    ko.insert("grid_page", "페이지");
+    ko.insert("grid_page_n", "{0}페이지");
+    ko.insert("grid_limit", "제한");
+    ko.insert("grid_limit_n", "제한 {0}");
+    ko.insert("grid_limit_error", "올바른 행 제한 숫자를 입력하세요");
+    ko.insert("grid_enum_select", "값 선택");
+    ko.insert("grid_enum_error", "허용된 값 중 하나를 선택하세요");
+    ko.insert("grid_visible_range", "{0}-{1}");
+}
+
 pub fn init() {
     let mut translations = TRANSLATIONS.write().unwrap();
 
@@ -134,6 +584,41 @@ pub fn init() {
     en.insert("connection_connect", "Connect");
     en.insert("connection_save", "Save");
     en.insert("connection_cancel", "Cancel");
+    en.insert(
+        "connection_clipboard_title",
+        "PostgreSQL URL detected in clipboard",
+    );
+    en.insert(
+        "connection_clipboard_message",
+        "Apply it to this new connection?",
+    );
+    en.insert("connection_clipboard_apply", "Apply");
+    en.insert("connection_clipboard_ignore", "Ignore");
+    en.insert("connection_clipboard_password_present", "Password included");
+    en.insert("connection_clipboard_password_empty", "No password");
+    en.insert("vault_title", "FerrumGrid Vault");
+    en.insert("vault_setup_title", "Set up Personal Vault");
+    en.insert("vault_unlock_title", "Unlock Personal Vault");
+    en.insert("vault_unlocked_title", "Personal Vault Unlocked");
+    en.insert(
+        "vault_subtitle",
+        "Connections and credentials are encrypted before they touch disk.",
+    );
+    en.insert("vault_name", "Vault");
+    en.insert("vault_master_password", "Master Password");
+    en.insert("vault_confirm_password", "Confirm Password");
+    en.insert("vault_create_button", "Create Vault");
+    en.insert("vault_unlock_button", "Unlock");
+    en.insert("vault_show_password", "Show");
+    en.insert("vault_hide_password", "Hide");
+    en.insert(
+        "vault_legacy_connections_will_migrate",
+        "legacy connections will be encrypted into this vault.",
+    );
+    en.insert("vault_error_short_password", "Use at least 8 characters.");
+    en.insert("vault_error_password_mismatch", "Passwords do not match.");
+    en.insert("vault_error_locked", "Unlock the Personal Vault first.");
+    en.insert("vault_unlocked_status", "Personal Vault unlocked");
     en.insert("query_editor_placeholder", "Enter your SQL query here...");
     en.insert("query_execute", "Execute");
     en.insert("query_cancel", "Cancel");
@@ -220,6 +705,7 @@ pub fn init() {
     en.insert("settings_dark_mode", "Dark Mode");
     en.insert("settings_database", "Database");
     en.insert("settings_default_row_limit", "Default Row Limit");
+    en.insert("settings_data_timezone", "Data Time Zone");
     en.insert("settings_auto_commit", "Auto Commit");
     en.insert(
         "settings_confirm_destructive",
@@ -292,6 +778,7 @@ pub fn init() {
     en.insert("about_edition", "Developer Preview");
     en.insert("about_engine", "PostgreSQL Workbench");
     en.insert("about_author", "FerrumGrid Studio");
+    insert_recent_ui_en(&mut en);
 
     translations.insert(Language::English, en);
 
@@ -338,6 +825,44 @@ pub fn init() {
     ko.insert("connection_connect", "연결");
     ko.insert("connection_save", "저장");
     ko.insert("connection_cancel", "취소");
+    ko.insert(
+        "connection_clipboard_title",
+        "클립보드에서 PostgreSQL URL을 찾음",
+    );
+    ko.insert("connection_clipboard_message", "새 연결에 적용할까요?");
+    ko.insert("connection_clipboard_apply", "적용");
+    ko.insert("connection_clipboard_ignore", "무시");
+    ko.insert("connection_clipboard_password_present", "비밀번호 포함");
+    ko.insert("connection_clipboard_password_empty", "비밀번호 없음");
+    ko.insert("vault_title", "FerrumGrid Vault");
+    ko.insert("vault_setup_title", "Personal Vault 설정");
+    ko.insert("vault_unlock_title", "Personal Vault 잠금 해제");
+    ko.insert("vault_unlocked_title", "Personal Vault 열림");
+    ko.insert(
+        "vault_subtitle",
+        "연결 정보와 자격 증명은 디스크에 닿기 전에 암호화됩니다.",
+    );
+    ko.insert("vault_name", "Vault");
+    ko.insert("vault_master_password", "마스터 비밀번호");
+    ko.insert("vault_confirm_password", "비밀번호 확인");
+    ko.insert("vault_create_button", "Vault 생성");
+    ko.insert("vault_unlock_button", "잠금 해제");
+    ko.insert("vault_show_password", "보기");
+    ko.insert("vault_hide_password", "숨김");
+    ko.insert(
+        "vault_legacy_connections_will_migrate",
+        "개의 기존 연결을 이 Vault로 암호화합니다.",
+    );
+    ko.insert("vault_error_short_password", "8자 이상 입력하세요.");
+    ko.insert(
+        "vault_error_password_mismatch",
+        "비밀번호가 일치하지 않습니다.",
+    );
+    ko.insert(
+        "vault_error_locked",
+        "먼저 Personal Vault 잠금을 해제하세요.",
+    );
+    ko.insert("vault_unlocked_status", "Personal Vault 잠금 해제됨");
     ko.insert("query_editor_placeholder", "SQL 쿼리를 입력하세요...");
     ko.insert("query_execute", "실행");
     ko.insert("query_cancel", "취소");
@@ -424,6 +949,7 @@ pub fn init() {
     ko.insert("settings_dark_mode", "다크 모드");
     ko.insert("settings_database", "데이터베이스");
     ko.insert("settings_default_row_limit", "기본 행 제한");
+    ko.insert("settings_data_timezone", "데이터 시간대");
     ko.insert("settings_auto_commit", "자동 커밋");
     ko.insert("settings_confirm_destructive", "삭제/변경 작업 확인");
     ko.insert("settings_saved", "설정 저장됨");
@@ -487,6 +1013,7 @@ pub fn init() {
     ko.insert("about_edition", "개발자 프리뷰");
     ko.insert("about_engine", "PostgreSQL 워크벤치");
     ko.insert("about_author", "FerrumGrid Studio");
+    insert_recent_ui_ko(&mut ko);
 
     translations.insert(Language::Korean, ko);
 
