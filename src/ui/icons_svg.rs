@@ -89,17 +89,6 @@ pub const KEY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="
     <path d="M32 32L48 48M42 42L46 38M45 45L49 41" stroke="#DCC950" stroke-width="6" stroke-linecap="round"/>
 </svg>"##;
 
-pub const INDEX: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="12" y="16" width="40" height="32" rx="4" stroke="#4EBE64" stroke-width="4"/>
-    <path d="M20 28H44M20 36H44" stroke="#4EBE64" stroke-width="4" stroke-linecap="round"/>
-</svg>"##;
-
-pub const TRIGGER: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="32" cy="32" r="20" stroke="#D24646" stroke-width="4"/>
-    <path d="M32 20V44M20 32H44" stroke="#D24646" stroke-width="4" stroke-linecap="round"/>
-    <path d="M23.5 23.5L40.5 40.5M40.5 23.5L23.5 40.5" stroke="#D24646" stroke-width="4" stroke-linecap="round"/>
-</svg>"##;
-
 pub const CLOSE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M16 16L48 48M48 16L16 48" stroke="#D24646" stroke-width="8" stroke-linecap="round"/>
 </svg>"##;
@@ -137,12 +126,6 @@ pub const SUCCESS: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fi
 pub const ERROR: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="32" cy="32" r="28" fill="#D24646" fill-opacity="0.2"/>
     <path d="M22 22L42 42M42 22L22 42" stroke="#D24646" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>"##;
-
-pub const WARNING: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M32 8L56 52H8L32 8Z" fill="#DCC950" fill-opacity="0.2" stroke="#DCC950" stroke-width="4" stroke-linejoin="round"/>
-    <rect x="30" y="24" width="4" height="16" rx="2" fill="#DCC950"/>
-    <circle cx="32" cy="46" r="3" fill="#DCC950"/>
 </svg>"##;
 
 pub const CONNECT: &str = CONNECTION;

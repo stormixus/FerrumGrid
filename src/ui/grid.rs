@@ -3,7 +3,7 @@ use egui_extras::{Column, TableBuilder};
 
 use crate::state::AppState;
 use crate::types::CellValue;
-use crate::ui::{icons, theme};
+use crate::ui::theme;
 
 // ---------------------------------------------------------------------------
 // Public entry point

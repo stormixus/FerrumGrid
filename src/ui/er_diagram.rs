@@ -28,10 +28,6 @@ impl TableCard {
         CARD_HEADER_HEIGHT + self.columns.len() as f32 * CARD_ROW_HEIGHT + 8.0
     }
 
-    pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, Vec2::new(CARD_WIDTH, self.height()))
-    }
-
     pub fn full_id(&self) -> String {
         format!("{}.{}", self.schema, self.table_name)
     }
@@ -105,6 +101,7 @@ fn draw_bezier_connection(
     painter: &egui::Painter,
     from: Pos2,
     to: Pos2,
+    label: &str,
     color: Color32,
     stroke_width: f32,
 ) {
@@ -127,10 +124,11 @@ fn draw_bezier_connection(
         points.push(Pos2::new(x, y));
     }
 
+    let mid = points[points.len() / 2];
     painter.add(egui::Shape::line(points, Stroke::new(stroke_width, color)));
 
     let arrow_size = 8.0;
-    let angle = (to.x - from.x).atan2(to.y - from.x);
+    let angle = (to.y - from.y).atan2(to.x - from.x);
     let arrow_p1 = Pos2::new(
         to.x - arrow_size * (angle + 0.5).cos(),
         to.y - arrow_size * (angle + 0.5).sin(),
@@ -142,33 +140,57 @@ fn draw_bezier_connection(
 
     painter.line_segment([to, arrow_p1], Stroke::new(stroke_width, color));
     painter.line_segment([to, arrow_p2], Stroke::new(stroke_width, color));
+
+    if !label.is_empty() {
+        painter.text(
+            mid + Vec2::new(0.0, -8.0),
+            egui::Align2::CENTER_BOTTOM,
+            label,
+            egui::FontId::monospace(9.0),
+            theme::TEXT_MUTED,
+        );
+    }
 }
 
 fn draw_card(
     _ctx: &egui::Context,
     ui: &mut egui::Ui,
+    canvas_rect: Rect,
+    pan_offset: Vec2,
+    zoom: f32,
     card: &mut TableCard,
     drag_interaction: bool,
 ) -> Option<Vec2> {
     let card_id = Id::new("er_card_").with(&card.full_id());
-    let response = ui.interact(card.rect(), card_id, Sense::click_and_drag());
+    let screen_pos = world_to_screen(card.pos, canvas_rect, pan_offset, zoom);
+    let screen_rect = Rect::from_min_size(
+        screen_pos,
+        Vec2::new(CARD_WIDTH * zoom, card.height() * zoom),
+    );
+    let response = ui.interact(screen_rect, card_id, Sense::click_and_drag());
 
     if drag_interaction {
         if response.drag_started() {
             card.is_dragging = true;
         }
         if response.dragged() {
-            return Some(response.drag_delta());
+            return Some(response.drag_delta() / zoom);
         }
         if response.drag_stopped() {
             card.is_dragging = false;
         }
     }
 
-    let header_rect = Rect::from_min_size(card.pos, Vec2::new(CARD_WIDTH, CARD_HEADER_HEIGHT));
+    let header_rect = Rect::from_min_size(
+        screen_pos,
+        Vec2::new(CARD_WIDTH * zoom, CARD_HEADER_HEIGHT * zoom),
+    );
     let body_rect = Rect::from_min_size(
-        Pos2::new(card.pos.x, card.pos.y + CARD_HEADER_HEIGHT),
-        Vec2::new(CARD_WIDTH, card.height() - CARD_HEADER_HEIGHT),
+        Pos2::new(screen_pos.x, screen_pos.y + CARD_HEADER_HEIGHT * zoom),
+        Vec2::new(
+            CARD_WIDTH * zoom,
+            (card.height() - CARD_HEADER_HEIGHT) * zoom,
+        ),
     );
 
     let header_color = theme::BG_LIGHT;
@@ -185,11 +207,20 @@ fn draw_card(
         let text = RichText::new(&card.table_name)
             .color(theme::ACCENT_COPPER)
             .strong()
-            .size(12.0);
+            .size((12.0 * zoom).clamp(9.5, 15.0));
         ui.put(
             header_rect.shrink2(Vec2::new(8.0, 6.0)),
             egui::Label::new(text).truncate(),
         );
+        if card.pk_column_idx().is_some() {
+            ui.painter().text(
+                header_rect.right_center() - Vec2::new(8.0, 0.0),
+                egui::Align2::RIGHT_CENTER,
+                "PK",
+                egui::FontId::monospace((8.0 * zoom).clamp(7.0, 10.0)),
+                theme::ACCENT_YELLOW,
+            );
+        }
     });
 
     let body_frame = egui::Frame::new()
@@ -201,10 +232,13 @@ fn draw_card(
     body_frame.show(ui, |ui| {
         ui.set_clip_rect(body_rect);
         for (idx, col) in card.columns.iter().enumerate() {
-            let y = card.pos.y + CARD_HEADER_HEIGHT + idx as f32 * CARD_ROW_HEIGHT + 2.0;
+            let y = screen_pos.y
+                + CARD_HEADER_HEIGHT * zoom
+                + idx as f32 * CARD_ROW_HEIGHT * zoom
+                + 2.0 * zoom;
             let row_rect = Rect::from_min_size(
-                Pos2::new(card.pos.x + 4.0, y),
-                Vec2::new(CARD_WIDTH - 8.0, CARD_ROW_HEIGHT),
+                Pos2::new(screen_pos.x + 4.0 * zoom, y),
+                Vec2::new(CARD_WIDTH * zoom - 8.0 * zoom, CARD_ROW_HEIGHT * zoom),
             );
 
             let mut icon_text = String::new();
@@ -230,36 +264,33 @@ fn draw_card(
                 Pos2::new(row_rect.left() + 4.0, row_rect.center().y),
                 egui::Align2::LEFT_CENTER,
                 &icon_text,
-                egui::FontId::monospace(8.0),
+                egui::FontId::monospace((8.0 * zoom).clamp(7.0, 10.0)),
                 icon_color,
             );
 
-            let col_name = RichText::new(&col.name)
-                .color(theme::TEXT_PRIMARY)
-                .size(11.0);
             ui.painter().text(
-                Pos2::new(row_rect.left() + PK_ICON_WIDTH + 4.0, row_rect.center().y),
+                Pos2::new(
+                    row_rect.left() + PK_ICON_WIDTH.max(FK_ICON_WIDTH) * zoom + 4.0 * zoom,
+                    row_rect.center().y,
+                ),
                 egui::Align2::LEFT_CENTER,
-                col_name.text(),
-                egui::FontId::proportional(11.0),
+                &col.name,
+                egui::FontId::proportional((11.0 * zoom).clamp(8.5, 13.0)),
                 theme::TEXT_PRIMARY,
             );
 
-            let type_text = RichText::new(&col.data_type)
-                .color(theme::TEXT_MUTED)
-                .size(10.0);
             ui.painter().text(
-                Pos2::new(row_rect.right() - 4.0, row_rect.center().y),
+                Pos2::new(row_rect.right() - 4.0 * zoom, row_rect.center().y),
                 egui::Align2::RIGHT_CENTER,
-                type_text.text(),
-                egui::FontId::proportional(10.0),
+                &col.data_type,
+                egui::FontId::proportional((10.0 * zoom).clamp(8.0, 12.0)),
                 theme::TEXT_MUTED,
             );
         }
     });
 
     ui.painter().rect_stroke(
-        card.rect().expand(1.0),
+        screen_rect.expand(1.0),
         CornerRadius::same(theme::RADIUS_SM),
         Stroke::new(2.0, border_color),
         egui::StrokeKind::Inside,
@@ -351,17 +382,25 @@ pub fn render_er_diagram(ctx: &egui::Context, state: &mut AppState, bridge: &DbB
                 }
             }
 
-            draw_foreign_keys(&painter, &state.er_diagram);
+            draw_foreign_keys(&painter, &state.er_diagram, response.rect);
 
             for card in state.er_diagram.cards.values_mut() {
-                if let Some(delta) = draw_card(ctx, ui, card, true) {
+                if let Some(delta) = draw_card(
+                    ctx,
+                    ui,
+                    response.rect,
+                    state.er_diagram.pan_offset,
+                    state.er_diagram.zoom,
+                    card,
+                    true,
+                ) {
                     card.pos += delta;
                 }
             }
         });
 }
 
-fn draw_foreign_keys(painter: &egui::Painter, er_state: &ERDiagramState) {
+fn draw_foreign_keys(painter: &egui::Painter, er_state: &ERDiagramState, canvas_rect: Rect) {
     for fk in &er_state.foreign_keys {
         let source_card = match er_state.get_card(&fk.source_schema, &fk.source_table) {
             Some(c) => c,
@@ -388,10 +427,20 @@ fn draw_foreign_keys(painter: &egui::Painter, er_state: &ERDiagramState) {
         let source_y = source_card.column_y(source_col_idx);
         let target_y = target_card.column_y(target_col_idx);
 
-        let from = Pos2::new(source_card.pos.x + CARD_WIDTH, source_y);
-        let to = Pos2::new(target_card.pos.x, target_y);
+        let from = world_to_screen(
+            Pos2::new(source_card.pos.x + CARD_WIDTH, source_y),
+            canvas_rect,
+            er_state.pan_offset,
+            er_state.zoom,
+        );
+        let to = world_to_screen(
+            Pos2::new(target_card.pos.x, target_y),
+            canvas_rect,
+            er_state.pan_offset,
+            er_state.zoom,
+        );
 
-        draw_bezier_connection(painter, from, to, theme::ACCENT_BLUE, 1.5);
+        draw_bezier_connection(painter, from, to, &fk.name, theme::ACCENT_BLUE, 1.5);
     }
 }
 
@@ -428,6 +477,21 @@ fn render_toolbar(
 
         if ui.button("Auto Layout").clicked() {
             state.er_diagram.layout_cards();
+            state.er_diagram.pan_offset = Vec2::ZERO;
+        }
+
+        ui.add_space(8.0);
+
+        if ui.button("-").clicked() {
+            state.er_diagram.zoom = (state.er_diagram.zoom * 0.9).clamp(0.5, 1.8);
+        }
+        ui.add(
+            egui::Slider::new(&mut state.er_diagram.zoom, 0.5..=1.8)
+                .show_value(false)
+                .text("Zoom"),
+        );
+        if ui.button("+").clicked() {
+            state.er_diagram.zoom = (state.er_diagram.zoom * 1.1).clamp(0.5, 1.8);
         }
 
         ui.add_space(8.0);
@@ -449,6 +513,10 @@ fn render_toolbar(
             );
         });
     });
+}
+
+fn world_to_screen(pos: Pos2, canvas_rect: Rect, pan_offset: Vec2, zoom: f32) -> Pos2 {
+    canvas_rect.min + pan_offset + pos.to_vec2() * zoom
 }
 
 fn load_schema_tables(state: &mut AppState, bridge: &DbBridge, conn_id: ConnectionId) {

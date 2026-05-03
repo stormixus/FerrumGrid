@@ -44,7 +44,10 @@ async fn connect_impl(
             .map_err(|e| DbError::from_pg(&e, cfg.id))
     } else {
         // For non-TLS, we need a different return type, so we use a workaround
-        Err(DbError::connection(cfg.id, "internal: use connect_no_tls"))
+        Err(DbError::internal(
+            cfg.id,
+            "use connect_no_tls for non-TLS connections",
+        ))
     }
 }
 

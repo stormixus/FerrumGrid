@@ -163,20 +163,39 @@ impl FerrumGridApp {
                     }
                 }
                 DbResponse::ForeignKeyList {
-                    conn_id: _,
+                    conn_id,
                     schema,
                     foreign_keys,
                 } => {
-                    crate::ui::er_diagram::handle_fk_response(
-                        &mut self.state,
-                        &schema,
-                        &foreign_keys,
-                    );
-                    crate::ui::table_designer::apply_fk_info(&mut self.state, &foreign_keys);
+                    if self.state.active_connection == Some(conn_id) {
+                        crate::ui::er_diagram::handle_fk_response(
+                            &mut self.state,
+                            &schema,
+                            &foreign_keys,
+                        );
+                        crate::ui::table_designer::apply_fk_info(&mut self.state, &foreign_keys);
+                    }
                 }
-                DbResponse::QueryCancelled { conn_id: _ } => {
+                DbResponse::FunctionList {
+                    conn_id,
+                    schema,
+                    functions,
+                } => {
+                    if let Some(conn) = self.state.connections.get_mut(&conn_id) {
+                        conn.loading_functions.remove(&schema);
+                        conn.functions.insert(schema, functions);
+                    }
+                }
+                DbResponse::RoleList { conn_id, roles } => {
+                    if let Some(conn) = self.state.connections.get_mut(&conn_id) {
+                        conn.loading_roles = false;
+                        conn.roles = roles;
+                    }
+                }
+                DbResponse::QueryCancelled { conn_id } => {
                     self.state.query_running = false;
                     self.state.last_error = Some("Query cancelled".to_string());
+                    self.state.status_message = format!("Query cancelled on {conn_id}");
                 }
                 DbResponse::Error { conn_id, error } => {
                     // Check if this was a test connection error

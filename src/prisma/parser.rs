@@ -56,7 +56,6 @@ pub enum PrismaType {
     Json,
     Bytes,
     Unsupported(String),
-    Enum(String),
     Model(String),
     Array(Box<PrismaType>),
     Optional(Box<PrismaType>),
@@ -89,24 +88,58 @@ impl PrismaSchema {
         let mut schema = PrismaSchema::default();
 
         for pair in parsed {
-            match pair.as_rule() {
-                Rule::datasource_block => {
-                    schema.datasource = Some(parse_datasource(pair)?);
+            for inner in pair.into_inner() {
+                match inner.as_rule() {
+                    Rule::datasource_block => {
+                        schema.datasource = Some(parse_datasource(inner)?);
+                    }
+                    Rule::generator_block => {
+                        schema.generator = Some(parse_generator(inner)?);
+                    }
+                    Rule::model_block => {
+                        schema.models.push(parse_model(inner)?);
+                    }
+                    Rule::enum_block => {
+                        schema.enums.push(parse_enum(inner)?);
+                    }
+                    _ => {}
                 }
-                Rule::generator_block => {
-                    schema.generator = Some(parse_generator(pair)?);
-                }
-                Rule::model_block => {
-                    schema.models.push(parse_model(pair)?);
-                }
-                Rule::enum_block => {
-                    schema.enums.push(parse_enum(pair)?);
-                }
-                _ => {}
             }
         }
 
         Ok(schema)
+    }
+
+    pub fn to_prisma_schema(&self) -> String {
+        let mut out = String::new();
+
+        if let Some(generator) = &self.generator {
+            out.push_str(&format!("generator {} {{\n", generator.name));
+            out.push_str(&format!("  provider = \"{}\"\n", generator.provider));
+            if let Some(output) = &generator.output {
+                out.push_str(&format!("  output   = \"{}\"\n", output));
+            }
+            out.push_str("}\n\n");
+        }
+
+        if let Some(datasource) = &self.datasource {
+            out.push_str(&format!("datasource {} {{\n", datasource.name));
+            out.push_str(&format!("  provider = \"{}\"\n", datasource.provider));
+            out.push_str(&format!("  url      = {}\n", datasource.url));
+            out.push_str("}\n\n");
+        }
+
+        for model in &self.models {
+            out.push_str(&model.to_prisma_schema());
+            out.push('\n');
+        }
+
+        for enm in &self.enums {
+            out.push_str(&enm.to_prisma_schema());
+            out.push('\n');
+        }
+
+        out
     }
 
     pub fn to_sql(&self) -> String {
@@ -188,6 +221,23 @@ impl PrismaSchema {
 }
 
 impl PrismaModel {
+    pub fn to_prisma_schema(&self) -> String {
+        let mut out = String::new();
+        if let Some(doc) = &self.documentation {
+            out.push_str(&format!("/// {}\n", doc));
+        }
+        out.push_str(&format!("model {} {{\n", self.name));
+        for field in &self.fields {
+            out.push_str(&field.to_prisma_schema());
+            out.push('\n');
+        }
+        for attr in &self.attributes {
+            out.push_str(&format!("  @@{}\n", attr.to_prisma_schema()));
+        }
+        out.push_str("}\n");
+        out
+    }
+
     pub fn to_sql(&self) -> String {
         let mut sql = format!("CREATE TABLE IF NOT EXISTS \"{}\" (\n", self.name);
 
@@ -239,6 +289,22 @@ impl PrismaModel {
 }
 
 impl PrismaField {
+    pub fn to_prisma_schema(&self) -> String {
+        let mut out = String::new();
+        if let Some(doc) = &self.documentation {
+            out.push_str(&format!("  /// {}\n", doc));
+        }
+        out.push_str(&format!(
+            "  {} {}",
+            self.name,
+            self.field_type.to_prisma_schema()
+        ));
+        for attr in &self.attributes {
+            out.push_str(&format!(" @{}", attr.to_prisma_schema()));
+        }
+        out
+    }
+
     pub fn to_sql(&self) -> String {
         let db_type = prisma_type_to_db(&self.field_type);
         let mut sql = format!("    \"{}\" {}", self.name, db_type);
@@ -268,6 +334,19 @@ impl PrismaField {
 }
 
 impl PrismaEnum {
+    pub fn to_prisma_schema(&self) -> String {
+        let mut out = String::new();
+        if let Some(doc) = &self.documentation {
+            out.push_str(&format!("/// {}\n", doc));
+        }
+        out.push_str(&format!("enum {} {{\n", self.name));
+        for value in &self.values {
+            out.push_str(&format!("  {}\n", value));
+        }
+        out.push_str("}\n");
+        out
+    }
+
     pub fn to_sql(&self) -> String {
         let values = self
             .values
@@ -277,6 +356,36 @@ impl PrismaEnum {
             .join(", ");
 
         format!("CREATE TYPE \"{}\" AS ENUM ({});\n", self.name, values)
+    }
+}
+
+impl PrismaType {
+    pub fn to_prisma_schema(&self) -> String {
+        match self {
+            PrismaType::String => "String".to_string(),
+            PrismaType::Int => "Int".to_string(),
+            PrismaType::BigInt => "BigInt".to_string(),
+            PrismaType::Float => "Float".to_string(),
+            PrismaType::Decimal => "Decimal".to_string(),
+            PrismaType::Boolean => "Boolean".to_string(),
+            PrismaType::DateTime => "DateTime".to_string(),
+            PrismaType::Json => "Json".to_string(),
+            PrismaType::Bytes => "Bytes".to_string(),
+            PrismaType::Unsupported(s) => format!("Unsupported(\"{}\")", s.replace('"', "\\\"")),
+            PrismaType::Model(s) => s.clone(),
+            PrismaType::Array(inner) => format!("{}[]", inner.to_prisma_schema()),
+            PrismaType::Optional(inner) => format!("{}?", inner.to_prisma_schema()),
+        }
+    }
+}
+
+impl PrismaAttribute {
+    pub fn to_prisma_schema(&self) -> String {
+        if self.arguments.is_empty() {
+            self.name.clone()
+        } else {
+            format!("{}({})", self.name, self.arguments.join(", "))
+        }
     }
 }
 
@@ -388,14 +497,12 @@ fn parse_field(pair: pest::iterators::Pair<Rule>) -> Result<PrismaField, String>
 fn parse_field_type(pair: pest::iterators::Pair<Rule>) -> Result<PrismaType, String> {
     let type_str = pair.as_str();
 
-    if type_str.starts_with("Optional<") {
-        let inner = type_str
-            .trim_start_matches("Optional<")
-            .trim_end_matches(">");
+    if type_str.ends_with('?') {
+        let inner = type_str.trim_end_matches('?');
         let inner_type = parse_type_string(inner)?;
         Ok(PrismaType::Optional(Box::new(inner_type)))
-    } else if type_str.starts_with("List<") {
-        let inner = type_str.trim_start_matches("List<").trim_end_matches(">");
+    } else if type_str.ends_with("[]") {
+        let inner = type_str.trim_end_matches("[]");
         let inner_type = parse_type_string(inner)?;
         Ok(PrismaType::Array(Box::new(inner_type)))
     } else {
@@ -509,7 +616,6 @@ fn prisma_type_to_db(prisma_type: &PrismaType) -> String {
         PrismaType::Optional(inner) => prisma_type_to_db(inner),
         PrismaType::Array(inner) => format!("{}[]", prisma_type_to_db(inner)),
         PrismaType::Unsupported(s) => s.clone(),
-        PrismaType::Enum(s) => s.clone(),
         PrismaType::Model(s) => s.clone(),
     }
 }

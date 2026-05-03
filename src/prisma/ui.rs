@@ -2,9 +2,14 @@ use eframe::egui::{
     self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke,
     TextEdit, Window,
 };
+use std::sync::{Arc, Mutex};
 
 use crate::db::bridge::DbBridge;
-use crate::prisma::{check_prisma_installed, generate_schema_file, run_prisma_cli, PrismaCommand};
+use crate::prisma::{
+    append_model_to_schema, check_prisma_installed, generate_migration, generate_schema_file,
+    get_prisma_version, run_prisma_cli, sync_db_to_schema, sync_schema_to_db, PrismaCommand,
+    PrismaSchema,
+};
 use crate::state::{AppState, ConnectionStatus};
 use crate::ui::theme;
 
@@ -18,6 +23,8 @@ pub struct PrismaUIState {
     pub migration_name: String,
     pub is_running: bool,
     pub prisma_installed: bool,
+    pub prisma_version: Option<String>,
+    pub pending_output: Option<Arc<Mutex<Option<String>>>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,6 +35,7 @@ pub enum PrismaCommandType {
     MigrateStatus,
     Generate,
     Validate,
+    Format,
     DBPull,
     DBPush,
 }
@@ -43,11 +51,18 @@ pub fn render_prisma_window(ctx: &egui::Context, state: &mut AppState, _bridge: 
         return;
     }
 
+    if state.prisma_ui.schema_path.is_empty() {
+        state.prisma_ui.schema_path = "./prisma/schema.prisma".to_string();
+    }
+
+    poll_prisma_output(ctx, state);
+
     // Check Prisma installation once - run async check synchronously
     if !state.prisma_ui.prisma_installed && !state.prisma_ui.is_running {
         // Use a simple runtime for the check
         let rt = tokio::runtime::Runtime::new().unwrap();
         state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
+        state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
     }
 
     Window::new("Prisma Integration")
@@ -74,6 +89,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             if ui.button("Check Again").clicked() {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
+                state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
             }
         });
         return;
@@ -103,13 +119,23 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             load_schema_file(state);
         }
 
+        if ui.button("Create File").clicked() {
+            create_schema_file(state);
+        }
+
         if ui.button("Save").clicked() {
             save_schema_file(state);
+        }
+
+        if ui.button("Append Table Model").clicked() {
+            append_table_model(state);
         }
 
         ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
             if ui.button("× Close").clicked() {
                 state.prisma_ui.show_window = false;
+            } else if let Some(version) = &state.prisma_ui.prisma_version {
+                ui.label(RichText::new(version).color(theme::TEXT_MUTED).size(10.0));
             }
         });
     });
@@ -127,6 +153,12 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                     if ui.add(primary_button("Create from DB")).clicked() {
                         create_schema_from_db(state, bridge);
+                    }
+                    if ui.add(primary_button("Preview SQL")).clicked() {
+                        preview_prisma_sql(state);
+                    }
+                    if ui.add(primary_button("Apply SQL")).clicked() {
+                        apply_prisma_schema(state, bridge);
                     }
                 });
             });
@@ -164,8 +196,9 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                 .inner_margin(Margin::same(8))
                 .show(ui, |ui| {
                     ScrollArea::vertical().show(ui, |ui| {
+                        let mut output = state.prisma_ui.cli_output.clone();
                         ui.add(
-                            TextEdit::multiline(&mut state.prisma_ui.cli_output.as_str())
+                            TextEdit::multiline(&mut output)
                                 .code_editor()
                                 .desired_rows(20),
                         );
@@ -203,6 +236,7 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             "Generate Prisma Client",
         ),
         (PrismaCommandType::Validate, "Validate", "Validate schema"),
+        (PrismaCommandType::Format, "Format", "Format schema file"),
         (
             PrismaCommandType::DBPull,
             "DB Pull",
@@ -283,6 +317,7 @@ fn run_selected_command(state: &mut AppState, _bridge: &DbBridge) {
         PrismaCommandType::MigrateStatus => PrismaCommand::MigrateStatus { schema_path },
         PrismaCommandType::Generate => PrismaCommand::Generate { schema_path },
         PrismaCommandType::Validate => PrismaCommand::Validate { schema_path },
+        PrismaCommandType::Format => PrismaCommand::Format { schema_path },
         PrismaCommandType::DBPull => PrismaCommand::DBPull { schema_path },
         PrismaCommandType::DBPush => PrismaCommand::DBPush {
             schema_path,
@@ -292,23 +327,149 @@ fn run_selected_command(state: &mut AppState, _bridge: &DbBridge) {
 
     state.prisma_ui.is_running = true;
     state.prisma_ui.cli_output = "Running...".to_string();
+    let pending_output = Arc::new(Mutex::new(None));
+    state.prisma_ui.pending_output = Some(pending_output.clone());
 
-    // Run async in background
-    let ctx = _bridge.clone();
-    tokio::spawn(async move {
-        match run_prisma_cli(cmd).await {
-            Ok(result) => {
-                let output = format!(
-                    "Exit Code: {:?}\n\nSTDOUT:\n{}\n\nSTDERR:\n{}",
-                    result.exit_code, result.stdout, result.stderr
-                );
-                // Update UI (would need proper channel for thread safety)
-            }
-            Err(e) => {
-                // Update UI with error
-            }
+    std::thread::spawn(move || {
+        let output = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to start Prisma runtime: {e}"))
+            .and_then(|rt| {
+                rt.block_on(async move {
+                    match run_prisma_cli(cmd).await {
+                        Ok(result) => Ok(format!(
+                            "Success: {}\nExit Code: {:?}\n\nSTDOUT:\n{}\n\nSTDERR:\n{}",
+                            result.success, result.exit_code, result.stdout, result.stderr
+                        )),
+                        Err(e) => Err(format!("Prisma command failed: {e}")),
+                    }
+                })
+            });
+
+        if let Ok(mut slot) = pending_output.lock() {
+            *slot = Some(match output {
+                Ok(output) => output,
+                Err(error) => error,
+            });
         }
     });
+}
+
+fn poll_prisma_output(ctx: &egui::Context, state: &mut AppState) {
+    let Some(slot) = state.prisma_ui.pending_output.clone() else {
+        return;
+    };
+
+    let output = slot.lock().ok().and_then(|mut guard| guard.take());
+    if let Some(output) = output {
+        state.prisma_ui.cli_output = output;
+        state.prisma_ui.is_running = false;
+        state.prisma_ui.pending_output = None;
+    } else {
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+    }
+}
+
+fn create_schema_file(state: &mut AppState) {
+    let path = state.prisma_ui.schema_path.clone();
+    if path.is_empty() {
+        state.prisma_ui.cli_output = "Error: Please specify schema path".to_string();
+        return;
+    }
+
+    let conn_string = state
+        .active_connection
+        .and_then(|id| state.connections.get(&id))
+        .map(|conn| {
+            format!(
+                "postgresql://{}:{}@{}:{}/{}",
+                conn.config.username,
+                conn.config.password,
+                conn.config.host,
+                conn.config.port,
+                conn.config.database
+            )
+        })
+        .unwrap_or_default();
+
+    match generate_schema_file("postgresql", &conn_string, &path) {
+        Ok(schema) => {
+            state.prisma_ui.schema_content = schema;
+            state.prisma_ui.cli_output = format!("Created schema file: {path}");
+        }
+        Err(e) => state.prisma_ui.cli_output = e,
+    }
+}
+
+fn append_table_model(state: &mut AppState) {
+    let path = state.prisma_ui.schema_path.clone();
+    let Some(ddl) = state.table_designer.generated_ddl.clone() else {
+        state.prisma_ui.cli_output = "Error: No generated table DDL to append".to_string();
+        return;
+    };
+
+    match append_model_to_schema(&path, &ddl) {
+        Ok(()) => {
+            load_schema_file(state);
+            state.prisma_ui.cli_output = "Appended generated table model".to_string();
+        }
+        Err(e) => state.prisma_ui.cli_output = e,
+    }
+}
+
+fn preview_prisma_sql(state: &mut AppState) {
+    match PrismaSchema::parse(&state.prisma_ui.schema_content) {
+        Ok(schema) => {
+            let name = if state.prisma_ui.migration_name.trim().is_empty() {
+                "preview".to_string()
+            } else {
+                state.prisma_ui.migration_name.trim().replace(' ', "_")
+            };
+            let sql = schema.to_sql();
+            state.prisma_ui.cli_output = format!(
+                "{}\n\n-- Direct SQL preview\n{}",
+                generate_migration(None, &schema, &name),
+                sql
+            );
+        }
+        Err(e) => {
+            state.prisma_ui.cli_output = e;
+        }
+    }
+}
+
+fn apply_prisma_schema(state: &mut AppState, bridge: &DbBridge) {
+    let conn_id = match state.active_connection {
+        Some(id) => id,
+        None => {
+            state.prisma_ui.cli_output = "Error: No active connection".to_string();
+            return;
+        }
+    };
+
+    if !state
+        .connections
+        .get(&conn_id)
+        .is_some_and(|conn| matches!(conn.status, ConnectionStatus::Connected { .. }))
+    {
+        state.prisma_ui.cli_output = "Error: Not connected".to_string();
+        return;
+    }
+
+    match PrismaSchema::parse(&state.prisma_ui.schema_content) {
+        Ok(schema) => {
+            let result = sync_schema_to_db(&schema, conn_id, bridge);
+            state.prisma_ui.cli_output = format!(
+                "Success: {}\n{}\n\n{}",
+                result.success,
+                result.message,
+                result.sql_statements.join("\n")
+            );
+            state.query_running = true;
+        }
+        Err(e) => {
+            state.prisma_ui.cli_output = e;
+        }
+    }
 }
 
 fn load_schema_file(state: &mut AppState) {
@@ -346,7 +507,7 @@ fn save_schema_file(state: &mut AppState) {
     }
 }
 
-fn create_schema_from_db(state: &mut AppState, bridge: &DbBridge) {
+fn create_schema_from_db(state: &mut AppState, _bridge: &DbBridge) {
     let conn_id = match state.active_connection {
         Some(id) => id,
         None => {
@@ -363,68 +524,36 @@ fn create_schema_from_db(state: &mut AppState, bridge: &DbBridge) {
         }
     };
 
-    let schema_name = conn.schemas.first().cloned().unwrap_or_default();
-
-    // Build schema manually from DB metadata
-    let mut schema_lines = vec![
-        "// Generated by FerrumGrid".to_string(),
-        "".to_string(),
-        "generator client {".to_string(),
-        "  provider = \"prisma-client-js\"".to_string(),
-        "}".to_string(),
-        "".to_string(),
-        "datasource db {".to_string(),
-        "  provider = \"postgresql\"".to_string(),
-        "  url      = env(\"DATABASE_URL\")".to_string(),
-        "}".to_string(),
-        "".to_string(),
-    ];
-
-    for table in conn.tables.get(&schema_name).cloned().unwrap_or_default() {
-        let key = (schema_name.clone(), table.name.clone());
-        let columns = conn.columns.get(&key).cloned().unwrap_or_default();
-
-        schema_lines.push(format!("model {} {{", table.name));
-
-        for col in &columns {
-            let prisma_type = db_type_to_prisma(&col.data_type, col.is_nullable);
-            let attrs = if col.is_primary_key { " @id" } else { "" };
-            schema_lines.push(format!("  {} {}{}", col.name, prisma_type, attrs));
-        }
-
-        schema_lines.push("}".to_string());
-        schema_lines.push("".to_string());
-    }
-
-    state.prisma_ui.schema_content = schema_lines.join("\n");
-    state.prisma_ui.cli_output = format!("Generated schema from database '{}'", schema_name);
-}
-
-fn db_type_to_prisma(db_type: &str, is_nullable: bool) -> String {
-    let base = match db_type.to_lowercase().as_str() {
-        "character varying" | "varchar" | "text" | "char" => "String",
-        "integer" | "int" | "int4" | "serial" => "Int",
-        "bigint" | "int8" | "bigserial" => "BigInt",
-        "numeric" | "decimal" => "Decimal",
-        "real" | "float4" => "Float",
-        "double precision" | "float8" => "Float",
-        "boolean" | "bool" => "Boolean",
-        "timestamp"
-        | "timestamptz"
-        | "timestamp without time zone"
-        | "timestamp with time zone" => "DateTime",
-        "date" => "DateTime",
-        "time" => "DateTime",
-        "json" | "jsonb" => "Json",
-        "bytea" => "Bytes",
-        "uuid" => "String",
-        _ => "String",
+    let schema_name = if state.objects_schema_filter.is_empty() {
+        conn.schemas
+            .iter()
+            .find(|schema| schema.as_str() == "public")
+            .cloned()
+            .or_else(|| conn.schemas.first().cloned())
+            .unwrap_or_default()
+    } else {
+        state.objects_schema_filter.clone()
     };
 
-    if is_nullable {
-        format!("{}?", base)
-    } else {
-        base.to_string()
+    let fallback_schema = conn
+        .tables
+        .get(&schema_name)
+        .map(|tables| PrismaSchema::from_db_schema(&schema_name, tables, &conn.columns));
+
+    match sync_db_to_schema(state, &schema_name, conn_id)
+        .or_else(|_| fallback_schema.ok_or_else(|| "No tables found".to_string()))
+    {
+        Ok(schema) => {
+            state.prisma_ui.schema_content = format!(
+                "// Generated by FerrumGrid from schema '{}'\n\n{}",
+                schema_name,
+                schema.to_prisma_schema()
+            );
+            state.prisma_ui.cli_output = format!("Generated schema from database '{schema_name}'");
+        }
+        Err(e) => {
+            state.prisma_ui.cli_output = e;
+        }
     }
 }
 
@@ -437,7 +566,11 @@ fn primary_button(text: &str) -> Button<'_> {
 
 pub fn open_prisma_window(state: &mut AppState) {
     state.prisma_ui.show_window = true;
+    if state.prisma_ui.schema_path.is_empty() {
+        state.prisma_ui.schema_path = "./prisma/schema.prisma".to_string();
+    }
     // Check Prisma installation
     let rt = tokio::runtime::Runtime::new().unwrap();
     state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
+    state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
 }

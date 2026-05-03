@@ -1,7 +1,7 @@
 use tokio_postgres::Client;
 
 use crate::db::error::DbError;
-use crate::types::{ColumnInfo, ConnectionId, IndexInfo, TableInfo};
+use crate::types::{ColumnInfo, ConnectionId, FunctionInfo, IndexInfo, RoleInfo, TableInfo};
 
 pub async fn list_schemas(client: &Client, conn_id: ConnectionId) -> Result<Vec<String>, DbError> {
     let rows = client
@@ -144,6 +144,80 @@ pub async fn list_indexes(
                 is_primary: r.get(3),
                 index_type: r.get(4),
             }
+        })
+        .collect())
+}
+
+pub async fn list_functions(
+    client: &Client,
+    schema: &str,
+    conn_id: ConnectionId,
+) -> Result<Vec<FunctionInfo>, DbError> {
+    let rows = client
+        .query(
+            "SELECT
+                n.nspname AS schema_name,
+                p.proname AS function_name,
+                pg_get_function_identity_arguments(p.oid) AS arguments,
+                pg_get_function_result(p.oid) AS return_type,
+                CASE p.prokind
+                    WHEN 'p' THEN 'PROCEDURE'
+                    WHEN 'a' THEN 'AGGREGATE'
+                    WHEN 'w' THEN 'WINDOW'
+                    ELSE 'FUNCTION'
+                END AS function_kind,
+                l.lanname AS language
+             FROM pg_catalog.pg_proc p
+             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+             JOIN pg_catalog.pg_language l ON l.oid = p.prolang
+             WHERE n.nspname = $1
+             ORDER BY p.proname, arguments",
+            &[&schema],
+        )
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| FunctionInfo {
+            schema: r.get(0),
+            name: r.get(1),
+            arguments: r.get(2),
+            return_type: r.get(3),
+            kind: r.get(4),
+            language: r.get(5),
+        })
+        .collect())
+}
+
+pub async fn list_roles(client: &Client, conn_id: ConnectionId) -> Result<Vec<RoleInfo>, DbError> {
+    let rows = client
+        .query(
+            "SELECT
+                rolname,
+                rolcanlogin,
+                rolsuper,
+                rolcreatedb,
+                rolcreaterole,
+                rolreplication,
+                rolvaliduntil::text
+             FROM pg_catalog.pg_roles
+             ORDER BY rolcanlogin DESC, rolname",
+            &[],
+        )
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| RoleInfo {
+            name: r.get(0),
+            can_login: r.get(1),
+            is_superuser: r.get(2),
+            can_create_db: r.get(3),
+            can_create_role: r.get(4),
+            can_replicate: r.get(5),
+            valid_until: r.get(6),
         })
         .collect())
 }

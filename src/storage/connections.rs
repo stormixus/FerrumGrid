@@ -12,10 +12,18 @@ fn connections_file() -> PathBuf {
 
 pub fn load_connections() -> Vec<ConnectionConfig> {
     let path = connections_file();
-    match std::fs::read_to_string(&path) {
+    let mut connections: Vec<ConnectionConfig> = match std::fs::read_to_string(&path) {
         Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
         Err(_) => Vec::new(),
+    };
+
+    for config in &mut connections {
+        if let Some(password) = load_password(&config.id) {
+            config.password = password;
+        }
     }
+
+    connections
 }
 
 pub fn save_connections(connections: &[ConnectionConfig]) {

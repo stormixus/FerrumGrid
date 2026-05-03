@@ -149,6 +149,12 @@ pub fn generate_schema_file(
     connection_string: &str,
     output_path: &str,
 ) -> Result<String, String> {
+    let url_line = if connection_string.trim().is_empty() {
+        "env(\"DATABASE_URL\")".to_string()
+    } else {
+        format!("\"{}\"", connection_string.replace('"', "\\\""))
+    };
+
     let schema = format!(
         r#"// This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
@@ -159,12 +165,16 @@ generator client {{
 
 datasource db {{
   provider = "{}"
-  url      = env("DATABASE_URL")
+  url      = {}
 }}
 "#,
-        provider
+        provider, url_line
     );
 
+    if let Some(parent) = std::path::Path::new(output_path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create schema directory: {}", e))?;
+    }
     std::fs::write(output_path, &schema)
         .map_err(|e| format!("Failed to write schema file: {}", e))?;
 

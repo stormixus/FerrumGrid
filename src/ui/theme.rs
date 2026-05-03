@@ -34,7 +34,6 @@ pub const ACCENT_BLUE: Color32 = Color32::from_rgb(86, 156, 214);
 pub const ACCENT_GREEN: Color32 = Color32::from_rgb(78, 190, 100);
 pub const ACCENT_RED: Color32 = Color32::from_rgb(210, 70, 70);
 pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(220, 190, 80);
-pub const ACCENT_ORANGE: Color32 = Color32::from_rgb(204, 120, 50);
 
 // Borders / separators
 pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(38, 41, 50);
@@ -59,7 +58,6 @@ pub const SPACE_SM_I: i8 = 4;
 pub const SPACE_MD_I: i8 = 8;
 pub const SPACE_LG_I: i8 = 12;
 pub const SPACE_XL_I: i8 = 16;
-pub const SPACE_XXL_I: i8 = 24;
 
 // u8 versions for CornerRadius::same
 pub const RADIUS_SM: u8 = 2;
@@ -67,22 +65,10 @@ pub const RADIUS_MD: u8 = 4;
 pub const RADIUS_LG: u8 = 6;
 
 // f32 versions kept for any place that needs them
-pub const RADIUS_SM_F: f32 = 2.0;
-pub const RADIUS_MD_F: f32 = 4.0;
-pub const RADIUS_LG_F: f32 = 6.0;
-
-// ---------------------------------------------------------------------------
-// Legacy aliases kept so editor.rs / grid.rs compile without changes
-// ---------------------------------------------------------------------------
-pub const NULL_COLOR: Color32 = TEXT_MUTED;
-pub const PK_COLOR: Color32 = ACCENT_YELLOW;
-pub const ERROR_COLOR: Color32 = ACCENT_RED;
-pub const SUCCESS_COLOR: Color32 = ACCENT_GREEN;
 pub const KEYWORD_COLOR: Color32 = ACCENT_BLUE;
 pub const STRING_COLOR: Color32 = Color32::from_rgb(206, 145, 120);
 pub const COMMENT_COLOR: Color32 = Color32::from_rgb(98, 140, 90);
 pub const NUMBER_COLOR: Color32 = Color32::from_rgb(181, 206, 168);
-pub const TABLE_STRIPE: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 5);
 
 // ---------------------------------------------------------------------------
 // FerrumTheme
@@ -308,36 +294,11 @@ pub fn secondary_button(text: &str) -> egui::Button<'_> {
         .corner_radius(CornerRadius::same(RADIUS_MD))
 }
 
-pub fn danger_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(Color32::WHITE))
-        .fill(Color32::from_rgb(140, 40, 40))
-        .stroke(Stroke::new(1.0, ACCENT_RED))
-        .corner_radius(CornerRadius::same(RADIUS_MD))
-}
-
 pub fn ghost_button(text: &str) -> egui::Button<'_> {
     egui::Button::new(egui::RichText::new(text).color(TEXT_SECONDARY))
         .fill(Color32::TRANSPARENT)
         .stroke(Stroke::new(1.0, BORDER_DEFAULT))
         .corner_radius(CornerRadius::same(RADIUS_MD))
-}
-
-pub fn type_label(ui: &mut egui::Ui, text: &str) {
-    ui.label(
-        egui::RichText::new(text)
-            .font(FontId::monospace(11.0))
-            .color(TEXT_MUTED),
-    );
-}
-
-pub fn conn_status_color(connected: bool, connecting: bool) -> Color32 {
-    if connecting {
-        ACCENT_YELLOW
-    } else if connected {
-        ACCENT_GREEN
-    } else {
-        ACCENT_RED
-    }
 }
 
 pub fn with_alpha(color: Color32, alpha: u8) -> Color32 {

@@ -3,7 +3,7 @@ use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::AppState;
 use crate::types::EditorTab;
-use crate::ui::{icons, theme};
+use crate::ui::theme;
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -159,18 +159,13 @@ fn render_tab(
         Color32::TRANSPARENT
     };
 
-    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(close_rect), |ui| {
-        let close_color = if close_resp.hovered() {
-            theme::ACCENT_RED
-        } else if selected {
-            theme::TEXT_MUTED
-        } else {
-            Color32::TRANSPARENT
-        };
-
-        // Use SVG for close button
-        crate::ui::icon_img(ui, crate::ui::icons_svg::CLOSE, "close_tab", 10.0);
-    });
+    ui.painter().text(
+        close_rect.center(),
+        egui::Align2::CENTER_CENTER,
+        "\u{00d7}",
+        egui::FontId::proportional(13.0),
+        close_color,
+    );
 
     if close_resp.clicked() {
         *tab_to_close = Some(index);
@@ -371,7 +366,7 @@ fn render_editor_body(ui: &mut egui::Ui, state: &mut AppState) {
             render_editor_meta(ui, &tab.title, line_count, char_count);
 
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                let layout_job = highlight_sql(ui, text, wrap_width);
+                let layout_job = highlight_sql(text, wrap_width);
                 ui.fonts(|f| f.layout_job(layout_job))
             };
 
@@ -380,7 +375,7 @@ fn render_editor_body(ui: &mut egui::Ui, state: &mut AppState) {
                 .inner_margin(Margin::same(theme::SPACE_LG as i8))
                 .show(ui, |ui| {
                     egui::ScrollArea::vertical()
-                        .id_salt("editor_scroll")
+                        .id_salt(("editor_scroll", tab.id))
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
                             ui.add(
@@ -538,7 +533,7 @@ const SQL_KEYWORDS: &[&str] = &[
     "REVOKE",
 ];
 
-fn highlight_sql(ui: &egui::Ui, text: &str, wrap_width: f32) -> egui::text::LayoutJob {
+fn highlight_sql(text: &str, wrap_width: f32) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = wrap_width;
 

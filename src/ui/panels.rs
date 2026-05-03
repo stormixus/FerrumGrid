@@ -183,6 +183,13 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                 render_toolbar_item(
                     ui,
                     state,
+                    MainView::Automation,
+                    t("toolbar_automation"),
+                    theme::ACCENT_TEAL,
+                );
+                render_toolbar_item(
+                    ui,
+                    state,
                     MainView::Model,
                     t("toolbar_model"),
                     theme::ACCENT_GREEN,
@@ -745,101 +752,6 @@ fn paint_toolbar_icon(
     }
 }
 
-fn render_brand(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        crate::ui::icon_img(ui, icons_svg::DATABASE, "brand_logo", 24.0);
-
-        ui.add_space(theme::SPACE_SM);
-        ui.scope(|ui| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            ui.vertical(|ui| {
-                ui.label(
-                    RichText::new("FerrumGrid")
-                        .color(theme::TEXT_PRIMARY)
-                        .strong()
-                        .size(13.0),
-                );
-                ui.label(
-                    RichText::new("POSTGRES WORKBENCH")
-                        .color(theme::TEXT_MUTED)
-                        .size(8.5),
-                );
-            });
-        });
-    });
-}
-
-fn render_top_status_pill(ui: &mut egui::Ui, state: &AppState) {
-    let connected = state
-        .connections
-        .values()
-        .filter(|conn| matches!(conn.status, ConnectionStatus::Connected { .. }))
-        .count();
-    let connecting = state
-        .connections
-        .values()
-        .any(|conn| matches!(conn.status, ConnectionStatus::Connecting));
-
-    let (label, color) = if state.query_running {
-        ("Query running".to_string(), theme::ACCENT_YELLOW)
-    } else if let Some(conn_id) = state.active_connection {
-        if let Some(conn) = state.connections.get(&conn_id) {
-            (conn.config.display_name.clone(), theme::ACCENT_GREEN)
-        } else {
-            (state.status_message.clone(), theme::TEXT_MUTED)
-        }
-    } else if connecting {
-        ("Connecting".to_string(), theme::ACCENT_YELLOW)
-    } else if connected > 0 {
-        (format!("{connected} connected"), theme::ACCENT_GREEN)
-    } else {
-        ("Offline".to_string(), theme::TEXT_MUTED)
-    };
-
-    let galley =
-        ui.painter()
-            .layout_no_wrap(label.clone(), egui::FontId::proportional(11.0), color);
-    let width = (galley.rect.width() + 34.0).clamp(86.0, 220.0);
-    let (rect, resp) = ui.allocate_exact_size(egui::vec2(width, 24.0), egui::Sense::hover());
-
-    let fill = if resp.hovered() {
-        theme::with_alpha(color, 36)
-    } else {
-        theme::with_alpha(color, 22)
-    };
-    ui.painter()
-        .rect_filled(rect, CornerRadius::same(theme::RADIUS_LG), fill);
-
-    ui.allocate_new_ui(
-        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
-            rect.left_center() + egui::vec2(13.0, 0.0),
-            egui::vec2(12.0, 12.0),
-        )),
-        |ui| {
-            let (svg, name) = if state.query_running {
-                (icons_svg::QUERY, "status_query")
-            } else if connected > 0 {
-                (icons_svg::CONNECT, "status_conn")
-            } else {
-                (icons_svg::DATABASE, "status_offline")
-            };
-            crate::ui::icon_img(ui, svg, name, 10.0);
-        },
-    );
-
-    ui.painter().text(
-        rect.left_center() + egui::vec2(23.0, 0.0),
-        egui::Align2::LEFT_CENTER,
-        label,
-        egui::FontId::proportional(11.0),
-        if color == theme::TEXT_MUTED {
-            theme::TEXT_SECONDARY
-        } else {
-            theme::TEXT_PRIMARY
-        },
-    );
-}
-
 // ---------------------------------------------------------------------------
 // Status bar
 // ---------------------------------------------------------------------------
@@ -871,23 +783,11 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                             }
                         };
 
-                        let (dot_svg, dot_name) = match &conn.status {
-                            ConnectionStatus::Connected { .. } => {
-                                (icons_svg::CONNECT, "status_bar_conn")
-                            }
-                            _ => (icons_svg::DATABASE, "status_bar_other"),
-                        };
-
-                        ui.allocate_new_ui(
-                            egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
-                                ui.next_widget_position() + egui::vec2(6.0, 11.0),
-                                egui::vec2(12.0, 12.0),
-                            )),
-                            |ui| {
-                                crate::ui::icon_img(ui, dot_svg, dot_name, 10.0);
-                            },
-                        );
-                        ui.add_space(14.0);
+                        let (dot_rect, _) =
+                            ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
+                        ui.painter()
+                            .circle_filled(dot_rect.center(), 3.8, dot_color);
+                        ui.add_space(2.0);
 
                         ui.label(
                             RichText::new(&conn.config.display_name)
@@ -1004,11 +904,4 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
             });
         });
     });
-}
-
-pub fn panel_frame(fill: Color32) -> egui::Frame {
-    egui::Frame::new()
-        .fill(fill)
-        .inner_margin(Margin::same(theme::SPACE_MD as i8))
-        .stroke(Stroke::new(1.0, theme::BORDER_SUBTLE))
 }

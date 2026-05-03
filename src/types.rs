@@ -127,6 +127,27 @@ pub struct IndexInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct FunctionInfo {
+    pub schema: String,
+    pub name: String,
+    pub arguments: String,
+    pub return_type: String,
+    pub kind: String,
+    pub language: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RoleInfo {
+    pub name: String,
+    pub can_login: bool,
+    pub is_superuser: bool,
+    pub can_create_db: bool,
+    pub can_create_role: bool,
+    pub can_replicate: bool,
+    pub valid_until: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct EditorTab {
     pub id: uuid::Uuid,
     pub title: String,

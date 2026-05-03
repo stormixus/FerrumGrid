@@ -58,9 +58,22 @@ impl DbError {
 
     pub fn from_pg(err: &tokio_postgres::Error, conn_id: ConnectionId) -> Self {
         if let Some(db_err) = err.as_db_error() {
+            if db_err.code().code().starts_with("57014") {
+                let mut err = Self::cancelled(conn_id);
+                err.detail = db_err.detail().map(|s| s.to_string());
+                err.hint = db_err.hint().map(|s| s.to_string());
+                err.position = db_err.position().map(|p| match p {
+                    tokio_postgres::error::ErrorPosition::Original(pos) => *pos as usize,
+                    tokio_postgres::error::ErrorPosition::Internal { position, .. } => {
+                        *position as usize
+                    }
+                });
+                err.sqlstate = Some(db_err.code().code().to_string());
+                return err;
+            }
+
             let category = match db_err.code().code() {
                 c if c.starts_with("08") => ErrorCategory::Connection,
-                c if c.starts_with("57014") => ErrorCategory::Cancelled,
                 _ => ErrorCategory::Query,
             };
 
@@ -103,9 +116,13 @@ impl std::fmt::Display for DbError {
         if let Some(hint) = &self.hint {
             write!(f, "\nHint: {hint}")?;
         }
+        if let Some(position) = self.position {
+            write!(f, "\nPosition: {position}")?;
+        }
         if let Some(code) = &self.sqlstate {
             write!(f, " [SQLSTATE: {code}]")?;
         }
+        write!(f, " [Connection: {}]", self.conn_id)?;
         Ok(())
     }
 }

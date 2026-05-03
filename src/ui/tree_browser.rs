@@ -3,7 +3,7 @@ use eframe::egui::{self, Color32, CornerRadius, RichText, Sense, Stroke};
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::{AppState, ConnectionStatus};
 use crate::types::ConnectionId;
-use crate::ui::{icon_img, icons, icons_svg, theme};
+use crate::ui::{icon_img, icons_svg, theme};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -412,7 +412,6 @@ fn render_table_node(
 // ---------------------------------------------------------------------------
 
 fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo) {
-    let indent = 28.0;
     let full_width = ui.available_width();
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(full_width, 18.0), Sense::hover());
 
@@ -423,8 +422,6 @@ fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo) {
             theme::with_alpha(theme::ACCENT_TEAL, 16),
         );
     }
-
-    let left = rect.min + egui::vec2(indent, 0.0);
 
     if col.is_primary_key {
         icon_img(ui, icons_svg::KEY, "pk", 12.0);

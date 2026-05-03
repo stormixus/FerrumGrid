@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::db::error::DbError;
-use crate::types::{ColumnInfo, ConnectionConfig, ConnectionId, IndexInfo, QueryResult, TableInfo};
+use crate::types::{
+    ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, QueryResult, RoleInfo,
+    TableInfo,
+};
 
 #[derive(Debug)]
 pub enum DbCommand {
@@ -37,6 +40,13 @@ pub enum DbCommand {
     ListForeignKeys {
         conn_id: ConnectionId,
         schema: String,
+    },
+    ListFunctions {
+        conn_id: ConnectionId,
+        schema: String,
+    },
+    ListRoles {
+        conn_id: ConnectionId,
     },
     CancelQuery {
         conn_id: ConnectionId,
@@ -82,6 +92,15 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         schema: String,
         foreign_keys: Vec<crate::ui::er_diagram::ForeignKey>,
+    },
+    FunctionList {
+        conn_id: ConnectionId,
+        schema: String,
+        functions: Vec<FunctionInfo>,
+    },
+    RoleList {
+        conn_id: ConnectionId,
+        roles: Vec<RoleInfo>,
     },
     QueryCancelled {
         conn_id: ConnectionId,
@@ -160,6 +179,10 @@ enum ConnCommand {
     ListForeignKeys {
         schema: String,
     },
+    ListFunctions {
+        schema: String,
+    },
+    ListRoles,
     CancelQuery,
     Shutdown,
 }
@@ -246,6 +269,19 @@ async fn dispatch_loop(
                         .task_tx
                         .send(ConnCommand::ListForeignKeys { schema })
                         .await;
+                }
+            }
+            DbCommand::ListFunctions { conn_id, schema } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ListFunctions { schema })
+                        .await;
+                }
+            }
+            DbCommand::ListRoles { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListRoles).await;
                 }
             }
             DbCommand::CancelQuery { conn_id } => {
@@ -415,6 +451,27 @@ async fn connection_task(
                         schema: schema.clone(),
                         foreign_keys,
                     },
+                    Err(e) => DbResponse::Error { conn_id, error: e },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListFunctions { schema } => {
+                let response =
+                    match crate::db::metadata::list_functions(&client, &schema, conn_id).await {
+                        Ok(functions) => DbResponse::FunctionList {
+                            conn_id,
+                            schema: schema.clone(),
+                            functions,
+                        },
+                        Err(e) => DbResponse::Error { conn_id, error: e },
+                    };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListRoles => {
+                let response = match crate::db::metadata::list_roles(&client, conn_id).await {
+                    Ok(roles) => DbResponse::RoleList { conn_id, roles },
                     Err(e) => DbResponse::Error { conn_id, error: e },
                 };
                 let _ = resp_tx.send(response);

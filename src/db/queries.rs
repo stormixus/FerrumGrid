@@ -65,6 +65,33 @@ pub async fn execute_statement(
     conn_id: ConnectionId,
 ) -> Result<(QueryResult, bool), DbError> {
     let start = std::time::Instant::now();
+    let statement_count = sql
+        .split(';')
+        .filter(|part| !part.trim().is_empty())
+        .count();
+
+    if statement_count > 1 {
+        client
+            .batch_execute(sql)
+            .await
+            .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+        let execution_time_ms = start.elapsed().as_millis();
+        return Ok((
+            QueryResult {
+                columns: vec![ColumnMeta {
+                    name: "status".to_string(),
+                    type_name: "text".to_string(),
+                }],
+                rows: vec![vec![CellValue::Text(format!(
+                    "{statement_count} statements executed"
+                ))]],
+                execution_time_ms,
+            },
+            false,
+        ));
+    }
+
     let rows_affected = client
         .execute(sql, &[])
         .await

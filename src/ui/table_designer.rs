@@ -3,7 +3,7 @@ use eframe::egui::{
     Sense, Stroke, TextEdit, Ui, Vec2, Window,
 };
 
-use crate::db::bridge::DbBridge;
+use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::AppState;
 use crate::ui::theme;
 
@@ -109,7 +109,7 @@ impl Default for IndexDef {
     }
 }
 
-pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, _bridge: &DbBridge) {
+pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
     if !state.table_designer.show {
         return;
     }
@@ -125,7 +125,7 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, _bridge:
     .resizable(true)
     .collapsible(true)
     .show(ctx, |ui| {
-        render_designer_ui(ui, state, &mut should_close);
+        render_designer_ui(ui, state, bridge, &mut should_close);
     });
 
     if should_close {
@@ -133,7 +133,12 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, _bridge:
     }
 }
 
-fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool) {
+fn render_designer_ui(
+    ui: &mut Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    should_close: &mut bool,
+) {
     let conn = state
         .active_connection
         .and_then(|id| state.connections.get(&id));
@@ -168,6 +173,13 @@ fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool
         }
 
         ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+            if ui.add(primary_button("Apply DDL")).clicked() {
+                apply_ddl(state, bridge);
+                *should_close = true;
+            }
+
+            ui.add_space(8.0);
+
             if ui.add(primary_button("Generate DDL")).clicked() {
                 state.table_designer.generated_ddl = Some(generate_ddl(state));
                 state.table_designer.show_ddl_preview = true;
@@ -212,6 +224,9 @@ fn render_designer_ui(ui: &mut Ui, state: &mut AppState, should_close: &mut bool
                     );
                 }
                 ui.horizontal(|ui| {
+                    if ui.add(primary_button("Apply")).clicked() {
+                        apply_ddl(state, bridge);
+                    }
                     if ui.button("Copy to Clipboard").clicked() {
                         if let Some(ref ddl) = state.table_designer.generated_ddl {
                             ui.ctx().output_mut(|o| {
@@ -272,11 +287,15 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
 
                         let response = frame.show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                let pk_icon = if col.is_primary_key { "🔑 " } else { "" };
-                                let fk_icon = if col.is_foreign_key { "🔗 " } else { "" };
                                 let null_text = if col.is_nullable { "NULL" } else { "NOT NULL" };
 
-                                ui.label(format!("{}{}{}", pk_icon, fk_icon, col.name));
+                                if col.is_primary_key {
+                                    type_chip(ui, "PK", theme::ACCENT_YELLOW);
+                                }
+                                if col.is_foreign_key {
+                                    type_chip(ui, "FK", theme::ACCENT_BLUE);
+                                }
+                                ui.label(&col.name);
                                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                                     ui.label(
                                         RichText::new(null_text)
@@ -439,6 +458,14 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
 }
 
 fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
+    let column_names: Vec<String> = state
+        .table_designer
+        .columns
+        .iter()
+        .filter(|col| !col.name.is_empty())
+        .map(|col| col.name.clone())
+        .collect();
+
     Frame::new()
         .fill(theme::BG_DARK)
         .inner_margin(Margin::same(8))
@@ -469,24 +496,60 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                             .corner_radius(CornerRadius::same(4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    let unique_marker = if index.is_unique { "[U] " } else { "" };
-                                    ui.label(format!("{}{}", unique_marker, index.name));
+                                    ui.label("Name:");
+                                    ui.add(
+                                        TextEdit::singleline(&mut index.name)
+                                            .desired_width(130.0)
+                                            .hint_text("idx_name"),
+                                    );
+                                    ui.checkbox(&mut index.is_unique, "Unique");
+                                    ComboBox::from_id_salt(format!("idx_type_{idx}"))
+                                        .width(96.0)
+                                        .selected_text(&index.index_type)
+                                        .show_ui(ui, |ui| {
+                                            for index_type in
+                                                ["BTREE", "HASH", "GIN", "GIST", "BRIN"]
+                                            {
+                                                if ui
+                                                    .selectable_label(
+                                                        index.index_type == index_type,
+                                                        index_type,
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    index.index_type = index_type.to_string();
+                                                }
+                                            }
+                                        });
 
                                     ui.with_layout(
                                         egui::Layout::right_to_left(Align::Center),
                                         |ui| {
-                                            if ui.button("🗑").clicked() {
+                                            if ui.button("Delete").clicked() {
                                                 to_delete = Some(idx);
                                             }
                                         },
                                     );
                                 });
 
-                                ui.label(
-                                    RichText::new(format!("Columns: {}", index.columns.join(", ")))
-                                        .color(theme::TEXT_MUTED)
-                                        .size(10.0),
-                                );
+                                ui.add_space(4.0);
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.label(
+                                        RichText::new("Columns:")
+                                            .color(theme::TEXT_MUTED)
+                                            .size(10.0),
+                                    );
+                                    for column in &column_names {
+                                        let mut selected = index.columns.contains(column);
+                                        if ui.checkbox(&mut selected, column).changed() {
+                                            if selected {
+                                                index.columns.push(column.clone());
+                                            } else {
+                                                index.columns.retain(|c| c != column);
+                                            }
+                                        }
+                                    }
+                                });
                             });
                     }
 
@@ -518,91 +581,17 @@ fn generate_ddl(state: &AppState) -> String {
         return "-- Please specify schema and table name".to_string();
     }
 
-    let mut ddl = String::new();
-    ddl.push_str(&format!(
-        "CREATE TABLE IF NOT EXISTS {}.{} (\n",
+    let table_ref = format!(
+        "{}.{}",
         escape_identifier(&td.schema),
         escape_identifier(&td.table_name)
-    ));
+    );
 
-    let mut pk_columns: Vec<&str> = Vec::new();
-    let mut fk_defs: Vec<String> = Vec::new();
-
-    for col in &td.columns {
-        ddl.push_str("    ");
-        ddl.push_str(&escape_identifier(&col.name));
-        ddl.push(' ');
-        ddl.push_str(&col.data_type);
-
-        if let Some(ref len) = col.length {
-            if !len.is_empty() {
-                ddl.push('(');
-                ddl.push_str(len);
-                ddl.push(')');
-            }
-        }
-
-        if col.is_primary_key {
-            pk_columns.push(&col.name);
-        }
-
-        if col.is_foreign_key && !col.fk_ref_table.is_empty() && !col.fk_ref_column.is_empty() {
-            let fk_def = format!(
-                "    CONSTRAINT {}_{}_fk FOREIGN KEY ({}) REFERENCES {}.{}({})",
-                escape_identifier(&td.table_name),
-                escape_identifier(&col.name),
-                escape_identifier(&col.name),
-                escape_identifier(&col.fk_ref_schema),
-                escape_identifier(&col.fk_ref_table),
-                escape_identifier(&col.fk_ref_column)
-            );
-            fk_defs.push(fk_def);
-        }
-
-        if !col.is_nullable {
-            ddl.push_str(" NOT NULL");
-        }
-
-        if !col.default_value.is_empty() {
-            ddl.push_str(" DEFAULT ");
-            ddl.push_str(&col.default_value);
-        }
-
-        if col.is_unique && !col.is_primary_key {
-            ddl.push_str(" UNIQUE");
-        }
-
-        ddl.push_str(",\n");
-    }
-
-    if !pk_columns.is_empty() {
-        ddl.push_str(&format!(
-            "    CONSTRAINT {}_pk PRIMARY KEY ({})",
-            escape_identifier(&td.table_name),
-            pk_columns
-                .iter()
-                .map(|c| escape_identifier(c))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-
-        if !fk_defs.is_empty() {
-            ddl.push_str(",\n");
-        } else {
-            ddl.push('\n');
-        }
-    }
-
-    for (i, fk) in fk_defs.iter().enumerate() {
-        ddl.push_str(fk);
-        if i < fk_defs.len() - 1 {
-            ddl.push_str(",\n");
-        } else {
-            ddl.push('\n');
-        }
-    }
-
-    ddl.push_str(");\n");
+    let mut ddl = if td.editing_table.is_some() {
+        generate_alter_ddl(td, &table_ref)
+    } else {
+        generate_create_ddl(td, &table_ref)
+    };
 
     for idx in &td.indexes {
         if idx.name.is_empty() || idx.columns.is_empty() {
@@ -611,10 +600,10 @@ fn generate_ddl(state: &AppState) -> String {
 
         let unique_str = if idx.is_unique { "UNIQUE " } else { "" };
         ddl.push_str(&format!(
-            "\nCREATE {unique_str}INDEX IF NOT EXISTS {} ON {}.{} ({});",
+            "\nCREATE {unique_str}INDEX IF NOT EXISTS {} ON {} USING {} ({});",
             escape_identifier(&idx.name),
-            escape_identifier(&td.schema),
-            escape_identifier(&td.table_name),
+            table_ref,
+            idx.index_type.to_lowercase(),
             idx.columns
                 .iter()
                 .map(|c| escape_identifier(c))
@@ -638,6 +627,123 @@ fn generate_ddl(state: &AppState) -> String {
     ddl
 }
 
+fn generate_create_ddl(td: &TableDesignerState, table_ref: &str) -> String {
+    let mut defs: Vec<String> = Vec::new();
+    let mut pk_columns: Vec<&str> = Vec::new();
+
+    for col in &td.columns {
+        if col.name.is_empty() {
+            continue;
+        }
+        if col.is_primary_key {
+            pk_columns.push(&col.name);
+        }
+        defs.push(format!("    {}", column_definition_sql(col, true)));
+    }
+
+    if !pk_columns.is_empty() {
+        defs.push(format!(
+            "    CONSTRAINT {}_pk PRIMARY KEY ({})",
+            escape_identifier(&td.table_name),
+            pk_columns
+                .iter()
+                .map(|c| escape_identifier(c))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    for col in &td.columns {
+        if col.is_foreign_key && !col.fk_ref_table.is_empty() && !col.fk_ref_column.is_empty() {
+            defs.push(format!(
+                "    CONSTRAINT {}_{}_fk FOREIGN KEY ({}) REFERENCES {}.{}({})",
+                escape_identifier(&td.table_name),
+                escape_identifier(&col.name),
+                escape_identifier(&col.name),
+                escape_identifier(&col.fk_ref_schema),
+                escape_identifier(&col.fk_ref_table),
+                escape_identifier(&col.fk_ref_column)
+            ));
+        }
+    }
+
+    if defs.is_empty() {
+        return "-- Add at least one column before generating DDL".to_string();
+    }
+
+    format!(
+        "CREATE TABLE IF NOT EXISTS {table_ref} (\n{}\n);\n",
+        defs.join(",\n")
+    )
+}
+
+fn generate_alter_ddl(td: &TableDesignerState, table_ref: &str) -> String {
+    let mut statements = Vec::new();
+
+    for col in &td.columns {
+        if col.name.is_empty() {
+            continue;
+        }
+        statements.push(format!(
+            "ALTER TABLE {table_ref} ADD COLUMN IF NOT EXISTS {};",
+            column_definition_sql(col, false)
+        ));
+        statements.push(format!(
+            "ALTER TABLE {table_ref} ALTER COLUMN {} {};",
+            escape_identifier(&col.name),
+            if col.is_nullable {
+                "DROP NOT NULL"
+            } else {
+                "SET NOT NULL"
+            }
+        ));
+        if col.default_value.is_empty() {
+            statements.push(format!(
+                "ALTER TABLE {table_ref} ALTER COLUMN {} DROP DEFAULT;",
+                escape_identifier(&col.name)
+            ));
+        } else {
+            statements.push(format!(
+                "ALTER TABLE {table_ref} ALTER COLUMN {} SET DEFAULT {};",
+                escape_identifier(&col.name),
+                col.default_value
+            ));
+        }
+    }
+
+    if statements.is_empty() {
+        "-- Add at least one column before generating DDL".to_string()
+    } else {
+        statements.join("\n") + "\n"
+    }
+}
+
+fn column_definition_sql(col: &ColumnDef, include_inline_unique: bool) -> String {
+    let mut sql = format!("{} {}", escape_identifier(&col.name), col_type_sql(col));
+
+    if !col.is_nullable {
+        sql.push_str(" NOT NULL");
+    }
+    if !col.default_value.is_empty() {
+        sql.push_str(" DEFAULT ");
+        sql.push_str(&col.default_value);
+    }
+    if include_inline_unique && col.is_unique && !col.is_primary_key {
+        sql.push_str(" UNIQUE");
+    }
+
+    sql
+}
+
+fn col_type_sql(col: &ColumnDef) -> String {
+    if let Some(ref len) = col.length {
+        if !len.trim().is_empty() {
+            return format!("{}({})", col.data_type, len.trim());
+        }
+    }
+    col.data_type.clone()
+}
+
 fn escape_identifier(name: &str) -> String {
     if name.contains('"') || name.contains(' ') || name.starts_with(|c: char| c.is_numeric()) {
         format!("\"{}\"", name.replace('"', "\"\""))
@@ -659,6 +765,60 @@ fn small_button(text: &str) -> Button<'_> {
         .stroke(Stroke::new(1.0, theme::BORDER_DEFAULT))
         .corner_radius(CornerRadius::same(4))
         .min_size(Vec2::new(24.0, 24.0))
+}
+
+fn type_chip(ui: &mut Ui, label: &str, color: Color32) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(25.0, 17.0), Sense::hover());
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(theme::RADIUS_SM),
+        theme::with_alpha(color, 28),
+    );
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        egui::FontId::monospace(9.5),
+        color,
+    );
+}
+
+fn apply_ddl(state: &mut AppState, bridge: &DbBridge) {
+    let conn_id = match state.active_connection {
+        Some(id) => id,
+        None => {
+            state.last_error = Some("No active connection".to_string());
+            return;
+        }
+    };
+
+    let ddl = state
+        .table_designer
+        .generated_ddl
+        .clone()
+        .unwrap_or_else(|| generate_ddl(state));
+
+    if ddl.trim_start().starts_with("--") {
+        state.table_designer.generated_ddl = Some(ddl.clone());
+        state.table_designer.show_ddl_preview = true;
+        state.last_error = Some(ddl.trim_start_matches('-').trim().to_string());
+        return;
+    }
+
+    let schema = state.table_designer.schema.clone();
+    state.table_designer.generated_ddl = Some(ddl.clone());
+    state.status_message = format!(
+        "Applying DDL to {schema}.{}",
+        state.table_designer.table_name
+    );
+    state.query_running = true;
+
+    bridge.send(DbCommand::ExecuteQuery {
+        conn_id,
+        sql: ddl,
+        row_limit: None,
+    });
+    bridge.send(DbCommand::ListTables { conn_id, schema });
 }
 
 pub fn open_for_new_table(state: &mut AppState) {

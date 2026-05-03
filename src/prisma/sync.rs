@@ -11,7 +11,7 @@ pub struct SyncResult {
 }
 
 /// Sync Prisma schema to database (apply to DB)
-pub async fn sync_schema_to_db(
+pub fn sync_schema_to_db(
     schema: &PrismaSchema,
     conn_id: ConnectionId,
     bridge: &DbBridge,
@@ -38,7 +38,7 @@ pub async fn sync_schema_to_db(
 }
 
 /// Sync database to Prisma schema (introspection)
-pub async fn sync_db_to_schema(
+pub fn sync_db_to_schema(
     state: &AppState,
     schema_name: &str,
     conn_id: ConnectionId,
@@ -134,7 +134,7 @@ pub fn generate_migration(
 fn db_table_to_prisma_model(
     table_name: &str,
     columns: &[ColumnInfo],
-    _indexes: &[crate::types::IndexInfo],
+    indexes: &[crate::types::IndexInfo],
 ) -> PrismaModel {
     let mut model = PrismaModel {
         name: table_name.to_string(),
@@ -180,8 +180,24 @@ fn db_table_to_prisma_model(
         model.fields.push(field);
     }
 
-    // Add @@index for non-PK indexes
-    // (Simplified - full implementation would check indexes)
+    for index in indexes {
+        if index.is_primary {
+            continue;
+        }
+        let attr_name = if index.is_unique { "unique" } else { "index" };
+        model
+            .attributes
+            .push(crate::prisma::parser::PrismaAttribute {
+                name: attr_name.to_string(),
+                arguments: vec![format!("[{}]", index.columns.join(", "))],
+            });
+        model.documentation = Some(format!(
+            "Includes {} index {} ({})",
+            index.index_type,
+            index.name,
+            index.columns.join(", ")
+        ));
+    }
 
     model
 }
@@ -291,7 +307,6 @@ fn type_equal(a: &PrismaType, b: &PrismaType) -> bool {
         (PrismaType::Optional(a), PrismaType::Optional(b)) => type_equal(a, b),
         (PrismaType::Array(a), PrismaType::Array(b)) => type_equal(a, b),
         (PrismaType::Unsupported(a), PrismaType::Unsupported(b)) => a == b,
-        (PrismaType::Enum(a), PrismaType::Enum(b)) => a == b,
         (PrismaType::Model(a), PrismaType::Model(b)) => a == b,
         _ => false,
     }
@@ -313,7 +328,6 @@ fn field_to_sql_type(field_type: &PrismaType) -> String {
         PrismaType::Optional(inner) => return field_to_sql_type(inner),
         PrismaType::Array(inner) => return format!("{}[]", field_to_sql_type(inner)),
         PrismaType::Unsupported(s) => return s.clone(),
-        PrismaType::Enum(s) => return s.clone(),
         PrismaType::Model(s) => return s.clone(),
     };
 

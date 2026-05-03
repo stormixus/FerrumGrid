@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::prisma::ui::PrismaUIState;
 use crate::storage::settings::AppSettings;
 use crate::types::{
-    ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, IndexInfo, QueryResult, TableInfo,
+    ColumnInfo, ConnectionConfig, ConnectionId, EditorTab, FunctionInfo, IndexInfo, QueryResult,
+    RoleInfo, TableInfo,
 };
 use crate::ui::er_diagram::ERDiagramState;
 use crate::ui::table_designer::TableDesignerState;
@@ -17,34 +18,37 @@ pub enum ConnectionStatus {
 
 #[derive(Debug)]
 pub struct ConnectionState {
-    pub id: ConnectionId,
     pub config: ConnectionConfig,
     pub status: ConnectionStatus,
     pub schemas: Vec<String>,
     pub tables: HashMap<String, Vec<TableInfo>>,
     pub columns: HashMap<(String, String), Vec<ColumnInfo>>,
     pub indexes: HashMap<(String, String), Vec<IndexInfo>>,
-    pub expanded_nodes: HashSet<String>,
+    pub functions: HashMap<String, Vec<FunctionInfo>>,
+    pub roles: Vec<RoleInfo>,
     pub loading_schemas: bool,
     pub loading_tables: HashSet<String>,
     pub loading_columns: HashSet<(String, String)>,
+    pub loading_functions: HashSet<String>,
+    pub loading_roles: bool,
 }
 
 impl ConnectionState {
     pub fn new(config: ConnectionConfig) -> Self {
-        let id = config.id;
         Self {
-            id,
             config,
             status: ConnectionStatus::Disconnected,
             schemas: Vec::new(),
             tables: HashMap::new(),
             columns: HashMap::new(),
             indexes: HashMap::new(),
-            expanded_nodes: HashSet::new(),
+            functions: HashMap::new(),
+            roles: Vec::new(),
             loading_schemas: false,
             loading_tables: HashSet::new(),
             loading_columns: HashSet::new(),
+            loading_functions: HashSet::new(),
+            loading_roles: false,
         }
     }
 }
@@ -82,6 +86,8 @@ pub struct AppState {
     pub show_info_panel: bool,
     pub active_settings_tab: usize,
     pub settings_draft: Option<AppSettings>,
+    pub objects_schema_filter: String,
+    pub objects_search: String,
     pub connection_dialog: ConnectionDialogState,
     pub saved_connections: Vec<ConnectionConfig>,
     pub default_row_limit: usize,
@@ -111,6 +117,8 @@ impl Default for AppState {
             show_info_panel: true,
             active_settings_tab: 0,
             settings_draft: None,
+            objects_schema_filter: String::new(),
+            objects_search: String::new(),
             connection_dialog: ConnectionDialogState::default(),
             saved_connections: Vec::new(),
             default_row_limit: 1000,

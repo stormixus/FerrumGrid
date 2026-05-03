@@ -211,7 +211,9 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                         ConnectionDialogState::from_config(&state.saved_connections[i]);
                 }
                 if let Some(i) = delete_idx {
-                    state.saved_connections.remove(i);
+                    let removed = state.saved_connections.remove(i);
+                    crate::storage::connections::delete_password(&removed.id);
+                    crate::storage::connections::save_connections(&state.saved_connections);
                 }
             });
     });
@@ -456,11 +458,24 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
     let config = state.connection_dialog.to_config();
     let conn_id = config.id;
 
-    if !state.saved_connections.iter().any(|c| {
-        c.host == config.host && c.database == config.database && c.username == config.username
+    if config.password.is_empty() {
+        crate::storage::connections::delete_password(&config.id);
+    } else {
+        crate::storage::connections::store_password(&config.id, &config.password);
+    }
+
+    if let Some(saved) = state.saved_connections.iter_mut().find(|c| {
+        c.id == config.id
+            || (c.host == config.host
+                && c.port == config.port
+                && c.database == config.database
+                && c.username == config.username)
     }) {
+        *saved = config.clone();
+    } else {
         state.saved_connections.push(config.clone());
     }
+    crate::storage::connections::save_connections(&state.saved_connections);
 
     let conn_state = ConnectionState::new(config.clone());
     state.connections.insert(conn_id, conn_state);

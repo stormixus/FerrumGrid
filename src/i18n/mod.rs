@@ -777,6 +777,7 @@ pub fn t(key: &str) -> String {
 }
 
 /// Format a translation with arguments
+#[allow(dead_code)]
 pub fn tf(key: &str, args: &[&str]) -> String {
     let template = t(key);
     let mut result = template;
