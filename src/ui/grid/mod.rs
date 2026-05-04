@@ -1,3 +1,24 @@
+//! Data grid view (cell rendering, selection, hit-test, edit, paste, info
+//! panel, footer, tooltips).
+//!
+//! Plan v7 Phase 1.95c1 — grid.rs (5240줄) 를 폴더 구조로 변환. sub-modules
+//! 는 현재 빈 placeholder. 실제 함수 cut-over 는 후속 1.95c sub-stories 에서
+//! 진행. Phase 1.95a 의 dispatch() wire-up 도 cut-over 후 진행.
+
+mod footer;
+mod hit_test;
+mod info_panel;
+mod paste;
+mod render;
+mod selection;
+mod tooltips;
+
+use footer::{
+    render_data_query_footer, render_grid_body_with_reserved_footer, should_show_data_query_footer,
+};
+pub use render::render_grid;
+use tooltips::show_dark_hover_tooltip;
+
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -14,7 +35,7 @@ use crate::state::{
     DataFilter, DataSortClause, DataSortDirection, DataSource, MainView, MAX_DATA_PAGE_LIMIT,
 };
 use crate::types::{
-    CellValue, ColumnInfo, ColumnMeta, DataCellEdit, DataEditValue, DataKeyValue, IndexInfo,
+    CellValue, ColumnInfo, ColumnMeta, IndexInfo,
     RuleInfo, TriggerInfo,
 };
 use crate::ui::er_diagram::ForeignKey;
@@ -27,35 +48,7 @@ const GRID_CELL_RIGHT_PAD: f32 = 8.0;
 // Public entry point
 // ---------------------------------------------------------------------------
 
-pub fn render_grid(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
-    if let Some(ref error) = state.last_error.clone() {
-        render_error_bar(ui, error);
-    }
-
-    match &state.current_result {
-        None => {
-            if should_show_data_query_footer(state) {
-                render_grid_body_with_reserved_footer(ui, |ui| {
-                    render_empty_state(ui, state.query_running);
-                });
-                render_data_query_footer(ui, state);
-            } else {
-                render_empty_state(ui, state.query_running);
-            }
-        }
-        Some(_) => {
-            render_result_header(ui, state, bridge);
-            if should_show_data_query_footer(state) {
-                render_grid_body_with_reserved_footer(ui, |ui| {
-                    render_table(ui, state, bridge);
-                });
-                render_data_query_footer(ui, state);
-            } else {
-                render_table(ui, state, bridge);
-            }
-        }
-    }
-}
+// render_grid 가 Phase 1.95c3c 에서 src/ui/grid/render.rs 로 cut-over (pub use 재출).
 
 pub fn render_info_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     render_info_header(ui);
@@ -873,10 +866,13 @@ fn render_info_row_field(
                     }
 
                     if can_edit
-                        && info_text_action_button(
+                        && info_icon_action_button(
                             ui,
+                            crate::ui::icons_svg::REFRESH,
+                            "info_revert_cell",
                             &t("data_info_revert_cell"),
                             snapshot.is_dirty(),
+                            theme::text_muted(),
                         )
                         .clicked()
                     {
@@ -1332,28 +1328,13 @@ fn info_icon_action_button(
     enabled: bool,
     icon_color: Color32,
 ) -> egui::Response {
-    let font = egui::FontId::proportional(11.5);
-    let text_color = if enabled {
-        theme::text_secondary()
-    } else {
-        theme::text_disabled()
-    };
-    let text_width = ui
-        .painter()
-        .layout_no_wrap(label.to_string(), font.clone(), text_color)
-        .rect
-        .width();
-    let target_width = (text_width + 44.0).ceil().max(96.0);
-    let (rect, response) = info_action_button_frame(ui, target_width, enabled);
+    let (rect, response) = info_action_button_frame(ui, 30.0, enabled);
     let icon_color = if enabled {
         icon_color
     } else {
         theme::text_disabled()
     };
-    let icon_rect = egui::Rect::from_center_size(
-        rect.left_center() + egui::vec2(15.0, 0.0),
-        egui::vec2(12.0, 12.0),
-    );
+    let icon_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(13.0, 13.0));
     ui.scope_builder(
         egui::UiBuilder::new()
             .max_rect(icon_rect)
@@ -1363,21 +1344,11 @@ fn info_icon_action_button(
         |ui| {
             ui.set_clip_rect(icon_rect.intersect(rect));
             ui.add(crate::ui::icon_image_tinted(
-                ui, icon_svg, icon_name, 12.0, icon_color,
+                ui, icon_svg, icon_name, 13.0, icon_color,
             ));
         },
     );
-    let text_clip = egui::Rect::from_min_max(
-        rect.left_top() + egui::vec2(30.0, 2.0),
-        rect.right_bottom() - egui::vec2(8.0, 2.0),
-    );
-    ui.painter().with_clip_rect(text_clip).text(
-        rect.left_center() + egui::vec2(30.0, 0.0),
-        egui::Align2::LEFT_CENTER,
-        label,
-        font,
-        text_color,
-    );
+    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, label);
     response
 }
 
@@ -1682,315 +1653,24 @@ fn value_box(ui: &mut egui::Ui, value: &str, color: Color32) {
         });
 }
 
-fn should_show_data_query_footer(state: &AppState) -> bool {
-    state.active_main_view == MainView::Data && state.active_data_source().is_some()
-}
+// should_show_data_query_footer / render_grid_body_with_reserved_footer /
+// render_data_query_footer / render_data_query_preview / active_data_query_sql /
+// data_query_footer_height 가 Phase 1.95c3b 에서 src/ui/grid/footer.rs 로 cut-over.
 
-fn render_grid_body_with_reserved_footer(ui: &mut egui::Ui, add_body: impl FnOnce(&mut egui::Ui)) {
-    let footer_height = data_query_footer_height();
-    let available = ui.available_size();
-    let body_height = (available.y - footer_height).max(0.0);
-    if body_height <= 0.0 {
-        return;
-    }
-
-    ui.allocate_ui_with_layout(
-        egui::vec2(available.x, body_height),
-        egui::Layout::top_down(egui::Align::Min),
-        add_body,
-    );
-}
-
-fn render_data_query_footer(ui: &mut egui::Ui, state: &AppState) {
-    let Some(sql) = active_data_query_sql(state) else {
-        return;
-    };
-
-    let height = data_query_footer_height();
-    let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), height),
-        egui::Sense::hover(),
-    );
-    let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, theme::bg_shell());
-    painter.line_segment(
-        [rect.left_top(), rect.right_top()],
-        Stroke::new(1.0, theme::border_subtle()),
-    );
-
-    let inner = rect.shrink2(egui::vec2(theme::SPACE_LG, theme::SPACE_SM));
-    let copy_label = t("grid_copy_sql");
-    let copy_width = result_toolbar_action_width(ui, &copy_label);
-    let copy_rect = egui::Rect::from_min_max(
-        egui::pos2(inner.right() - copy_width, inner.top()),
-        egui::pos2(inner.right(), inner.bottom()),
-    );
-    let sql_rect = egui::Rect::from_min_max(
-        inner.left_top(),
-        egui::pos2(copy_rect.left() - theme::SPACE_MD, inner.bottom()),
-    );
-
-    ui.scope_builder(
-        egui::UiBuilder::new()
-            .max_rect(sql_rect)
-            .layout(egui::Layout::left_to_right(egui::Align::Center)),
-        |ui| {
-            ui.set_clip_rect(sql_rect);
-            render_data_query_preview(ui, &sql);
-        },
-    );
-
-    ui.scope_builder(
-        egui::UiBuilder::new()
-            .max_rect(copy_rect)
-            .layout(egui::Layout::right_to_left(egui::Align::Center)),
-        |ui| {
-            ui.set_clip_rect(copy_rect);
-            let response = result_toolbar_action_button(
-                ui,
-                crate::ui::icons_svg::COPY,
-                "copy_data_sql",
-                &copy_label,
-                true,
-            );
-            if response.clicked() {
-                ui.ctx().copy_text(sql);
-            }
-        },
-    );
-}
-
-fn render_data_query_preview(ui: &mut egui::Ui, sql: &str) {
-    let available = ui.available_width();
-    let (rect, response) =
-        ui.allocate_exact_size(egui::vec2(available, 32.0), egui::Sense::hover());
-    ui.painter().rect_filled(
-        rect,
-        CornerRadius::same(theme::RADIUS_MD),
-        theme::bg_darkest(),
-    );
-    ui.painter().rect_stroke(
-        rect,
-        CornerRadius::same(theme::RADIUS_MD),
-        Stroke::new(1.0, theme::border_subtle()),
-        egui::StrokeKind::Inside,
-    );
-
-    let label_rect = egui::Rect::from_min_size(rect.left_top(), egui::vec2(42.0, rect.height()))
-        .shrink2(egui::vec2(theme::SPACE_SM, 0.0));
-    ui.painter().text(
-        label_rect.center(),
-        egui::Align2::CENTER_CENTER,
-        "SQL",
-        egui::FontId::proportional(10.5),
-        theme::ACCENT_TEAL,
-    );
-
-    let text_rect = egui::Rect::from_min_max(
-        egui::pos2(rect.left() + 46.0, rect.top()),
-        rect.right_bottom(),
-    )
-    .shrink2(egui::vec2(theme::SPACE_SM, 0.0));
-    ui.painter().with_clip_rect(text_rect).text(
-        text_rect.left_center(),
-        egui::Align2::LEFT_CENTER,
-        sql,
-        egui::FontId::monospace(11.0),
-        theme::text_secondary(),
-    );
-
-    show_dark_hover_tooltip(ui, response.id.with("sql_preview_tooltip"), &response, sql);
-}
-
-fn active_data_query_sql(state: &AppState) -> Option<String> {
-    let source = state.active_data_source()?;
-    let limit = normalized_data_limit(state);
-    let offset = data_page_offset(state);
-    Some(build_data_select_sql_with_columns(
-        &source,
-        &state.data_edit.sort,
-        limit,
-        offset,
-        &state.data_columns_for_source(&source),
-    ))
-}
-
-fn data_query_footer_height() -> f32 {
-    48.0
-}
-
-fn show_dark_hover_tooltip(
-    ui: &egui::Ui,
-    tooltip_id: egui::Id,
-    response: &egui::Response,
-    text: &str,
-) {
-    if !response.hovered() {
-        return;
-    }
-
-    let pointer = ui
-        .ctx()
-        .pointer_hover_pos()
-        .unwrap_or_else(|| response.rect.left_top());
-    let max_width = 720.0;
-    let pos = smart_tooltip_pos(ui.ctx(), pointer, estimate_tooltip_size(text, max_width));
-    egui::Area::new(tooltip_id)
-        .order(egui::Order::Tooltip)
-        .fixed_pos(pos)
-        .interactable(false)
-        .show(ui.ctx(), |ui| {
-            egui::Frame::new()
-                .fill(theme::bg_medium())
-                .stroke(Stroke::new(1.0, theme::border_strong()))
-                .corner_radius(CornerRadius::same(theme::RADIUS_LG))
-                .inner_margin(Margin::same(theme::SPACE_MD_I))
-                .show(ui, |ui| {
-                    ui.set_max_width(max_width);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(text)
-                                .color(theme::text_secondary())
-                                .monospace()
-                                .size(11.0),
-                        )
-                        .wrap(),
-                    );
-                });
-        });
-}
-
-fn smart_tooltip_pos(
-    ctx: &egui::Context,
-    anchor: egui::Pos2,
-    estimated_size: egui::Vec2,
-) -> egui::Pos2 {
-    let bounds = ctx.screen_rect().shrink(8.0);
-    let gap = 12.0;
-    let right_x = anchor.x + gap;
-    let left_x = anchor.x - gap - estimated_size.x;
-    let bottom_y = anchor.y + gap;
-    let top_y = anchor.y - gap - estimated_size.y;
-
-    let x = if right_x + estimated_size.x <= bounds.right() {
-        right_x
-    } else if left_x >= bounds.left() {
-        left_x
-    } else {
-        clamp_axis(right_x, bounds.left(), bounds.right() - estimated_size.x)
-    };
-
-    let y = if bottom_y + estimated_size.y <= bounds.bottom() {
-        bottom_y
-    } else if top_y >= bounds.top() {
-        top_y
-    } else {
-        clamp_axis(bottom_y, bounds.top(), bounds.bottom() - estimated_size.y)
-    };
-
-    egui::pos2(x, y)
-}
-
-fn estimate_tooltip_size(text: &str, max_width: f32) -> egui::Vec2 {
-    let char_width = 7.2;
-    let content_max = (max_width - theme::SPACE_MD * 2.0).max(80.0);
-    let mut visual_lines = 0.0_f32;
-    let mut widest = 0.0_f32;
-
-    for line in text.lines().chain((text.is_empty()).then_some("")) {
-        let line_width = line.chars().count() as f32 * char_width;
-        widest = widest.max(line_width);
-        visual_lines += (line_width / content_max).ceil().max(1.0);
-    }
-
-    let width = (widest + theme::SPACE_MD * 2.0).clamp(48.0, max_width);
-    let height = visual_lines * 15.0 + theme::SPACE_MD * 2.0;
-    egui::vec2(width, height)
-}
-
-fn clamp_axis(value: f32, min: f32, max: f32) -> f32 {
-    if max <= min {
-        min
-    } else {
-        value.clamp(min, max)
-    }
-}
+// show_dark_hover_tooltip / smart_tooltip_pos / estimate_tooltip_size /
+// clamp_axis 가 Phase 1.95c3a 에서 src/ui/grid/tooltips.rs 로 cut-over.
 
 // ---------------------------------------------------------------------------
 // Error bar
 // ---------------------------------------------------------------------------
 
-fn render_error_bar(ui: &mut egui::Ui, error: &str) {
-    let frame = egui::Frame::new()
-        .fill(theme::with_alpha(theme::ACCENT_RED, 28))
-        .inner_margin(Margin::symmetric(
-            theme::SPACE_LG as i8,
-            theme::SPACE_SM as i8,
-        ))
-        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_RED, 86)));
-
-    frame.show(ui, |ui| {
-        ui.set_min_width(ui.available_width());
-        ui.horizontal(|ui| {
-            crate::ui::icon_img(ui, crate::ui::icons_svg::ERROR, "grid_err", 12.0);
-            ui.add_space(4.0);
-            ui.label(
-                RichText::new("Error")
-                    .color(theme::ACCENT_RED)
-                    .strong()
-                    .size(12.0),
-            );
-            ui.add_space(theme::SPACE_MD);
-            ui.label(
-                RichText::new(error)
-                    .color(Color32::from_rgb(220, 150, 150))
-                    .size(12.0),
-            );
-        });
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Empty / loading state
-// ---------------------------------------------------------------------------
-
-fn render_empty_state(ui: &mut egui::Ui, running: bool) {
-    ui.centered_and_justified(|ui| {
-        if running {
-            ui.vertical_centered(|ui| {
-                ui.spinner();
-                ui.add_space(theme::SPACE_MD);
-                ui.label(
-                    RichText::new("Executing query...")
-                        .color(theme::text_muted())
-                        .size(12.0),
-                );
-            });
-        } else {
-            ui.vertical_centered(|ui| {
-                crate::ui::icon_img(ui, crate::ui::icons_svg::TABLE, "grid_empty", 34.0);
-                ui.add_space(theme::SPACE_SM);
-                ui.label(
-                    RichText::new("No result set")
-                        .color(theme::text_muted())
-                        .strong()
-                        .size(13.0),
-                );
-                ui.label(
-                    RichText::new("Run a query to populate the grid")
-                        .color(theme::text_disabled())
-                        .size(11.0),
-                );
-            });
-        }
-    });
-}
+// render_error_bar / render_empty_state 가 Phase 1.95c3c 에서 render.rs 로 cut-over.
 
 // ---------------------------------------------------------------------------
 // Result info header strip
 // ---------------------------------------------------------------------------
 
-fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+pub(super) fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let result = match &state.current_result {
         Some(r) => r,
         None => return,
@@ -2231,7 +1911,7 @@ fn result_meta_group_width(
     width
 }
 
-fn result_toolbar_action_width(ui: &egui::Ui, label: &str) -> f32 {
+pub(super) fn result_toolbar_action_width(ui: &egui::Ui, label: &str) -> f32 {
     let width = ui
         .painter()
         .layout_no_wrap(
@@ -2420,7 +2100,7 @@ fn pager_icon_button(
     response
 }
 
-fn result_toolbar_action_button(
+pub(super) fn result_toolbar_action_button(
     ui: &mut egui::Ui,
     icon_svg: &str,
     icon_name: &str,
@@ -3031,7 +2711,7 @@ fn sort_menu_separator(ui: &mut egui::Ui) {
     );
 }
 
-fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+pub(super) fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let result = match state.current_result.clone() {
         Some(r) => r,
         None => return,
@@ -4820,11 +4500,11 @@ fn reload_data_source(state: &mut AppState, bridge: &DbBridge) {
     });
 }
 
-fn normalized_data_limit(state: &AppState) -> usize {
+pub(super) fn normalized_data_limit(state: &AppState) -> usize {
     state.data_edit.page_limit.clamp(1, MAX_DATA_PAGE_LIMIT)
 }
 
-fn data_page_offset(state: &AppState) -> usize {
+pub(super) fn data_page_offset(state: &AppState) -> usize {
     state
         .data_edit
         .page_index
@@ -4873,8 +4553,20 @@ fn data_edit_summary(state: &AppState) -> Option<DataEditSummary> {
 
     let pk_columns = primary_key_columns(state);
     let invalid_count = count_invalid_edits(state);
+    // Plan v7 §10 / Phase 1.2 — PK 컬럼 타입 화이트리스트 가드.
+    // 비허용 타입 (json/jsonb, array, range, composite 등) 인 PK 가 하나라도 있으면
+    // mutation UI hard-disable + 배너 (silent 데이터 손상 차단).
+    let unsupported_pk = pk_columns
+        .iter()
+        .find(|col| !crate::db::row_key::is_pk_type_allowed(&col.data_type));
     let blocked_reason = if pk_columns.is_empty() {
         Some(t("grid_pk_required"))
+    } else if let Some(col) = unsupported_pk {
+        Some(format!(
+            "PK column '{}' has unsupported type '{}' for safe row identity \
+             — editing disabled to prevent data loss.",
+            col.name, col.data_type
+        ))
     } else if invalid_count > 0 {
         Some(tf("grid_invalid_values", &[&invalid_count.to_string()]))
     } else {
@@ -4937,7 +4629,8 @@ fn primary_key_columns(state: &AppState) -> Vec<ColumnInfo> {
         .collect()
 }
 
-fn build_data_edits(state: &AppState) -> Result<Vec<DataCellEdit>, String> {
+fn build_data_edits(state: &AppState) -> Result<Vec<crate::db::edits::RowEditOp>, String> {
+    use crate::db::edits::{ColumnAssignment, EditValue, PkColumn, RowEditOp};
     let source = state
         .active_data_source()
         .ok_or_else(|| t("grid_no_active_data_source"))?;
@@ -5007,7 +4700,7 @@ fn build_data_edits(state: &AppState) -> Result<Vec<DataCellEdit>, String> {
                         .cloned()
                 })
                 .ok_or_else(|| t("grid_pk_value_missing"))?;
-            pk.push(DataKeyValue {
+            pk.push(PkColumn {
                 column: pk_col.name.clone(),
                 column_type: pk_col.data_type.clone(),
                 value: original,
@@ -5015,28 +4708,30 @@ fn build_data_edits(state: &AppState) -> Result<Vec<DataCellEdit>, String> {
         }
 
         let value = if cell.is_null {
-            DataEditValue::Null
+            EditValue::Null
         } else if is_timestamptz_type(&column_type) {
-            DataEditValue::Text(
+            EditValue::Text(
                 timestamp_display_to_utc(&cell.value, &state.data_timezone)
                     .unwrap_or_else(|| cell.value.clone()),
             )
         } else if is_timestamp_without_timezone_type(&column_type) {
-            DataEditValue::Text(
+            EditValue::Text(
                 timestamp_display_to_utc_naive(&cell.value, &state.data_timezone)
                     .unwrap_or_else(|| cell.value.clone()),
             )
         } else {
-            DataEditValue::Text(cell.value.clone())
+            EditValue::Text(cell.value.clone())
         };
 
-        edits.push(DataCellEdit {
+        edits.push(RowEditOp::Update {
             schema: source.schema.clone(),
             table: source.table.clone(),
-            column: column.name.clone(),
-            column_type,
+            column: ColumnAssignment {
+                column: column.name.clone(),
+                column_type,
+                value,
+            },
             pk,
-            value,
         });
     }
 

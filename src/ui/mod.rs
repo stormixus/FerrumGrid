@@ -1,10 +1,12 @@
 use eframe::egui;
 
 pub mod about;
+pub mod diagnostics_panel;
 pub mod dialogs;
 pub mod editor;
 pub mod er_diagram;
 pub mod grid;
+pub mod grid_dispatch;
 pub mod icons_svg;
 pub mod objects;
 pub mod panels;

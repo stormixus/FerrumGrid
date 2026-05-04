@@ -42,6 +42,7 @@ directories = "5"
 
 # Utilities
 arboard = { version = "3.6", default-features = false }
+blake3 = "1"
 chrono = { version = "0.4", features = ["serde"] }
 percent-encoding = "2.3"
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -53,6 +54,14 @@ url = "2.5"
 # Export
 csv = "1.3"
 rfd = "0.15"
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["registry", "fmt"] }
+
+[[bench]]
+name = "baseline"
+harness = false
 
 [profile.release]
 lto = true

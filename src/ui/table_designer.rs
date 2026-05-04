@@ -828,12 +828,15 @@ fn apply_ddl(state: &mut AppState, bridge: &DbBridge) {
     );
     state.query_running = true;
 
-    bridge.send(DbCommand::ExecuteQuery {
+    // Plan v7 Phase 2b — 2-step NOTIFY DDL (pre_drop → 1s ack → DDL → post_drop).
+    // table_oid 는 editing_table 의 경우 향후 metadata 에서 회수 가능 (현재는 None).
+    // 자동 ListTables refresh 는 connection_task 가 수행.
+    bridge.send(DbCommand::ApplyDdlWithInvalidation {
         conn_id,
         sql: ddl,
-        row_limit: None,
+        table_oid: None,
+        schema_to_refresh: Some(schema),
     });
-    bridge.send(DbCommand::ListTables { conn_id, schema });
 }
 
 pub fn open_for_new_table(state: &mut AppState) {

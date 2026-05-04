@@ -44,7 +44,7 @@ pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
 // Borders / separators
 pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(36, 36, 36);
 pub const BORDER_DEFAULT: Color32 = Color32::from_rgb(46, 46, 46);
-pub const BORDER_STRONG: Color32 = Color32::from_rgb(57, 57, 57);
+pub const BORDER_STRONG: Color32 = Color32::from_rgb(54, 54, 54);
 pub const BORDER_GLOW: Color32 = ACCENT_EMERALD;
 
 // ---------------------------------------------------------------------------
@@ -498,7 +498,7 @@ pub fn secondary_button(text: &str) -> egui::Button<'_> {
 pub fn ghost_button(text: &str) -> egui::Button<'_> {
     egui::Button::new(egui::RichText::new(text).color(text_secondary()).size(12.5))
         .fill(bg_darkest())
-        .stroke(Stroke::new(1.0, border_subtle()))
+        .stroke(Stroke::NONE)
         .corner_radius(CornerRadius::same(RADIUS_MD))
         .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }

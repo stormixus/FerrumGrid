@@ -233,8 +233,10 @@ impl FerrumGridApp {
                     }
                     self.state.last_error = None;
                 }
-                DbResponse::DataEditsApplied { conn_id, applied } => {
+                DbResponse::DataEditsApplied { conn_id, outcome } => {
                     self.state.data_edit.applying = false;
+                    let applied = outcome.applied;
+                    // outcome.inserted_keys 는 Phase 1.2 (Tmp→Pk 재매핑) 에서 소비.
                     self.state.status_message = format!("{applied} data change(s) applied");
                     self.toasts
                         .info(format!("{applied} data change(s) applied"));
@@ -379,6 +381,27 @@ impl FerrumGridApp {
                     self.state.backup_last_error = Some(error.clone());
                     self.state.status_message = format!("Backup failed on {conn_id}");
                     self.toasts.error(format!("Backup failed: {error}"));
+                }
+                DbResponse::AutomationResult {
+                    conn_id: _,
+                    task_id,
+                    result,
+                } => {
+                    // Plan v7 Phase 4b — Automation 실행 결과 표시. AutomationStore
+                    // 통합 (US-P4b3) 후 task.last_result / last_run 갱신 예정.
+                    use crate::automation::scheduler::ApplyResult;
+                    match result {
+                        ApplyResult::Success { rows_affected } => {
+                            self.toasts.info(format!(
+                                "Automation {} succeeded ({} rows)",
+                                task_id, rows_affected
+                            ));
+                        }
+                        ApplyResult::Failed { error } => {
+                            self.toasts
+                                .error(format!("Automation {} failed: {}", task_id, error));
+                        }
+                    }
                 }
                 DbResponse::Error { conn_id, error } => {
                     self.state.data_edit.applying = false;

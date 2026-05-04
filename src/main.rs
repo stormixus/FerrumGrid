@@ -1,5 +1,7 @@
 mod app;
 mod app_icon;
+mod automation;
+mod bi;
 mod connection_url;
 mod db;
 mod i18n;

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use crate::db::edits::{MutationOutcome, RowEditOp};
 use crate::db::error::DbError;
 use crate::types::{
-    BackupRecord, BackupRequest, ColumnInfo, ConnectionConfig, ConnectionId, DataCellEdit,
-    FunctionInfo, IndexInfo, QueryResult, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
+    BackupRecord, BackupRequest, ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo,
+    IndexInfo, QueryResult, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
 };
 
 #[derive(Debug)]
@@ -20,9 +21,18 @@ pub enum DbCommand {
         sql: String,
         row_limit: Option<usize>,
     },
+    /// Plan v7 Phase 2 — DDL 을 2-step NOTIFY (pre_drop / DDL / post_drop)
+    /// sequence 안에서 실행. 성공 시 `schema_to_refresh` 가 있으면 자동으로
+    /// `ListTables` 도 발사 (UI auto-refresh).
+    ApplyDdlWithInvalidation {
+        conn_id: ConnectionId,
+        sql: String,
+        table_oid: Option<u32>,
+        schema_to_refresh: Option<String>,
+    },
     ApplyDataEdits {
         conn_id: ConnectionId,
-        edits: Vec<DataCellEdit>,
+        edits: Vec<RowEditOp>,
     },
     ListSchemas {
         conn_id: ConnectionId,
@@ -71,6 +81,15 @@ pub enum DbCommand {
     RunBackup {
         request: BackupRequest,
     },
+    /// Plan v7 Phase 4b — Automation 의 즉시 실행 (Run Now 버튼) 또는 background
+    /// scheduler (runner.rs) 가 due task 발견 시 발사. UI wiring (P4b2 의 후속
+    /// "Run Now" 버튼) 까지는 호출 site 0 — `#[allow(dead_code)]`.
+    #[allow(dead_code)]
+    ExecuteAutomation {
+        conn_id: ConnectionId,
+        task_id: uuid::Uuid,
+        sql: String,
+    },
 }
 
 #[derive(Debug)]
@@ -89,7 +108,7 @@ pub enum DbResponse {
     },
     DataEditsApplied {
         conn_id: ConnectionId,
-        applied: usize,
+        outcome: MutationOutcome,
     },
     SchemaList {
         conn_id: ConnectionId,
@@ -148,6 +167,14 @@ pub enum DbResponse {
     BackupFailed {
         conn_id: ConnectionId,
         error: String,
+    },
+    /// Plan v7 Phase 4b — `ExecuteAutomation` 의 응답. `conn_id` 는 future
+    /// per-connection routing 용 (현재 app.rs handler 가 사용 안 함 — `_conn_id`).
+    #[allow(dead_code)]
+    AutomationResult {
+        conn_id: ConnectionId,
+        task_id: uuid::Uuid,
+        result: crate::automation::scheduler::ApplyResult,
     },
     Error {
         conn_id: ConnectionId,
@@ -210,8 +237,17 @@ enum ConnCommand {
         sql: String,
         row_limit: Option<usize>,
     },
+    ApplyDdlWithInvalidation {
+        sql: String,
+        table_oid: Option<u32>,
+        schema_to_refresh: Option<String>,
+    },
+    ExecuteAutomation {
+        task_id: uuid::Uuid,
+        sql: String,
+    },
     ApplyDataEdits {
-        edits: Vec<DataCellEdit>,
+        edits: Vec<RowEditOp>,
     },
     ListSchemas,
     ListDatabases,
@@ -292,11 +328,40 @@ async fn dispatch_loop(
                         .await;
                 }
             }
+            DbCommand::ApplyDdlWithInvalidation {
+                conn_id,
+                sql,
+                table_oid,
+                schema_to_refresh,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ApplyDdlWithInvalidation {
+                            sql,
+                            table_oid,
+                            schema_to_refresh,
+                        })
+                        .await;
+                }
+            }
             DbCommand::ApplyDataEdits { conn_id, edits } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle
                         .task_tx
                         .send(ConnCommand::ApplyDataEdits { edits })
+                        .await;
+                }
+            }
+            DbCommand::ExecuteAutomation {
+                conn_id,
+                task_id,
+                sql,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ExecuteAutomation { task_id, sql })
                         .await;
                 }
             }
@@ -525,10 +590,79 @@ async fn connection_task(
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }
+            ConnCommand::ApplyDdlWithInvalidation {
+                sql,
+                table_oid,
+                schema_to_refresh,
+            } => {
+                // Plan v7 Phase 2 — 2-step NOTIFY DDL.
+                let ddl_result =
+                    crate::db::ddl::execute_ddl_with_invalidation(&client, &sql, table_oid, conn_id)
+                        .await;
+                match ddl_result {
+                    Ok(()) => {
+                        // 성공 시 한 줄 status row + 자동 schema/tables refresh.
+                        let response = DbResponse::QueryResult {
+                            conn_id,
+                            result: crate::types::QueryResult {
+                                columns: vec![crate::types::ColumnMeta {
+                                    name: "status".to_string(),
+                                    type_name: "text".to_string(),
+                                }],
+                                rows: vec![vec![crate::types::CellValue::Text(
+                                    "DDL applied with invalidation".to_string(),
+                                )]],
+                                execution_time_ms: 0,
+                            },
+                            truncated: false,
+                        };
+                        let _ = resp_tx.send(response);
+                        if let Some(schema) = schema_to_refresh {
+                            let refresh = match crate::db::metadata::list_tables(
+                                &client, &schema, conn_id,
+                            )
+                            .await
+                            {
+                                Ok(tables) => DbResponse::TableList {
+                                    conn_id,
+                                    schema: schema.clone(),
+                                    tables,
+                                },
+                                Err(e) => DbResponse::Error { conn_id, error: e },
+                            };
+                            let _ = resp_tx.send(refresh);
+                        }
+                    }
+                    Err(e) => {
+                        let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
+                    }
+                }
+                ctx.request_repaint();
+            }
+            ConnCommand::ExecuteAutomation { task_id, sql } => {
+                // Plan v7 Phase 4b — Automation 즉시 실행 / scheduler 호출.
+                // SELECT/EXPLAIN 도 단순 execute (rows_affected) 로 처리 — Automation
+                // 의 결과는 progress reporting 만 필요, full result set 은 Query 탭으로.
+                let result = match client.execute(sql.as_str(), &[]).await {
+                    Ok(rows_affected) => {
+                        crate::automation::scheduler::ApplyResult::Success { rows_affected }
+                    }
+                    Err(err) => crate::automation::scheduler::ApplyResult::Failed {
+                        error: err.to_string(),
+                    },
+                };
+                let _ = resp_tx.send(DbResponse::AutomationResult {
+                    conn_id,
+                    task_id,
+                    result,
+                });
+                ctx.request_repaint();
+            }
             ConnCommand::ApplyDataEdits { edits } => {
                 let response =
-                    match crate::db::queries::apply_data_edits(&client, &edits, conn_id).await {
-                        Ok(applied) => DbResponse::DataEditsApplied { conn_id, applied },
+                    match crate::db::queries::apply_data_edits(&mut client, &edits, conn_id).await
+                    {
+                        Ok(outcome) => DbResponse::DataEditsApplied { conn_id, outcome },
                         Err(e) => DbResponse::Error { conn_id, error: e },
                     };
                 let _ = resp_tx.send(response);

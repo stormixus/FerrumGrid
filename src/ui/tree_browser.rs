@@ -878,13 +878,7 @@ fn render_schema_context_menu_popup(ui: &mut egui::Ui, state: &mut AppState, bri
             egui::Frame::new()
                 .fill(theme::bg_elevated())
                 .stroke(Stroke::new(1.0, theme::border_strong()))
-                .corner_radius(CornerRadius::same(8))
-                .shadow(egui::Shadow {
-                    offset: [0, 8],
-                    blur: 18,
-                    spread: 0,
-                    color: Color32::from_black_alpha(90),
-                })
+                .corner_radius(CornerRadius::same(18))
                 .inner_margin(egui::Margin::symmetric(14, 8))
                 .show(ui, |ui| {
                     ui.set_min_width(SCHEMA_MENU_WIDTH);

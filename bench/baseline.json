@@ -1,0 +1,76 @@
+{
+  "_doc": "Plan v7 Phase 0 baseline snapshot. Generated 2026-05-04. Used as 'before' reference for Phase 1.95 (grid/objects/state 모듈 분리) and Phase 1.0 (CmpCell newtype) regression checks.",
+  "loc_snapshot": {
+    "src/ui/grid.rs": 5240,
+    "src/ui/objects.rs": 2029,
+    "src/state.rs": 1025,
+    "src/db/queries.rs": 388,
+    "src/db/bridge.rs": 676,
+    "src/types.rs": 256,
+    "_total_tracked": 9614
+  },
+  "loc_targets_phase_1_95": {
+    "src/ui/grid/mod.rs": 300,
+    "src/ui/grid/render.rs": 800,
+    "src/ui/grid/selection.rs": 500,
+    "src/ui/grid/hit_test.rs": 400,
+    "src/ui/grid/info_panel.rs": 500,
+    "src/ui/grid/paste.rs": 600,
+    "src/ui/grid/footer.rs": 400,
+    "src/ui/grid/tooltips.rs": 300,
+    "_grid_total_max": 3800,
+    "_grid_pr_reject_threshold": 4000,
+    "_per_module_overshoot_pct": 10
+  },
+  "bench_baselines": {
+    "baseline_a_partialeq_direct": {
+      "source": "benches/baseline.rs::baseline_a_partialeq_direct",
+      "description": "Current CellValue PartialEq direct comparison. NaN-unsafe (Float NaN != NaN). Reference only — Phase 1.0 ceiling 임계값 (<3x / 3-10x / ≥10x) 적용 대상은 Baseline B (NaN-safe naive) 기준.",
+      "status": "measured",
+      "measured_at": "2026-05-04",
+      "measurement": {
+        "pairs_per_iter": 7,
+        "time_lower_ns": 10.415,
+        "time_estimate_ns": 10.589,
+        "time_upper_ns": 10.632,
+        "criterion_quick_mode": true
+      },
+      "ceiling_policy_doc": "plan-mainViewFeatureCompletion.prompt.md §3, Risk R8a/R8b/R8c"
+    },
+    "baseline_b_nan_safe_naive": {
+      "status": "measured",
+      "measured_at": "2026-05-04 (Phase 1.0)",
+      "measurement": {
+        "pairs_per_iter": 12,
+        "time_lower_ns": 33.084,
+        "time_estimate_ns": 33.168,
+        "time_upper_ns": 33.502,
+        "criterion_quick_mode": true
+      },
+      "description": "Float→total_cmp, others→PartialEq. NaN-safe baseline — ceiling 임계값 적용 대상."
+    },
+    "cmp_view_canonical_eq": {
+      "status": "measured",
+      "measured_at": "2026-05-04 (Phase 1.0)",
+      "measurement": {
+        "pairs_per_iter": 12,
+        "time_lower_ns": 430.85,
+        "time_estimate_ns": 439.01,
+        "time_upper_ns": 441.05,
+        "criterion_quick_mode": true
+      },
+      "description": "canonical_string()→Cow<str> 비교. Plan v7 채택안 (Option A).",
+      "slowdown_vs_baseline_b": 13.24,
+      "ceiling_trigger": "R8c (≥10x)",
+      "ceiling_decision": "OVERRIDE — ADR-5 의 사전 commitment ('벤치 결과 무관 A 채택') 우선 적용. 절대값 36ns/cell × 1000 visible cells = 36µs/frame (60fps 예산 16.6ms 의 0.2%) 로 사용자 인지 불가능. Follow-up 등록: Phase 1.95 grid 분리 후 실측 grid render 회귀 측정.",
+      "follow_up_owner": "Phase 1.95 reviewer"
+    }
+  },
+  "phase_0_acceptance_evidence": {
+    "tracing_assert_helper": "tests/support/tracing_assert.rs",
+    "helper_self_test": "tests/tracing_assert_smoke.rs (4 cases)",
+    "diagnostics_panel_scaffold": "src/ui/diagnostics_panel.rs",
+    "bench_baseline_file": "benches/baseline.rs (criterion)",
+    "loc_snapshot_artifact": "bench/baseline.json (this file)"
+  }
+}

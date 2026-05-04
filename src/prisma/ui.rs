@@ -1,5 +1,5 @@
 use eframe::egui::{
-    self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke, Window,
+    self, Align, Button, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke, Window,
 };
 use std::sync::{Arc, Mutex};
 
@@ -145,13 +145,13 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             ui.horizontal(|ui| {
                 ui.strong("Schema");
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(primary_button("Create from DB")).clicked() {
+                    if ui.add(theme::primary_button("Create from DB")).clicked() {
                         create_schema_from_db(state, bridge);
                     }
-                    if ui.add(primary_button("Preview SQL")).clicked() {
+                    if ui.add(theme::primary_button("Preview SQL")).clicked() {
                         preview_prisma_sql(state);
                     }
-                    if ui.add(primary_button("Apply SQL")).clicked() {
+                    if ui.add(theme::primary_button("Apply SQL")).clicked() {
                         apply_prisma_schema(state, bridge);
                     }
                 });
@@ -547,13 +547,6 @@ fn create_schema_from_db(state: &mut AppState, _bridge: &DbBridge) {
             state.prisma_ui.cli_output = e;
         }
     }
-}
-
-fn primary_button(text: &str) -> Button<'_> {
-    Button::new(RichText::new(text).color(Color32::WHITE))
-        .fill(theme::ACCENT_COPPER)
-        .stroke(Stroke::new(1.0, theme::ACCENT_COPPER_LIGHT))
-        .corner_radius(CornerRadius::same(4))
 }
 
 pub fn open_prisma_window(state: &mut AppState) {

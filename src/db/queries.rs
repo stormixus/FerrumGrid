@@ -1,7 +1,10 @@
 use tokio_postgres::{Client, Row};
 
+use crate::db::edits::{
+    build_delete_sql, build_insert_sql, build_update_sql, MutationOutcome, RowEditOp,
+};
 use crate::db::error::DbError;
-use crate::types::{CellValue, ColumnMeta, ConnectionId, DataCellEdit, DataEditValue, QueryResult};
+use crate::types::{CellValue, ColumnMeta, ConnectionId, QueryResult};
 
 pub async fn execute_query(
     client: &mut Client,
@@ -139,156 +142,153 @@ async fn fetch_query_rows(
     Ok(rows)
 }
 
+/// 행 단위 편집 op 시퀀스를 단일 트랜잭션 안에서 순차 실행한다.
+///
+/// Plan v7 Phase 1.1 / ADR-2 / ADR-5:
+/// - 시그니처: `&mut Client` (트랜잭션 객체 생성을 위해 mut 필요).
+/// - 모든 op 가 성공해야 commit, 어느 하나라도 실패하면 rollback (atomicity).
+/// - INSERT 의 `RETURNING <pk>` 결과는 `MutationOutcome::inserted_keys` 로 회수.
+/// - PK 부재 시 (Update / Delete 의 `pk.is_empty()`) 즉시 에러.
+/// - Update / Delete 는 `affected ≠ 1` 시 즉시 rollback (silent multi-row 손상 방지).
 pub async fn apply_data_edits(
-    client: &Client,
-    edits: &[DataCellEdit],
+    client: &mut Client,
+    edits: &[RowEditOp],
     conn_id: ConnectionId,
-) -> Result<usize, DbError> {
+) -> Result<MutationOutcome, DbError> {
     if edits.is_empty() {
-        return Ok(0);
+        return Ok(MutationOutcome::default());
     }
 
-    client
-        .batch_execute("BEGIN")
+    let tx = client
+        .transaction()
         .await
         .map_err(|e| DbError::from_pg(&e, conn_id))?;
 
-    let mut applied = 0usize;
-    for edit in edits {
-        if edit.pk.is_empty() {
-            let _ = client.batch_execute("ROLLBACK").await;
-            return Err(DbError::internal(
-                conn_id,
-                "Table data edits require a primary key.",
-            ));
-        }
+    let mut outcome = MutationOutcome::default();
 
-        let sql = build_update_sql(edit);
-        match client.execute(sql.as_str(), &[]).await {
-            Ok(1) => {
-                applied += 1;
+    for edit in edits {
+        match apply_single_op(&tx, edit, conn_id).await {
+            Ok(maybe_inserted) => {
+                outcome.applied += 1;
+                if let Some((tmp_id, pk_values)) = maybe_inserted {
+                    outcome.inserted_keys.push((tmp_id, pk_values));
+                }
             }
-            Ok(affected) => {
-                let _ = client.batch_execute("ROLLBACK").await;
+            Err(err) => {
+                if let Err(rollback_err) = tx.rollback().await {
+                    tracing::warn!(
+                        target: "ferrumgrid::mutation",
+                        op = "rollback",
+                        original_error = %err,
+                        rollback_error = %rollback_err,
+                        "transaction rollback failed after op error",
+                    );
+                }
+                return Err(err);
+            }
+        }
+    }
+
+    tx.commit()
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(outcome)
+}
+
+/// 단일 op 실행 — 성공 시 INSERT RETURNING 결과를 `Option` 으로 반환.
+async fn apply_single_op(
+    tx: &tokio_postgres::Transaction<'_>,
+    edit: &RowEditOp,
+    conn_id: ConnectionId,
+) -> Result<Option<(uuid::Uuid, Vec<CellValue>)>, DbError> {
+    match edit {
+        RowEditOp::Insert {
+            tmp_id,
+            schema,
+            table,
+            columns,
+            returning_pk,
+        } => {
+            if columns.is_empty() {
+                return Err(DbError::internal(
+                    conn_id,
+                    format!("INSERT into {schema}.{table} requires at least one column."),
+                ));
+            }
+            let sql = build_insert_sql(schema, table, columns, returning_pk);
+            if returning_pk.is_empty() {
+                tx.execute(sql.as_str(), &[])
+                    .await
+                    .map_err(|e| DbError::from_pg(&e, conn_id))?;
+                Ok(None)
+            } else {
+                let rows = tx
+                    .query(sql.as_str(), &[])
+                    .await
+                    .map_err(|e| DbError::from_pg(&e, conn_id))?;
+                let row = rows.into_iter().next().ok_or_else(|| {
+                    DbError::internal(
+                        conn_id,
+                        format!("INSERT RETURNING for {schema}.{table} returned no rows."),
+                    )
+                })?;
+                let pk_values: Vec<CellValue> = (0..returning_pk.len())
+                    .map(|i| extract_cell_value(&row, i))
+                    .collect();
+                Ok(Some((*tmp_id, pk_values)))
+            }
+        }
+        RowEditOp::Update {
+            schema,
+            table,
+            column,
+            pk,
+        } => {
+            if pk.is_empty() {
+                return Err(DbError::internal(
+                    conn_id,
+                    "UPDATE requires a primary key.",
+                ));
+            }
+            let sql = build_update_sql(schema, table, column, pk);
+            let affected = tx
+                .execute(sql.as_str(), &[])
+                .await
+                .map_err(|e| DbError::from_pg(&e, conn_id))?;
+            if affected != 1 {
                 return Err(DbError::internal(
                     conn_id,
                     format!(
-                        "Expected to update exactly 1 row for {}.{}, but PostgreSQL reported {affected}.",
-                        edit.schema, edit.table
+                        "UPDATE {schema}.{table} expected to affect 1 row, got {affected}."
                     ),
                 ));
             }
-            Err(err) => {
-                let _ = client.batch_execute("ROLLBACK").await;
-                return Err(DbError::from_pg(&err, conn_id));
+            Ok(None)
+        }
+        RowEditOp::Delete { schema, table, pk } => {
+            if pk.is_empty() {
+                return Err(DbError::internal(
+                    conn_id,
+                    "DELETE requires a primary key.",
+                ));
             }
+            let sql = build_delete_sql(schema, table, pk);
+            let affected = tx
+                .execute(sql.as_str(), &[])
+                .await
+                .map_err(|e| DbError::from_pg(&e, conn_id))?;
+            if affected != 1 {
+                return Err(DbError::internal(
+                    conn_id,
+                    format!(
+                        "DELETE FROM {schema}.{table} expected to affect 1 row, got {affected}."
+                    ),
+                ));
+            }
+            Ok(None)
         }
     }
-
-    client
-        .batch_execute("COMMIT")
-        .await
-        .map_err(|e| DbError::from_pg(&e, conn_id))?;
-
-    Ok(applied)
-}
-
-fn build_update_sql(edit: &DataCellEdit) -> String {
-    let set_value = match &edit.value {
-        DataEditValue::Null => "NULL".to_string(),
-        DataEditValue::Text(value) => sql_literal(value, &edit.column_type),
-    };
-    let where_clause = edit
-        .pk
-        .iter()
-        .map(|pk| {
-            format!(
-                "{} = {}",
-                quote_ident(&pk.column),
-                cell_to_sql_literal(&pk.value, &pk.column_type)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" AND ");
-
-    format!(
-        "UPDATE {}.{} SET {} = {} WHERE {}",
-        quote_ident(&edit.schema),
-        quote_ident(&edit.table),
-        quote_ident(&edit.column),
-        set_value,
-        where_clause
-    )
-}
-
-fn cell_to_sql_literal(value: &CellValue, type_name: &str) -> String {
-    match value {
-        CellValue::Null => "NULL".to_string(),
-        CellValue::Bool(v) => v.to_string(),
-        CellValue::Int(v) => v.to_string(),
-        CellValue::Float(v) => v.to_string(),
-        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
-            sql_literal(v, type_name)
-        }
-        CellValue::Json(v) => sql_literal(&v.to_string(), type_name),
-        CellValue::Uuid(v) => sql_literal(&v.to_string(), type_name),
-        CellValue::Bytes(v) => sql_literal(&format!("\\x{}", hex_encode(v)), type_name),
-    }
-}
-
-fn sql_literal(value: &str, type_name: &str) -> String {
-    let lower = type_name.to_ascii_lowercase();
-    if is_numeric_type(&lower) && value.trim().parse::<f64>().is_ok() {
-        return value.trim().to_string();
-    }
-    if is_bool_type(&lower) {
-        return normalize_bool_literal(value)
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| quote_literal(value));
-    }
-    quote_literal(value)
-}
-
-fn quote_ident(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\"\""))
-}
-
-fn quote_literal(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-fn is_numeric_type(type_name: &str) -> bool {
-    matches!(
-        type_name,
-        "smallint"
-            | "integer"
-            | "bigint"
-            | "int2"
-            | "int4"
-            | "int8"
-            | "real"
-            | "double precision"
-            | "float4"
-            | "float8"
-            | "numeric"
-            | "decimal"
-    )
-}
-
-fn is_bool_type(type_name: &str) -> bool {
-    matches!(type_name, "boolean" | "bool")
-}
-
-fn normalize_bool_literal(value: &str) -> Option<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "t" | "1" | "yes" | "y" | "on" => Some(true),
-        "false" | "f" | "0" | "no" | "n" | "off" => Some(false),
-        _ => None,
-    }
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn extract_cell_value(row: &tokio_postgres::Row, idx: usize) -> CellValue {

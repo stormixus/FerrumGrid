@@ -1,7 +1,15 @@
 pub mod backup;
+pub mod begin_detect;
 pub mod bridge;
 pub mod connection;
+pub mod dangling_tx;
+pub mod dependencies;
+pub mod ddl;
+pub mod ddl_create;
+pub mod edits;
 pub mod error;
+pub mod invalidate;
 pub mod metadata;
 pub mod metadata_fk;
 pub mod queries;
+pub mod row_key;
