@@ -54,21 +54,19 @@ pub fn sync_db_to_schema(
         .cloned()
         .ok_or("No tables found")?;
 
-    let mut schema = PrismaSchema::default();
-
-    // Create datasource - URL placeholder
-    schema.datasource = Some(crate::prisma::parser::DatasourceBlock {
-        name: "db".to_string(),
-        provider: "postgresql".to_string(),
-        url: "env(\"DATABASE_URL\")".to_string(),
-    });
-
-    // Create generator
-    schema.generator = Some(crate::prisma::parser::GeneratorBlock {
-        name: "client".to_string(),
-        provider: "prisma-client-js".to_string(),
-        output: None,
-    });
+    let mut schema = PrismaSchema {
+        datasource: Some(crate::prisma::parser::DatasourceBlock {
+            name: "db".to_string(),
+            provider: "postgresql".to_string(),
+            url: "env(\"DATABASE_URL\")".to_string(),
+        }),
+        generator: Some(crate::prisma::parser::GeneratorBlock {
+            name: "client".to_string(),
+            provider: "prisma-client-js".to_string(),
+            output: None,
+        }),
+        ..Default::default()
+    };
 
     // Convert tables to models
     for table in tables {
@@ -167,7 +165,7 @@ fn db_table_to_prisma_model(
         if col
             .default_value
             .as_ref()
-            .map_or(false, |d| d.contains("nextval") || d.contains("serial"))
+            .is_some_and(|d| d.contains("nextval") || d.contains("serial"))
         {
             field
                 .attributes

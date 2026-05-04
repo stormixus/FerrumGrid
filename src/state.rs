@@ -97,6 +97,7 @@ pub struct WorkspaceTab {
     pub view: MainView,
     pub schema_filter: String,
     pub search: String,
+    pub data_filter: Option<DataFilter>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,6 +105,15 @@ pub struct DataSource {
     pub conn_id: ConnectionId,
     pub schema: String,
     pub table: String,
+    pub filter: Option<DataFilter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataFilter {
+    pub column: String,
+    pub column_type: String,
+    pub display_value: String,
+    pub sql_value: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,6 +165,8 @@ pub struct DataEditState {
     pub page_limit: usize,
     pub page_limit_input: String,
     pub page_index: usize,
+    pub page_index_input: String,
+    pub selected_cell: Option<(usize, usize)>,
     pub editing_cell: Option<(usize, usize)>,
 }
 
@@ -168,6 +180,8 @@ impl Default for DataEditState {
             page_limit: DEFAULT_DATA_PAGE_LIMIT,
             page_limit_input: DEFAULT_DATA_PAGE_LIMIT.to_string(),
             page_index: 0,
+            page_index_input: "1".to_string(),
+            selected_cell: None,
             editing_cell: None,
         }
     }
@@ -185,6 +199,7 @@ impl WorkspaceTab {
             view,
             schema_filter: schema_filter.into(),
             search: search.into(),
+            data_filter: None,
         }
     }
 }
@@ -225,6 +240,15 @@ pub struct AppState {
     pub backup_last_error: Option<String>,
     pub backup_history: Vec<BackupRecord>,
     pub data_timezone: String,
+    pub schema_context_menu: Option<SchemaContextMenuState>,
+    pub dragging_saved_connection: Option<ConnectionId>,
+}
+
+#[derive(Clone)]
+pub struct SchemaContextMenuState {
+    pub conn_id: ConnectionId,
+    pub schema: String,
+    pub pos: [f32; 2],
 }
 
 impl Default for AppState {
@@ -270,16 +294,29 @@ impl Default for AppState {
             backup_last_error: None,
             backup_history: Vec::new(),
             data_timezone: "Asia/Seoul".to_string(),
+            schema_context_menu: None,
+            dragging_saved_connection: None,
         }
     }
 }
 
 impl AppState {
     pub fn begin_data_edit(&mut self, conn_id: ConnectionId, schema: &str, table: &str) {
+        self.begin_data_edit_with_filter(conn_id, schema, table, None);
+    }
+
+    pub fn begin_data_edit_with_filter(
+        &mut self,
+        conn_id: ConnectionId,
+        schema: &str,
+        table: &str,
+        filter: Option<DataFilter>,
+    ) {
         let source = DataSource {
             conn_id,
             schema: schema.to_string(),
             table: table.to_string(),
+            filter,
         };
         if self.data_edit.source.as_ref() != Some(&source) {
             self.data_edit = DataEditState {
@@ -290,6 +327,8 @@ impl AppState {
                 page_limit: DEFAULT_DATA_PAGE_LIMIT,
                 page_limit_input: DEFAULT_DATA_PAGE_LIMIT.to_string(),
                 page_index: 0,
+                page_index_input: "1".to_string(),
+                selected_cell: None,
                 editing_cell: None,
             };
         }
@@ -309,24 +348,27 @@ impl AppState {
             conn_id,
             schema: tab.schema_filter.clone(),
             table: tab.search.clone(),
+            filter: tab.data_filter.clone(),
         };
         let sort = if self.data_edit.source.as_ref() == Some(&source) {
             self.data_edit.sort.clone()
         } else {
             Vec::new()
         };
-        let (page_limit, page_limit_input, page_index) =
+        let (page_limit, page_limit_input, page_index, page_index_input) =
             if self.data_edit.source.as_ref() == Some(&source) {
                 (
                     self.data_edit.page_limit,
                     self.data_edit.page_limit_input.clone(),
                     self.data_edit.page_index,
+                    self.data_edit.page_index_input.clone(),
                 )
             } else {
                 (
                     DEFAULT_DATA_PAGE_LIMIT,
                     DEFAULT_DATA_PAGE_LIMIT.to_string(),
                     0,
+                    "1".to_string(),
                 )
             };
         let mut cells = HashMap::new();
@@ -351,6 +393,8 @@ impl AppState {
             page_limit,
             page_limit_input,
             page_index,
+            page_index_input,
+            selected_cell: None,
             editing_cell: None,
         };
     }
@@ -361,7 +405,10 @@ impl AppState {
             return None;
         }
         if let Some(source) = self.data_edit.source.as_ref() {
-            if source.schema == tab.schema_filter && source.table == tab.search {
+            if source.schema == tab.schema_filter
+                && source.table == tab.search
+                && source.filter == tab.data_filter
+            {
                 return Some(source.clone());
             }
         }
@@ -369,6 +416,7 @@ impl AppState {
             conn_id: self.active_connection?,
             schema: tab.schema_filter.clone(),
             table: tab.search.clone(),
+            filter: tab.data_filter.clone(),
         })
     }
 
@@ -394,18 +442,49 @@ impl AppState {
         schema_filter: impl Into<String>,
         search: impl Into<String>,
     ) {
+        self.open_workspace_view_with_filter(view, title, schema_filter, search, None);
+    }
+
+    pub fn open_data_workspace_view(
+        &mut self,
+        title: impl Into<String>,
+        schema_filter: impl Into<String>,
+        search: impl Into<String>,
+        data_filter: Option<DataFilter>,
+    ) {
+        self.open_workspace_view_with_filter(
+            MainView::Data,
+            title,
+            schema_filter,
+            search,
+            data_filter,
+        );
+    }
+
+    fn open_workspace_view_with_filter(
+        &mut self,
+        view: MainView,
+        title: impl Into<String>,
+        schema_filter: impl Into<String>,
+        search: impl Into<String>,
+        data_filter: Option<DataFilter>,
+    ) {
         let title = title.into();
         let schema_filter = schema_filter.into();
         let search = search.into();
 
         if let Some(index) = self.workspace_tabs.iter().position(|tab| {
-            tab.view == view && tab.schema_filter == schema_filter && tab.search == search
+            tab.view == view
+                && tab.schema_filter == schema_filter
+                && tab.search == search
+                && tab.data_filter == data_filter
         }) {
             self.workspace_tabs[index].title = title;
             self.active_workspace_tab = index;
         } else {
-            self.workspace_tabs
-                .push(WorkspaceTab::new(view, title, schema_filter, search));
+            let mut tab = WorkspaceTab::new(view, title, schema_filter, search);
+            tab.data_filter = data_filter;
+            self.workspace_tabs.push(tab);
             self.active_workspace_tab = self.workspace_tabs.len() - 1;
         }
 
@@ -443,6 +522,10 @@ impl AppState {
         self.active_main_view = tab.view;
         self.objects_schema_filter = tab.schema_filter.clone();
         self.objects_search = tab.search.clone();
+        if tab.view == MainView::Model && !tab.schema_filter.is_empty() {
+            self.er_diagram.selected_schema = tab.schema_filter.clone();
+            self.er_diagram.show_diagram = true;
+        }
     }
 }
 
@@ -472,6 +555,17 @@ pub fn build_data_select_sql_with_columns(
             .collect::<Vec<_>>()
             .join(", ")
     };
+    let where_clause = source
+        .filter
+        .as_ref()
+        .map(|filter| {
+            format!(
+                " WHERE {} = {}",
+                quote_ident(&filter.column),
+                filter.sql_value
+            )
+        })
+        .unwrap_or_default();
     let order_by = if sort.is_empty() {
         String::new()
     } else {
@@ -497,14 +591,82 @@ pub fn build_data_select_sql_with_columns(
         String::new()
     };
     format!(
-        "SELECT {} FROM {}.{}{} LIMIT {}{}",
+        "SELECT {} FROM {}.{}{}{} LIMIT {}{}",
         select_list,
         quote_ident(&source.schema),
         quote_ident(&source.table),
+        where_clause,
         order_by,
         fetch_limit,
         offset_clause
     )
+}
+
+pub fn data_filter_from_cell(
+    column: impl Into<String>,
+    column_type: impl Into<String>,
+    cell: &CellValue,
+) -> Option<DataFilter> {
+    if matches!(cell, CellValue::Null) {
+        return None;
+    }
+
+    let column = column.into();
+    let column_type = column_type.into();
+    let display_value = cell.to_string();
+    let sql_value = cell_to_sql_literal(cell, &column_type);
+    Some(DataFilter {
+        column,
+        column_type,
+        display_value,
+        sql_value,
+    })
+}
+
+pub fn data_filter_from_text(
+    column: impl Into<String>,
+    column_type: impl Into<String>,
+    value: &str,
+) -> Option<DataFilter> {
+    let value = value.trim();
+    if value.is_empty() || value.eq_ignore_ascii_case("null") {
+        return None;
+    }
+
+    let column = column.into();
+    let column_type = column_type.into();
+    let sql_value = text_to_sql_literal(value, &column_type);
+    Some(DataFilter {
+        column,
+        column_type,
+        display_value: value.to_string(),
+        sql_value,
+    })
+}
+
+fn cell_to_sql_literal(cell: &CellValue, type_name: &str) -> String {
+    match cell {
+        CellValue::Null => "NULL".to_string(),
+        CellValue::Bool(value) => value.to_string(),
+        CellValue::Int(value) => value.to_string(),
+        CellValue::Float(value) => value.to_string(),
+        CellValue::Text(value) | CellValue::Timestamp(value) | CellValue::Unknown(value) => {
+            text_to_sql_literal(value, type_name)
+        }
+        CellValue::Json(value) => quote_literal(&value.to_string()),
+        CellValue::Uuid(value) => quote_literal(&value.to_string()),
+        CellValue::Bytes(value) => quote_literal(&format!("\\x{}", hex_encode(value))),
+    }
+}
+
+fn text_to_sql_literal(value: &str, type_name: &str) -> String {
+    let value = value.trim();
+    match type_name.to_ascii_lowercase().as_str() {
+        "bool" | "boolean" => value.to_ascii_lowercase(),
+        "smallint" | "integer" | "bigint" | "int2" | "int4" | "int8" | "real"
+        | "double precision" | "float4" | "float8" | "numeric" | "decimal" => value.to_string(),
+        _ => quote_literal(value),
+    }
 }
 
 fn cell_edit_text(cell: &CellValue) -> String {
@@ -522,7 +684,7 @@ fn cell_edit_text(cell: &CellValue) -> String {
 
 pub fn cell_edit_text_for_type(cell: &CellValue, type_name: &str, timezone: &str) -> String {
     let raw = cell_edit_text(cell);
-    if !is_timestamptz_type(type_name) {
+    if !is_timestamp_type(type_name) {
         return raw;
     }
 
@@ -551,10 +713,33 @@ pub fn timestamp_display_to_utc(value: &str, timezone: &str) -> Option<String> {
     )
 }
 
+pub fn timestamp_display_to_utc_naive(value: &str, timezone: &str) -> Option<String> {
+    let offset = chrono::FixedOffset::east_opt(data_timezone_offset_seconds(timezone)?)?;
+    let naive = parse_display_datetime(value)?;
+    let local = offset.from_local_datetime(&naive).single()?;
+    Some(
+        local
+            .with_timezone(&Utc)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string(),
+    )
+}
+
+pub fn is_timestamp_type(type_name: &str) -> bool {
+    is_timestamptz_type(type_name) || is_timestamp_without_timezone_type(type_name)
+}
+
 pub fn is_timestamptz_type(type_name: &str) -> bool {
     matches!(
         type_name.to_ascii_lowercase().as_str(),
         "timestamptz" | "timestamp with time zone"
+    )
+}
+
+pub fn is_timestamp_without_timezone_type(type_name: &str) -> bool {
+    matches!(
+        type_name.to_ascii_lowercase().as_str(),
+        "timestamp" | "timestamp without time zone"
     )
 }
 
@@ -632,8 +817,43 @@ fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn displays_timestamp_without_timezone_in_configured_timezone() {
+        let cell = CellValue::Timestamp("2022-12-24 18:10:00".to_string());
+
+        assert_eq!(
+            cell_edit_text_for_type(&cell, "timestamp without time zone", "Asia/Seoul"),
+            "2022-12-25 03:10:00"
+        );
+    }
+
+    #[test]
+    fn converts_display_timestamp_without_timezone_back_to_utc_naive() {
+        assert_eq!(
+            timestamp_display_to_utc_naive("2022-12-25 03:10:00", "Asia/Seoul").as_deref(),
+            Some("2022-12-24 18:10:00")
+        );
+    }
+
+    #[test]
+    fn converts_display_timestamptz_back_to_utc_offset() {
+        assert_eq!(
+            timestamp_display_to_utc("2022-12-25 03:10:00", "Asia/Seoul").as_deref(),
+            Some("2022-12-24 18:10:00+00:00")
+        );
+    }
+}
+
 fn quote_ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+fn quote_literal(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "''"))
 }
 
 pub fn main_view_title(view: MainView) -> &'static str {
@@ -730,7 +950,9 @@ pub struct ConnectionDialogState {
     pub testing: bool,
     pub test_result: Option<Result<String, String>>,
     pub editing_id: Option<ConnectionId>,
-    pub clipboard_import_checked: bool,
+    pub clipboard_import_enabled: bool,
+    pub last_clipboard_scan: Option<std::time::Instant>,
+    pub last_clipboard_text: Option<String>,
     pub pending_clipboard_import: Option<PostgresConnectionUrl>,
 }
 
@@ -749,7 +971,9 @@ impl Default for ConnectionDialogState {
             testing: false,
             test_result: None,
             editing_id: None,
-            clipboard_import_checked: false,
+            clipboard_import_enabled: true,
+            last_clipboard_scan: None,
+            last_clipboard_text: None,
             pending_clipboard_import: None,
         }
     }
@@ -792,7 +1016,9 @@ impl ConnectionDialogState {
             testing: false,
             test_result: None,
             editing_id: Some(config.id),
-            clipboard_import_checked: true,
+            clipboard_import_enabled: false,
+            last_clipboard_scan: None,
+            last_clipboard_text: None,
             pending_clipboard_import: None,
         }
     }

@@ -102,6 +102,18 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("ctx_new_query", "New Query");
     en.insert("ctx_console", "Console");
     en.insert("ctx_execute_sql_file", "Execute SQL File...");
+    en.insert("ctx_open_schema", "Open Schema");
+    en.insert("ctx_backup_schema", "Back Up {0}");
+    en.insert("ctx_edit_schema", "Edit Schema...");
+    en.insert("ctx_new_schema", "New Schema...");
+    en.insert("ctx_delete_schema", "Delete Schema");
+    en.insert("ctx_dump_sql_file", "Dump SQL File");
+    en.insert("ctx_data_dictionary", "Data Dictionary...");
+    en.insert(
+        "ctx_reverse_database_to_model",
+        "Reverse Database to Model...",
+    );
+    en.insert("ctx_find_in_database", "Find in Database...");
     en.insert("ctx_add_star", "Add Star");
     en.insert("ctx_color", "Color:");
     en.insert("ctx_manage_group", "Manage Group");
@@ -268,6 +280,7 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("grid_toggle_null", "Toggle NULL");
     en.insert("grid_null_value", "NULL value");
     en.insert("grid_copy_value", "Copy Value");
+    en.insert("grid_copy_sql", "Copy SQL");
     en.insert("grid_no_active_data_source", "No active data source");
     en.insert("grid_no_result_set", "No result set");
     en.insert(
@@ -297,6 +310,20 @@ fn insert_recent_ui_en(en: &mut Translation) {
         "Enter date and time as YYYY-MM-DD HH:MM:SS",
     );
     en.insert("grid_now", "Now");
+    en.insert("grid_pick_date", "Pick Date");
+    en.insert("grid_pick_time", "Pick Time");
+    en.insert("grid_prev_month", "Previous Month");
+    en.insert("grid_next_month", "Next Month");
+    en.insert("grid_hour", "Hour");
+    en.insert("grid_minute", "Min");
+    en.insert("grid_second", "Sec");
+    en.insert("grid_weekday_mon", "M");
+    en.insert("grid_weekday_tue", "T");
+    en.insert("grid_weekday_wed", "W");
+    en.insert("grid_weekday_thu", "T");
+    en.insert("grid_weekday_fri", "F");
+    en.insert("grid_weekday_sat", "S");
+    en.insert("grid_weekday_sun", "S");
     en.insert("grid_sort_asc", "Sort Ascending");
     en.insert("grid_sort_desc", "Sort Descending");
     en.insert("grid_sort_remove", "Remove Sort");
@@ -317,6 +344,40 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("grid_enum_select", "Select value");
     en.insert("grid_enum_error", "Select one of the allowed values");
     en.insert("grid_visible_range", "{0}-{1}");
+    en.insert("data_info_no_selection", "No Info");
+    en.insert("data_info_select_cell", "Select a row");
+    en.insert("data_info_cell", "Selected Cell");
+    en.insert("data_info_row", "Selected Row");
+    en.insert("data_info_table", "Selected Table");
+    en.insert("data_info_row_n", "Row {0}");
+    en.insert("data_info_col_n", "Col {0}");
+    en.insert("data_info_columns", "Columns");
+    en.insert("data_info_columns_n", "{0} columns");
+    en.insert("data_info_indexes_n", "{0} indexes");
+    en.insert("data_info_relations_n", "{0} relations");
+    en.insert("data_info_rules_n", "{0} rules");
+    en.insert("data_info_triggers_n", "{0} triggers");
+    en.insert("data_info_active_filter", "Active Filter");
+    en.insert("data_info_relation_out", "out");
+    en.insert("data_info_relation_in", "in");
+    en.insert("data_info_selected", "Selected");
+    en.insert("data_info_nullable", "Nullable");
+    en.insert("data_info_value", "Value");
+    en.insert("data_info_original", "Original");
+    en.insert("data_info_revert_cell", "Revert Cell");
+    en.insert("data_info_dirty", "This cell has unsaved changes");
+    en.insert("data_info_yes", "Yes");
+    en.insert("data_info_no", "No");
+    en.insert("data_info_read_only", "This value is read-only here.");
+    en.insert("data_relation_open", "Open Related Row");
+    en.insert(
+        "data_info_read_only_pk",
+        "Primary key values are read-only here.",
+    );
+    en.insert(
+        "data_info_no_metadata",
+        "Column metadata is still loading, so editing is disabled.",
+    );
 }
 
 fn insert_recent_ui_ko(ko: &mut Translation) {
@@ -333,6 +394,18 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("ctx_new_query", "새 쿼리");
     ko.insert("ctx_console", "콘솔");
     ko.insert("ctx_execute_sql_file", "SQL 파일 실행...");
+    ko.insert("ctx_open_schema", "스키마 열기");
+    ko.insert("ctx_backup_schema", "{0} 백업");
+    ko.insert("ctx_edit_schema", "스키마 편집...");
+    ko.insert("ctx_new_schema", "새 스키마...");
+    ko.insert("ctx_delete_schema", "스키마 삭제");
+    ko.insert("ctx_dump_sql_file", "SQL 파일 덤프");
+    ko.insert("ctx_data_dictionary", "데이터 사전...");
+    ko.insert(
+        "ctx_reverse_database_to_model",
+        "데이터베이스를 모델로 리버스...",
+    );
+    ko.insert("ctx_find_in_database", "데이터베이스에서 찾기...");
     ko.insert("ctx_add_star", "즐겨찾기 추가");
     ko.insert("ctx_color", "색상:");
     ko.insert("ctx_manage_group", "그룹 관리");
@@ -490,6 +563,7 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("grid_toggle_null", "NULL 전환");
     ko.insert("grid_null_value", "NULL 값");
     ko.insert("grid_copy_value", "값 복사");
+    ko.insert("grid_copy_sql", "SQL 복사");
     ko.insert("grid_no_active_data_source", "활성 데이터 소스 없음");
     ko.insert("grid_no_result_set", "결과 없음");
     ko.insert(
@@ -513,6 +587,20 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
         "날짜와 시간을 YYYY-MM-DD HH:MM:SS 형식으로 입력하세요",
     );
     ko.insert("grid_now", "지금");
+    ko.insert("grid_pick_date", "날짜 선택");
+    ko.insert("grid_pick_time", "시간 선택");
+    ko.insert("grid_prev_month", "이전 달");
+    ko.insert("grid_next_month", "다음 달");
+    ko.insert("grid_hour", "시");
+    ko.insert("grid_minute", "분");
+    ko.insert("grid_second", "초");
+    ko.insert("grid_weekday_mon", "월");
+    ko.insert("grid_weekday_tue", "화");
+    ko.insert("grid_weekday_wed", "수");
+    ko.insert("grid_weekday_thu", "목");
+    ko.insert("grid_weekday_fri", "금");
+    ko.insert("grid_weekday_sat", "토");
+    ko.insert("grid_weekday_sun", "일");
     ko.insert("grid_sort_asc", "오름차순 정렬");
     ko.insert("grid_sort_desc", "내림차순 정렬");
     ko.insert("grid_sort_remove", "정렬 해제");
@@ -536,6 +624,43 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("grid_enum_select", "값 선택");
     ko.insert("grid_enum_error", "허용된 값 중 하나를 선택하세요");
     ko.insert("grid_visible_range", "{0}-{1}");
+    ko.insert("data_info_no_selection", "정보 없음");
+    ko.insert("data_info_select_cell", "행을 선택하세요");
+    ko.insert("data_info_cell", "선택한 셀");
+    ko.insert("data_info_row", "선택한 행");
+    ko.insert("data_info_table", "선택한 테이블");
+    ko.insert("data_info_row_n", "{0}행");
+    ko.insert("data_info_col_n", "{0}열");
+    ko.insert("data_info_columns", "컬럼");
+    ko.insert("data_info_columns_n", "{0}개 컬럼");
+    ko.insert("data_info_indexes_n", "{0}개 인덱스");
+    ko.insert("data_info_relations_n", "{0}개 관계");
+    ko.insert("data_info_rules_n", "{0}개 룰");
+    ko.insert("data_info_triggers_n", "{0}개 트리거");
+    ko.insert("data_info_active_filter", "적용된 필터");
+    ko.insert("data_info_relation_out", "나감");
+    ko.insert("data_info_relation_in", "들어옴");
+    ko.insert("data_info_selected", "선택됨");
+    ko.insert("data_info_nullable", "NULL 허용");
+    ko.insert("data_info_value", "값");
+    ko.insert("data_info_original", "원본");
+    ko.insert("data_info_revert_cell", "셀 되돌리기");
+    ko.insert(
+        "data_info_dirty",
+        "이 셀에 저장되지 않은 변경사항이 있습니다",
+    );
+    ko.insert("data_info_yes", "예");
+    ko.insert("data_info_no", "아니오");
+    ko.insert("data_info_read_only", "여기서는 읽기 전용 값입니다.");
+    ko.insert("data_relation_open", "관련 행 열기");
+    ko.insert(
+        "data_info_read_only_pk",
+        "기본키 값은 여기서 읽기 전용입니다.",
+    );
+    ko.insert(
+        "data_info_no_metadata",
+        "컬럼 메타데이터를 불러오는 중이라 편집이 비활성화됩니다.",
+    );
 }
 
 pub fn init() {
@@ -547,6 +672,8 @@ pub fn init() {
     en.insert("menu_file", "File");
     en.insert("menu_about", "About FerrumGrid");
     en.insert("menu_new_connection", "New Connection");
+    en.insert("menu_close_window", "Close Window");
+    en.insert("menu_show_main_window", "Show Main Window");
     en.insert("menu_quit", "Quit");
     en.insert("menu_query", "Query");
     en.insert("menu_execute", "Execute");
@@ -788,6 +915,8 @@ pub fn init() {
     ko.insert("menu_file", "파일");
     ko.insert("menu_about", "FerrumGrid 정보");
     ko.insert("menu_new_connection", "새 연결");
+    ko.insert("menu_close_window", "창 닫기");
+    ko.insert("menu_show_main_window", "메인 창 보기");
     ko.insert("menu_quit", "종료");
     ko.insert("menu_query", "쿼리");
     ko.insert("menu_execute", "실행");
@@ -1022,6 +1151,8 @@ pub fn init() {
     ja.insert("app_title", "FerrumGrid");
     ja.insert("menu_file", "ファイル");
     ja.insert("menu_new_connection", "新規接続");
+    ja.insert("menu_close_window", "ウィンドウを閉じる");
+    ja.insert("menu_show_main_window", "メインウィンドウを表示");
     ja.insert("menu_quit", "終了");
     ja.insert("menu_query", "クエリ");
     ja.insert("menu_execute", "実行");
@@ -1118,6 +1249,8 @@ pub fn init() {
     zh.insert("app_title", "FerrumGrid");
     zh.insert("menu_file", "文件");
     zh.insert("menu_new_connection", "新建连接");
+    zh.insert("menu_close_window", "关闭窗口");
+    zh.insert("menu_show_main_window", "显示主窗口");
     zh.insert("menu_quit", "退出");
     zh.insert("menu_query", "查询");
     zh.insert("menu_execute", "执行");
@@ -1214,6 +1347,8 @@ pub fn init() {
     es.insert("app_title", "FerrumGrid");
     es.insert("menu_file", "Archivo");
     es.insert("menu_new_connection", "Nueva Conexión");
+    es.insert("menu_close_window", "Cerrar Ventana");
+    es.insert("menu_show_main_window", "Mostrar Ventana Principal");
     es.insert("menu_quit", "Salir");
     es.insert("menu_query", "Consulta");
     es.insert("menu_execute", "Ejecutar");
@@ -1237,6 +1372,8 @@ pub fn init() {
     fr.insert("app_title", "FerrumGrid");
     fr.insert("menu_file", "Fichier");
     fr.insert("menu_new_connection", "Nouvelle Connexion");
+    fr.insert("menu_close_window", "Fermer la fenêtre");
+    fr.insert("menu_show_main_window", "Afficher la fenêtre principale");
     fr.insert("menu_quit", "Quitter");
     fr.insert("menu_query", "Requête");
     fr.insert("menu_execute", "Exécuter");
@@ -1260,6 +1397,8 @@ pub fn init() {
     de.insert("app_title", "FerrumGrid");
     de.insert("menu_file", "Datei");
     de.insert("menu_new_connection", "Neue Verbindung");
+    de.insert("menu_close_window", "Fenster schließen");
+    de.insert("menu_show_main_window", "Hauptfenster anzeigen");
     de.insert("menu_quit", "Beenden");
     de.insert("menu_query", "Abfrage");
     de.insert("menu_execute", "Ausführen");

@@ -67,27 +67,7 @@ pub fn render_panels(
                     .inner_margin(Margin::ZERO),
             )
             .show(ctx, |ui| {
-                egui::Frame::new()
-                    .fill(theme::bg_shell())
-                    .inner_margin(Margin::same(theme::SPACE_LG_I))
-                    .stroke(Stroke::new(1.0, theme::border_subtle()))
-                    .show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
-                        ui.horizontal(|ui| {
-                            crate::ui::icon_img(ui, icons_svg::INFO, "info", 14.0);
-                            ui.add_space(4.0);
-                            ui.label(RichText::new("Info").color(theme::text_primary()).strong());
-                        });
-                    });
-
-                ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
-                    ui.label(
-                        RichText::new("No Info")
-                            .color(theme::text_muted())
-                            .size(14.0),
-                    );
-                });
+                grid::render_info_panel(ui, state, bridge);
             });
     }
 
@@ -99,7 +79,7 @@ pub fn render_panels(
                 .inner_margin(Margin::ZERO),
         )
         .show(ctx, |ui| {
-            render_workspace_tabs(ui, state);
+            render_workspace_tabs(ui, state, bridge);
 
             match state.active_main_view {
                 crate::state::MainView::Table
@@ -121,9 +101,37 @@ pub fn render_panels(
                 }
             }
         });
+
+    stabilize_info_panel_resize_cursor(ctx, state);
 }
 
-fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState) {
+fn stabilize_info_panel_resize_cursor(ctx: &egui::Context, state: &AppState) {
+    if !state.show_info_panel {
+        return;
+    }
+
+    let panel_id = egui::Id::new("info_panel");
+    let resize_id = panel_id.with("__resize");
+    let resize_active = ctx
+        .read_response(resize_id)
+        .is_some_and(|response| response.hovered() || response.dragged());
+    let pointer_near_splitter = egui::containers::panel::PanelState::load(ctx, panel_id)
+        .and_then(|panel| {
+            ctx.input(|input| input.pointer.hover_pos())
+                .map(|pos| (panel, pos))
+        })
+        .is_some_and(|(panel, pos)| {
+            let grab_radius = ctx.style().interaction.resize_grab_radius_side.max(10.0);
+            let splitter = panel.rect.left();
+            panel.rect.y_range().contains(pos.y) && (pos.x - splitter).abs() <= grab_radius
+        });
+
+    if resize_active || pointer_near_splitter {
+        ctx.set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+    }
+}
+
+fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     if state.workspace_tabs.is_empty() {
         state.open_workspace_main_view(state.active_main_view);
     }
@@ -183,15 +191,13 @@ fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState) {
                 });
             }
 
-            let new_query = ui
-                .add_sized(
-                    egui::vec2(28.0, 26.0),
-                    egui::Button::new(RichText::new("+").color(theme::ACCENT_TEAL).size(15.0))
-                        .fill(theme::with_alpha(theme::ACCENT_TEAL, 16))
-                        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 70)))
-                        .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
-                )
-                .on_hover_text(t("workspace_new_query"));
+            let new_query = render_workspace_add_tab_button(ui);
+            show_dark_hover_tooltip(
+                ui,
+                new_query.id.with("tooltip"),
+                &new_query,
+                &t("workspace_new_query"),
+            );
             if new_query.clicked() {
                 let n = state.editor_tabs.len() + 1;
                 state
@@ -213,8 +219,13 @@ fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState) {
 
     if let Some(index) = close {
         state.close_workspace_tab(index);
+        grid::restore_active_data_tab(state, bridge);
     } else if let Some(index) = activate {
+        let active_before = state.active_workspace_tab;
         state.activate_workspace_tab(index);
+        if active_before != state.active_workspace_tab {
+            grid::restore_active_data_tab(state, bridge);
+        }
     }
 }
 
@@ -276,7 +287,58 @@ fn render_workspace_tab(
         },
     );
 
-    response.on_hover_text(title.to_string())
+    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, title);
+    response
+}
+
+fn render_workspace_add_tab_button(ui: &mut egui::Ui) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(30.0, 28.0), egui::Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+
+    let paint_rect = rect.shrink2(egui::vec2(1.0, 1.0));
+    let fill = if response.hovered() {
+        theme::with_alpha(theme::ACCENT_TEAL, 34)
+    } else {
+        theme::with_alpha(theme::ACCENT_TEAL, 18)
+    };
+    let stroke = Stroke::new(
+        1.0,
+        if response.hovered() {
+            theme::ACCENT_TEAL
+        } else {
+            theme::with_alpha(theme::ACCENT_TEAL, 95)
+        },
+    );
+    ui.painter()
+        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    ui.painter().rect_stroke(
+        paint_rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        stroke,
+        StrokeKind::Inside,
+    );
+
+    let center = paint_rect.center();
+    let arm = 7.0;
+    let plus_stroke = Stroke::new(1.65, theme::ACCENT_TEAL);
+    ui.painter().line_segment(
+        [
+            egui::pos2(center.x - arm, center.y),
+            egui::pos2(center.x + arm, center.y),
+        ],
+        plus_stroke,
+    );
+    ui.painter().line_segment(
+        [
+            egui::pos2(center.x, center.y - arm),
+            egui::pos2(center.x, center.y + arm),
+        ],
+        plus_stroke,
+    );
+
+    response
 }
 
 fn tab_width(ui: &egui::Ui, label: &str) -> f32 {
@@ -410,19 +472,23 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add_space(theme::SPACE_MD);
 
-                    let settings_resp = ui
-                        .add_sized(
-                            egui::vec2(32.0, 32.0),
-                            egui::Button::new(
-                                RichText::new("\u{2699}")
-                                    .size(16.0)
-                                    .color(theme::text_primary()),
-                            )
-                            .fill(theme::bg_light())
-                            .stroke(Stroke::new(1.0, theme::border_default()))
-                            .corner_radius(CornerRadius::same(theme::RADIUS_LG)),
+                    let settings_resp = ui.add_sized(
+                        egui::vec2(32.0, 32.0),
+                        egui::Button::new(
+                            RichText::new("\u{2699}")
+                                .size(16.0)
+                                .color(theme::text_primary()),
                         )
-                        .on_hover_text(t("settings_title"));
+                        .fill(theme::bg_light())
+                        .stroke(Stroke::new(1.0, theme::border_default()))
+                        .corner_radius(CornerRadius::same(theme::RADIUS_LG)),
+                    );
+                    show_dark_hover_tooltip(
+                        ui,
+                        settings_resp.id.with("tooltip"),
+                        &settings_resp,
+                        &t("settings_title"),
+                    );
                     if settings_resp.clicked() {
                         state.show_settings_dialog = true;
                     }
@@ -511,7 +577,7 @@ fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, visible: &mut bool, t
         },
         *visible,
     );
-    response.on_hover_text(tooltip);
+    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &tooltip);
 }
 
 fn paint_pane_icon(
@@ -576,6 +642,103 @@ fn paint_pane_icon(
     }
 }
 
+fn show_dark_hover_tooltip(
+    ui: &egui::Ui,
+    tooltip_id: egui::Id,
+    response: &egui::Response,
+    text: &str,
+) {
+    if !response.hovered() {
+        return;
+    }
+
+    let pointer = ui
+        .ctx()
+        .pointer_hover_pos()
+        .unwrap_or_else(|| response.rect.left_bottom());
+    let max_width = 360.0;
+    let pos = smart_tooltip_pos(ui.ctx(), pointer, estimate_tooltip_size(text, max_width));
+    egui::Area::new(tooltip_id)
+        .order(egui::Order::Tooltip)
+        .fixed_pos(pos)
+        .interactable(false)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(theme::RADIUS_LG))
+                .inner_margin(Margin::same(theme::SPACE_MD_I))
+                .show(ui, |ui| {
+                    ui.set_max_width(max_width);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(text)
+                                .color(theme::text_secondary())
+                                .monospace()
+                                .size(11.0),
+                        )
+                        .wrap(),
+                    );
+                });
+        });
+}
+
+fn smart_tooltip_pos(
+    ctx: &egui::Context,
+    anchor: egui::Pos2,
+    estimated_size: egui::Vec2,
+) -> egui::Pos2 {
+    let bounds = ctx.screen_rect().shrink(8.0);
+    let gap = 12.0;
+    let right_x = anchor.x + gap;
+    let left_x = anchor.x - gap - estimated_size.x;
+    let bottom_y = anchor.y + gap;
+    let top_y = anchor.y - gap - estimated_size.y;
+
+    let x = if right_x + estimated_size.x <= bounds.right() {
+        right_x
+    } else if left_x >= bounds.left() {
+        left_x
+    } else {
+        clamp_axis(right_x, bounds.left(), bounds.right() - estimated_size.x)
+    };
+
+    let y = if bottom_y + estimated_size.y <= bounds.bottom() {
+        bottom_y
+    } else if top_y >= bounds.top() {
+        top_y
+    } else {
+        clamp_axis(bottom_y, bounds.top(), bounds.bottom() - estimated_size.y)
+    };
+
+    egui::pos2(x, y)
+}
+
+fn estimate_tooltip_size(text: &str, max_width: f32) -> egui::Vec2 {
+    let char_width = 7.2;
+    let content_max = (max_width - theme::SPACE_MD * 2.0).max(80.0);
+    let mut visual_lines = 0.0_f32;
+    let mut widest = 0.0_f32;
+
+    for line in text.lines().chain((text.is_empty()).then_some("")) {
+        let line_width = line.chars().count() as f32 * char_width;
+        widest = widest.max(line_width);
+        visual_lines += (line_width / content_max).ceil().max(1.0);
+    }
+
+    let width = (widest + theme::SPACE_MD * 2.0).clamp(48.0, max_width);
+    let height = visual_lines * 15.0 + theme::SPACE_MD * 2.0;
+    egui::vec2(width, height)
+}
+
+fn clamp_axis(value: f32, min: f32, max: f32) -> f32 {
+    if max <= min {
+        min
+    } else {
+        value.clamp(min, max)
+    }
+}
+
 fn render_toolbar_item(
     ui: &mut egui::Ui,
     state: &mut AppState,
@@ -587,7 +750,7 @@ fn render_toolbar_item(
     let (rect, response) = ui.allocate_exact_size(egui::vec2(72.0, 72.0), egui::Sense::click());
     let hovered = response.hovered();
     let clicked = response.clicked();
-    response.on_hover_text(label.clone());
+    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &label);
 
     if clicked {
         state.open_workspace_main_view(view);
@@ -978,7 +1141,12 @@ fn paint_toolbar_icon(
         MainView::Automation => {
             painter.circle_stroke(r.center(), 8.5, stroke);
             painter.circle_filled(r.center(), 3.0, color);
-            for angle in [0.0_f32, 1.57, 3.14, 4.71] {
+            for angle in [
+                0.0_f32,
+                std::f32::consts::FRAC_PI_2,
+                std::f32::consts::PI,
+                std::f32::consts::PI + std::f32::consts::FRAC_PI_2,
+            ] {
                 let dir = egui::vec2(angle.cos(), angle.sin());
                 painter.line_segment([r.center() + dir * 10.0, r.center() + dir * 13.0], stroke);
             }
@@ -1121,14 +1289,12 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let new_btn_label = "      ".to_owned() + &t("explorer_new");
-                let btn = ui.add(theme::secondary_button(&new_btn_label));
-                ui.allocate_new_ui(
-                    egui::UiBuilder::new()
-                        .max_rect(btn.rect.shrink2(egui::vec2(btn.rect.width() - 24.0, 0.0))),
-                    |ui| {
-                        crate::ui::icon_img(ui, icons_svg::PLUS, "explorer_new_icon", 12.0);
-                    },
+                let btn = ui.add(
+                    theme::secondary_icon_button(
+                        crate::ui::icon_image(ui, icons_svg::PLUS, "explorer_new_icon", 12.0),
+                        t("explorer_new"),
+                    )
+                    .min_size(egui::vec2(74.0, 30.0)),
                 );
 
                 if btn.clicked() {

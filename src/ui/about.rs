@@ -3,6 +3,7 @@ use eframe::egui::{self, Color32, CornerRadius, FontId, Margin, Pos2, Stroke, St
 
 use crate::i18n::t;
 use crate::state::AppState;
+use crate::ui::theme;
 
 const ABOUT_WIDTH: f32 = 560.0;
 const ABOUT_HEIGHT: f32 = 468.0;
@@ -222,11 +223,11 @@ fn paint_version(ui: &egui::Ui, rect: egui::Rect) {
 fn paint_badges(painter: &egui::Painter, rect: egui::Rect) {
     let labels = ["PG", "SQL", "ER", "BI", "⌘"];
     let colors = [
-        Color32::from_rgb(70, 139, 255),
-        Color32::from_rgb(53, 190, 171),
-        Color32::from_rgb(204, 120, 50),
-        Color32::from_rgb(210, 70, 70),
-        Color32::from_rgb(120, 151, 210),
+        theme::ACCENT_BLUE,
+        theme::ACCENT_TEAL,
+        theme::ACCENT_EMERALD,
+        theme::ACCENT_RED,
+        theme::TEXT_MUTED,
     ];
     let start_x = rect.center().x - 104.0;
     let y = rect.bottom() - 52.0;

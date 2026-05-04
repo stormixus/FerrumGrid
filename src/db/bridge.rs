@@ -142,9 +142,6 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         roles: Vec<RoleInfo>,
     },
-    QueryCancelled {
-        conn_id: ConnectionId,
-    },
     BackupCompleted {
         record: BackupRecord,
     },
@@ -204,6 +201,8 @@ impl DbBridge {
 
 struct ConnectionHandle {
     task_tx: tokio::sync::mpsc::Sender<ConnCommand>,
+    cancel_token_rx: tokio::sync::watch::Receiver<Option<tokio_postgres::CancelToken>>,
+    use_tls: bool,
 }
 
 enum ConnCommand {
@@ -242,7 +241,6 @@ enum ConnCommand {
         schema: String,
     },
     ListRoles,
-    CancelQuery,
     Shutdown,
 }
 
@@ -259,11 +257,20 @@ async fn dispatch_loop(
                 let resp_tx = resp_tx.clone();
                 let ctx = ctx.clone();
                 let (task_tx, task_rx) = tokio::sync::mpsc::channel::<ConnCommand>(64);
+                let (cancel_token_tx, cancel_token_rx) = tokio::sync::watch::channel(None);
+                let use_tls = config.use_tls;
 
-                connections.insert(conn_id, ConnectionHandle { task_tx });
+                connections.insert(
+                    conn_id,
+                    ConnectionHandle {
+                        task_tx,
+                        cancel_token_rx,
+                        use_tls,
+                    },
+                );
 
                 tokio::spawn(async move {
-                    connection_task(conn_id, config, task_rx, resp_tx, ctx).await;
+                    connection_task(conn_id, config, task_rx, resp_tx, ctx, cancel_token_tx).await;
                 });
             }
             DbCommand::Disconnect { conn_id } => {
@@ -382,7 +389,26 @@ async fn dispatch_loop(
             }
             DbCommand::CancelQuery { conn_id } => {
                 if let Some(handle) = connections.get(&conn_id) {
-                    let _ = handle.task_tx.send(ConnCommand::CancelQuery).await;
+                    if let Some(token) = handle.cancel_token_rx.borrow().clone() {
+                        let resp_tx = resp_tx.clone();
+                        let ctx = ctx.clone();
+                        let use_tls = handle.use_tls;
+                        tokio::spawn(async move {
+                            if let Err(error) =
+                                crate::db::connection::cancel_query(token, use_tls, conn_id).await
+                            {
+                                let _ = resp_tx.send(DbResponse::Error { conn_id, error });
+                                ctx.request_repaint();
+                            }
+                        });
+                    } else {
+                        let error = DbError::internal(
+                            conn_id,
+                            "Query cannot be cancelled before the connection is ready.",
+                        );
+                        let _ = resp_tx.send(DbResponse::Error { conn_id, error });
+                        ctx.request_repaint();
+                    }
                 }
             }
             DbCommand::RunBackup { request } => {
@@ -413,6 +439,7 @@ async fn connection_task(
     mut task_rx: tokio::sync::mpsc::Receiver<ConnCommand>,
     resp_tx: std::sync::mpsc::Sender<DbResponse>,
     ctx: eframe::egui::Context,
+    cancel_token_tx: tokio::sync::watch::Sender<Option<tokio_postgres::CancelToken>>,
 ) {
     // Connect
     let client = if config.use_tls {
@@ -459,7 +486,10 @@ async fn connection_task(
         conn_id,
         server_version,
     });
+    let _ = cancel_token_tx.send(Some(client.cancel_token()));
     ctx.request_repaint();
+
+    let mut client = client;
 
     // Process commands
     while let Some(cmd) = task_rx.recv().await {
@@ -472,7 +502,8 @@ async fn connection_task(
                     || trimmed.starts_with("EXPLAIN");
 
                 let response = if is_select {
-                    match crate::db::queries::execute_query(&client, &sql, row_limit, conn_id).await
+                    match crate::db::queries::execute_query(&mut client, &sql, row_limit, conn_id)
+                        .await
                     {
                         Ok((result, truncated)) => DbResponse::QueryResult {
                             conn_id,
@@ -636,13 +667,10 @@ async fn connection_task(
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }
-            ConnCommand::CancelQuery => {
-                let _ = resp_tx.send(DbResponse::QueryCancelled { conn_id });
-                ctx.request_repaint();
-            }
             ConnCommand::Shutdown => {
                 break;
             }
         }
     }
+    let _ = cancel_token_tx.send(None);
 }

@@ -44,8 +44,9 @@ pub struct PrismaField {
     pub documentation: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum PrismaType {
+    #[default]
     String,
     Int,
     BigInt,
@@ -59,12 +60,6 @@ pub enum PrismaType {
     Model(String),
     Array(Box<PrismaType>),
     Optional(Box<PrismaType>),
-}
-
-impl Default for PrismaType {
-    fn default() -> Self {
-        PrismaType::String
-    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -163,21 +158,19 @@ impl PrismaSchema {
         tables: &[crate::types::TableInfo],
         columns: &HashMap<(String, String), Vec<crate::types::ColumnInfo>>,
     ) -> Self {
-        let mut prisma_schema = PrismaSchema::default();
-
-        // Create datasource - URL will be populated later
-        prisma_schema.datasource = Some(DatasourceBlock {
-            name: "db".to_string(),
-            provider: "postgresql".to_string(),
-            url: "env(\"DATABASE_URL\")".to_string(),
-        });
-
-        // Create generator
-        prisma_schema.generator = Some(GeneratorBlock {
-            name: "client".to_string(),
-            provider: "prisma-client-js".to_string(),
-            output: None,
-        });
+        let mut prisma_schema = PrismaSchema {
+            datasource: Some(DatasourceBlock {
+                name: "db".to_string(),
+                provider: "postgresql".to_string(),
+                url: "env(\"DATABASE_URL\")".to_string(),
+            }),
+            generator: Some(GeneratorBlock {
+                name: "client".to_string(),
+                provider: "prisma-client-js".to_string(),
+                output: None,
+            }),
+            ..Default::default()
+        };
 
         // Create models from tables
         for table in tables {

@@ -1,10 +1,10 @@
-use tokio_postgres::Client;
+use tokio_postgres::{Client, Row};
 
 use crate::db::error::DbError;
 use crate::types::{CellValue, ColumnMeta, ConnectionId, DataCellEdit, DataEditValue, QueryResult};
 
 pub async fn execute_query(
-    client: &Client,
+    client: &mut Client,
     sql: &str,
     row_limit: Option<usize>,
     conn_id: ConnectionId,
@@ -25,17 +25,12 @@ pub async fn execute_query(
         })
         .collect();
 
-    let pg_rows = client
-        .query(&stmt, &[])
-        .await
-        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+    let pg_rows = fetch_query_rows(client, &stmt, row_limit, conn_id).await?;
 
     let truncated = row_limit.is_some_and(|limit| pg_rows.len() > limit);
-    let take_count = if truncated {
-        row_limit.unwrap()
-    } else {
-        pg_rows.len()
-    };
+    let take_count = row_limit
+        .map(|limit| limit.min(pg_rows.len()))
+        .unwrap_or(pg_rows.len());
 
     let rows: Vec<Vec<CellValue>> = pg_rows
         .iter()
@@ -111,6 +106,39 @@ pub async fn execute_statement(
     ))
 }
 
+async fn fetch_query_rows(
+    client: &mut Client,
+    stmt: &tokio_postgres::Statement,
+    row_limit: Option<usize>,
+    conn_id: ConnectionId,
+) -> Result<Vec<Row>, DbError> {
+    let Some(limit) = row_limit else {
+        return client
+            .query(stmt, &[])
+            .await
+            .map_err(|e| DbError::from_pg(&e, conn_id));
+    };
+
+    let max_rows = limit.saturating_add(1).min(i32::MAX as usize) as i32;
+    let tx = client
+        .transaction()
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+    let portal = tx
+        .bind(stmt, &[])
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+    let rows = tx
+        .query_portal(&portal, max_rows)
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+    tx.rollback()
+        .await
+        .map_err(|e| DbError::from_pg(&e, conn_id))?;
+
+    Ok(rows)
+}
+
 pub async fn apply_data_edits(
     client: &Client,
     edits: &[DataCellEdit],
@@ -127,9 +155,17 @@ pub async fn apply_data_edits(
 
     let mut applied = 0usize;
     for edit in edits {
-        let sql = build_update_sql(edit, conn_id)?;
+        if edit.pk.is_empty() {
+            let _ = client.batch_execute("ROLLBACK").await;
+            return Err(DbError::internal(
+                conn_id,
+                "Table data edits require a primary key.",
+            ));
+        }
+
+        let sql = build_update_sql(edit);
         match client.execute(sql.as_str(), &[]).await {
-            Ok(affected) if affected == 1 => {
+            Ok(1) => {
                 applied += 1;
             }
             Ok(affected) => {
@@ -157,14 +193,7 @@ pub async fn apply_data_edits(
     Ok(applied)
 }
 
-fn build_update_sql(edit: &DataCellEdit, conn_id: ConnectionId) -> Result<String, DbError> {
-    if edit.pk.is_empty() {
-        return Err(DbError::internal(
-            conn_id,
-            "Table data edits require a primary key.",
-        ));
-    }
-
+fn build_update_sql(edit: &DataCellEdit) -> String {
     let set_value = match &edit.value {
         DataEditValue::Null => "NULL".to_string(),
         DataEditValue::Text(value) => sql_literal(value, &edit.column_type),
@@ -182,14 +211,14 @@ fn build_update_sql(edit: &DataCellEdit, conn_id: ConnectionId) -> Result<String
         .collect::<Vec<_>>()
         .join(" AND ");
 
-    Ok(format!(
+    format!(
         "UPDATE {}.{} SET {} = {} WHERE {}",
         quote_ident(&edit.schema),
         quote_ident(&edit.table),
         quote_ident(&edit.column),
         set_value,
         where_clause
-    ))
+    )
 }
 
 fn cell_to_sql_literal(value: &CellValue, type_name: &str) -> String {

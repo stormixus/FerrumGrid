@@ -1,4 +1,4 @@
-use tokio_postgres::{Client, Config, NoTls, Socket};
+use tokio_postgres::{CancelToken, Client, Config, NoTls, Socket};
 
 use crate::db::error::DbError;
 use crate::types::ConnectionConfig;
@@ -73,4 +73,26 @@ pub async fn connect_no_tls(
         .connect(NoTls)
         .await
         .map_err(|e| DbError::from_pg(&e, cfg.id))
+}
+
+pub async fn cancel_query(
+    token: CancelToken,
+    use_tls: bool,
+    conn_id: crate::types::ConnectionId,
+) -> Result<(), DbError> {
+    if use_tls {
+        let tls_connector = native_tls::TlsConnector::builder()
+            .build()
+            .map_err(|e| DbError::connection(conn_id, format!("TLS setup failed: {e}")))?;
+        let connector = postgres_native_tls::MakeTlsConnector::new(tls_connector);
+        token
+            .cancel_query(connector)
+            .await
+            .map_err(|e| DbError::from_pg(&e, conn_id))
+    } else {
+        token
+            .cancel_query(NoTls)
+            .await
+            .map_err(|e| DbError::from_pg(&e, conn_id))
+    }
 }

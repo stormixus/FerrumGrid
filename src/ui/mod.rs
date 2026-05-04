@@ -16,10 +16,14 @@ pub mod vault;
 
 /// Helper to render an SVG icon as a small image inline.
 pub fn icon_img(ui: &mut egui::Ui, svg_content: &str, name: &str, size: f32) {
+    ui.add(icon_image(ui, svg_content, name, size));
+}
+
+pub fn icon_image(ui: &egui::Ui, svg_content: &str, name: &str, size: f32) -> egui::Image<'static> {
     let uri = format!("bytes://{}.svg", name);
     ui.ctx()
         .include_bytes(uri.clone(), svg_content.as_bytes().to_vec());
-    ui.add(egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size)));
+    egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size))
 }
 
 /// Render an SVG that uses `currentColor` with an explicit egui theme color.
@@ -30,6 +34,16 @@ pub fn icon_img_tinted(
     size: f32,
     color: egui::Color32,
 ) {
+    ui.add(icon_image_tinted(ui, svg_content, name, size, color));
+}
+
+pub fn icon_image_tinted(
+    ui: &egui::Ui,
+    svg_content: &str,
+    name: &str,
+    size: f32,
+    color: egui::Color32,
+) -> egui::Image<'static> {
     let hex = format!("#{:02X}{:02X}{:02X}", color.r(), color.g(), color.b());
     let svg = svg_content.replace("currentColor", &hex);
     let uri = format!(
@@ -40,5 +54,5 @@ pub fn icon_img_tinted(
         color.b()
     );
     ui.ctx().include_bytes(uri.clone(), svg.into_bytes());
-    ui.add(egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size)));
+    egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size))
 }

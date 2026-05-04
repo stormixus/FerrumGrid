@@ -1,12 +1,11 @@
 # Run unit tests only (no Docker needed)
 test-unit:
-    cargo test --lib --bins
+    cargo test --bins
 
 # Start test database, run integration tests, stop database
 test-integration:
     docker compose -f docker-compose.test.yml up -d --wait
-    cargo test -- --ignored || true
-    docker compose -f docker-compose.test.yml down
+    (cargo test --test postgres_seed -- --ignored; status=$?; docker compose -f docker-compose.test.yml down; exit $status)
 
 # Run all tests
 test-all: test-unit test-integration
@@ -29,4 +28,4 @@ fmt:
 
 # Lint
 lint:
-    cargo clippy -- -D warnings
+    cargo clippy --all-targets -- -D warnings

@@ -1,6 +1,5 @@
 use eframe::egui::{
-    self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke,
-    TextEdit, Window,
+    self, Align, Button, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke, Window,
 };
 use std::sync::{Arc, Mutex};
 
@@ -27,8 +26,9 @@ pub struct PrismaUIState {
     pub pending_output: Option<Arc<Mutex<Option<String>>>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum PrismaCommandType {
+    #[default]
     Introspect,
     MigrateDev,
     MigrateDeploy,
@@ -38,12 +38,6 @@ pub enum PrismaCommandType {
     Format,
     DBPull,
     DBPush,
-}
-
-impl Default for PrismaCommandType {
-    fn default() -> Self {
-        PrismaCommandType::Introspect
-    }
 }
 
 pub fn render_prisma_window(ctx: &egui::Context, state: &mut AppState, _bridge: &DbBridge) {
@@ -172,7 +166,8 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                     let available = ui.available_size();
                     ui.add_sized(
                         available,
-                        TextEdit::multiline(&mut state.prisma_ui.schema_content).code_editor(),
+                        theme::multiline_mono_text_input(&mut state.prisma_ui.schema_content)
+                            .code_editor(),
                     );
                 });
         });
@@ -198,7 +193,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                     ScrollArea::vertical().show(ui, |ui| {
                         let mut output = state.prisma_ui.cli_output.clone();
                         ui.add(
-                            TextEdit::multiline(&mut output)
+                            theme::multiline_mono_text_input(&mut output)
                                 .code_editor()
                                 .desired_rows(20),
                         );
@@ -267,15 +262,12 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             }
 
             // Additional inputs for specific commands
-            match cmd_type {
-                PrismaCommandType::MigrateDev => {
-                    ui.add(
-                        theme::text_input(&mut state.prisma_ui.migration_name)
-                            .desired_width(150.0)
-                            .hint_text("migration_name"),
-                    );
-                }
-                _ => {}
+            if cmd_type == &PrismaCommandType::MigrateDev {
+                ui.add(
+                    theme::text_input(&mut state.prisma_ui.migration_name)
+                        .desired_width(150.0)
+                        .hint_text("migration_name"),
+                );
             }
 
             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {

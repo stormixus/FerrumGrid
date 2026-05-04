@@ -63,16 +63,7 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
 
             // New tab button
             ui.add_space(theme::SPACE_SM);
-            let new_tab_btn = egui::Button::new("  ")
-                .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
-                .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 60)))
-                .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-                .min_size(egui::vec2(24.0, 24.0));
-
-            let new_resp = ui.add(new_tab_btn);
-            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(new_resp.rect), |ui| {
-                crate::ui::icon_img(ui, crate::ui::icons_svg::PLUS, "new_tab_icon", 12.0);
-            });
+            let new_resp = render_query_add_tab_button(ui);
 
             if new_resp.clicked() {
                 let n = state.editor_tabs.len() + 1;
@@ -82,6 +73,56 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
             }
         });
     });
+}
+
+fn render_query_add_tab_button(ui: &mut egui::Ui) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+
+    let paint_rect = rect.shrink(1.0);
+    let fill = if response.hovered() {
+        theme::with_alpha(theme::ACCENT_TEAL, 34)
+    } else {
+        theme::with_alpha(theme::ACCENT_TEAL, 18)
+    };
+    let stroke = Stroke::new(
+        1.0,
+        if response.hovered() {
+            theme::ACCENT_TEAL
+        } else {
+            theme::with_alpha(theme::ACCENT_TEAL, 95)
+        },
+    );
+    ui.painter()
+        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    ui.painter().rect_stroke(
+        paint_rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+
+    let center = paint_rect.center();
+    let arm = 7.0;
+    let plus_stroke = Stroke::new(1.65, theme::ACCENT_TEAL);
+    ui.painter().line_segment(
+        [
+            egui::pos2(center.x - arm, center.y),
+            egui::pos2(center.x + arm, center.y),
+        ],
+        plus_stroke,
+    );
+    ui.painter().line_segment(
+        [
+            egui::pos2(center.x, center.y - arm),
+            egui::pos2(center.x, center.y + arm),
+        ],
+        plus_stroke,
+    );
+
+    response
 }
 
 fn render_tab(
@@ -218,61 +259,36 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
         ui.horizontal(|ui| {
             let has_connection = state.active_connection.is_some();
             let can_execute = has_connection && !state.query_running;
-
-            let execute_btn = if state.query_running {
-                theme::ghost_button("      Cancel")
-            } else if can_execute {
-                theme::primary_button("      Run")
+            let action_enabled = can_execute || state.query_running;
+            let action_label = if state.query_running {
+                t("query_cancel")
             } else {
-                egui::Button::new(
-                    RichText::new("      Run")
-                        .color(theme::text_disabled())
-                        .size(12.0),
-                )
-                .fill(theme::bg_light())
-                .stroke(Stroke::new(1.0, theme::border_subtle()))
-                .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+                t("query_execute")
             };
-
-            let exec_resp = ui.add_enabled(can_execute || state.query_running, execute_btn);
-
-            // Icon for run/cancel
-            ui.allocate_new_ui(
-                egui::UiBuilder::new().max_rect(
-                    exec_resp
-                        .rect
-                        .shrink2(egui::vec2(exec_resp.rect.width() - 16.0, 0.0)),
-                ),
-                |ui| {
-                    let svg = if state.query_running {
-                        crate::ui::icons_svg::CANCEL
-                    } else {
-                        crate::ui::icons_svg::EXECUTE
-                    };
-                    crate::ui::icon_img(ui, svg, "run_cancel", 12.0);
+            let exec_resp = editor_toolbar_action_button(
+                ui,
+                if state.query_running {
+                    crate::ui::icons_svg::CANCEL
+                } else {
+                    crate::ui::icons_svg::EXECUTE
                 },
+                &action_label,
+                can_execute.then_some("⌘↵"),
+                action_enabled,
+                can_execute,
+                state.query_running,
             );
 
             let shortcut_fired =
                 can_execute && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
 
-            if exec_resp.clicked() || shortcut_fired {
+            if shortcut_fired || (exec_resp.clicked() && can_execute) {
                 execute_current_query(state, bridge);
             }
-
-            if exec_resp.hovered() {
-                egui::show_tooltip_at_pointer(
-                    ui.ctx(),
-                    ui.layer_id(),
-                    egui::Id::new("exec_tip"),
-                    |ui| {
-                        ui.label(
-                            RichText::new("Cmd+Return")
-                                .color(theme::text_muted())
-                                .size(11.0),
-                        );
-                    },
-                );
+            if exec_resp.clicked() && state.query_running {
+                if let Some(conn_id) = state.active_connection {
+                    bridge.send(DbCommand::CancelQuery { conn_id });
+                }
             }
 
             if state.query_running {
@@ -283,38 +299,7 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                         .color(theme::ACCENT_YELLOW)
                         .size(12.0),
                 );
-
-                let cancel_btn = ui.add(theme::ghost_button("      Cancel"));
-                ui.allocate_new_ui(
-                    egui::UiBuilder::new().max_rect(
-                        cancel_btn
-                            .rect
-                            .shrink2(egui::vec2(cancel_btn.rect.width() - 20.0, 0.0)),
-                    ),
-                    |ui| {
-                        crate::ui::icon_img(
-                            ui,
-                            crate::ui::icons_svg::CANCEL,
-                            "run_cancel_btn",
-                            12.0,
-                        );
-                    },
-                );
-
-                if cancel_btn.clicked() {
-                    if let Some(conn_id) = state.active_connection {
-                        bridge.send(DbCommand::CancelQuery { conn_id });
-                    }
-                }
             }
-
-            ui.add_space(theme::SPACE_MD);
-            ui.label(
-                RichText::new("Cmd+Return")
-                    .color(theme::text_muted())
-                    .monospace()
-                    .size(10.0),
-            );
 
             // Right side: active connection name
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -352,6 +337,154 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             });
         });
     });
+}
+
+fn editor_toolbar_action_button(
+    ui: &mut egui::Ui,
+    icon_svg: &str,
+    label: &str,
+    shortcut: Option<&str>,
+    enabled: bool,
+    primary: bool,
+    destructive: bool,
+) -> egui::Response {
+    let font = egui::FontId::proportional(12.5);
+    let text_color = if enabled {
+        theme::text_primary()
+    } else {
+        theme::text_disabled()
+    };
+    let text_width = ui
+        .painter()
+        .layout_no_wrap(label.to_string(), font.clone(), text_color)
+        .rect
+        .width();
+    let shortcut_font = egui::FontId::monospace(10.0);
+    let shortcut_width = shortcut
+        .map(|shortcut| {
+            ui.painter()
+                .layout_no_wrap(
+                    shortcut.to_string(),
+                    shortcut_font.clone(),
+                    theme::text_muted(),
+                )
+                .rect
+                .width()
+                + 14.0
+        })
+        .unwrap_or(0.0);
+    let shortcut_gap = if shortcut.is_some() { 10.0 } else { 0.0 };
+    let width = (text_width + shortcut_width + shortcut_gap + 42.0).max(86.0);
+    let sense = if enabled {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 30.0), sense);
+    let hovered = enabled && response.hovered();
+    let accent = if destructive {
+        theme::ACCENT_RED
+    } else {
+        theme::ACCENT_TEAL
+    };
+    let fill = if !enabled {
+        theme::bg_darkest()
+    } else if primary {
+        theme::with_alpha(accent, if hovered { 44 } else { 30 })
+    } else if hovered {
+        theme::bg_light()
+    } else {
+        theme::bg_medium()
+    };
+    let stroke = if enabled && (hovered || primary || destructive) {
+        Stroke::new(1.0, accent)
+    } else if !enabled {
+        Stroke::new(1.0, theme::border_subtle())
+    } else {
+        Stroke::new(1.0, theme::border_default())
+    };
+
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_LG), fill);
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(theme::RADIUS_LG),
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+
+    let icon_color = if enabled {
+        accent
+    } else {
+        theme::text_disabled()
+    };
+    let icon_name = if destructive {
+        "query_cancel_main"
+    } else {
+        "query_execute_main"
+    };
+    let icon_rect = egui::Rect::from_center_size(
+        rect.left_center() + egui::vec2(16.0, 0.0),
+        egui::vec2(12.0, 12.0),
+    );
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(icon_rect)
+            .layout(egui::Layout::centered_and_justified(
+                egui::Direction::LeftToRight,
+            )),
+        |ui| {
+            ui.add(crate::ui::icon_image_tinted(
+                ui, icon_svg, icon_name, 12.0, icon_color,
+            ));
+        },
+    );
+    let label_pos = rect.left_center() + egui::vec2(31.0, 0.0);
+    let label_clip = egui::Rect::from_min_max(
+        egui::pos2(label_pos.x, rect.top()),
+        egui::pos2(
+            rect.right() - shortcut_width - shortcut_gap - 8.0,
+            rect.bottom(),
+        ),
+    );
+    ui.painter().with_clip_rect(label_clip).text(
+        label_pos,
+        egui::Align2::LEFT_CENTER,
+        label,
+        font,
+        text_color,
+    );
+
+    if let Some(shortcut) = shortcut {
+        let key_rect = egui::Rect::from_center_size(
+            rect.right_center() - egui::vec2(shortcut_width / 2.0 + 7.0, 0.0),
+            egui::vec2(shortcut_width, 18.0),
+        );
+        ui.painter().rect_filled(
+            key_rect,
+            CornerRadius::same(theme::RADIUS_SM),
+            theme::with_alpha(theme::bg_light(), if enabled { 190 } else { 110 }),
+        );
+        ui.painter().rect_stroke(
+            key_rect,
+            CornerRadius::same(theme::RADIUS_SM),
+            Stroke::new(1.0, theme::border_subtle()),
+            egui::StrokeKind::Inside,
+        );
+        ui.painter().text(
+            key_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            shortcut,
+            shortcut_font,
+            if enabled {
+                theme::text_muted()
+            } else {
+                theme::text_disabled()
+            },
+        );
+    }
+
+    response
 }
 
 // ---------------------------------------------------------------------------

@@ -468,12 +468,17 @@ mod tests {
 
     #[test]
     fn vault_round_trips_connections() {
-        let mut config = ConnectionConfig::default();
-        config.display_name = "Local Postgres".to_string();
-        config.password = "secret".to_string();
+        let config = ConnectionConfig {
+            display_name: "Local Postgres".to_string(),
+            password: "secret".to_string(),
+            ..Default::default()
+        };
 
-        let (file, _session) = create_file("correct horse battery staple", &[config.clone()])
-            .expect("vault creation should succeed");
+        let (file, _session) = create_file(
+            "correct horse battery staple",
+            std::slice::from_ref(&config),
+        )
+        .expect("vault creation should succeed");
         let (connections, unlocked) =
             unlock_file(&file, "correct horse battery staple").expect("vault should unlock");
 
@@ -500,8 +505,10 @@ mod tests {
 
     #[test]
     fn trusted_device_unlock_opens_vault_without_master_password() {
-        let mut config = ConnectionConfig::default();
-        config.password = "secret".to_string();
+        let config = ConnectionConfig {
+            password: "secret".to_string(),
+            ..Default::default()
+        };
         let (file, session) =
             create_file("master password", &[config]).expect("vault should create");
         let device_key = generate_device_key();

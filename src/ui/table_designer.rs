@@ -1,6 +1,6 @@
 use eframe::egui::{
     self, Align, Button, Color32, ComboBox, CornerRadius, Frame, Margin, RichText, ScrollArea,
-    Sense, Stroke, TextEdit, Ui, Vec2, Window,
+    Sense, Stroke, Ui, Vec2, Window,
 };
 
 use crate::db::bridge::{DbBridge, DbCommand};
@@ -236,7 +236,7 @@ fn render_designer_ui(
                 if let Some(ref ddl) = state.table_designer.generated_ddl {
                     ui.add_sized(
                         ui.available_size(),
-                        TextEdit::multiline(&mut ddl.clone()).code_editor(),
+                        theme::multiline_mono_text_input(&mut ddl.clone()).code_editor(),
                     );
                 }
                 ui.horizontal(|ui| {
@@ -773,18 +773,13 @@ fn escape_identifier(name: &str) -> String {
 }
 
 fn primary_button(text: &str) -> Button<'_> {
-    Button::new(RichText::new(text).color(Color32::WHITE))
-        .fill(theme::ACCENT_COPPER)
-        .stroke(Stroke::new(1.0, theme::ACCENT_COPPER_LIGHT))
-        .corner_radius(CornerRadius::same(4))
+    theme::primary_button(text)
 }
 
 fn small_button(text: &str) -> Button<'_> {
     Button::new(text)
-        .fill(theme::bg_light())
-        .stroke(Stroke::new(1.0, theme::border_default()))
-        .corner_radius(CornerRadius::same(4))
-        .min_size(Vec2::new(24.0, 24.0))
+        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+        .min_size(Vec2::new(28.0, 28.0))
 }
 
 fn type_chip(ui: &mut Ui, label: &str, color: Color32) {

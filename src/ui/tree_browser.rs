@@ -1,15 +1,16 @@
-use eframe::egui::{self, Color32, CornerRadius, RichText, Sense, Stroke};
+use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Sense, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
 use crate::state::{
     build_data_select_sql_with_columns, AppState, ConnectionState, ConnectionStatus, DataSource,
+    SchemaContextMenuState,
 };
 use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, RuleInfo, TableInfo,
     TriggerInfo,
 };
-use crate::ui::{icon_img, icon_img_tinted, icons_svg, theme};
+use crate::ui::{icon_image, icon_img, icon_img_tinted, icons_svg, theme};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -42,11 +43,12 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
         ui.add_space(theme::SPACE_SM);
     }
 
-    let saved_connections: Vec<ConnectionConfig> = state
+    let saved_connections: Vec<(usize, ConnectionConfig)> = state
         .saved_connections
         .iter()
-        .filter(|config| !state.connections.contains_key(&config.id))
-        .cloned()
+        .enumerate()
+        .filter(|(_, config)| !state.connections.contains_key(&config.id))
+        .map(|(index, config)| (index, config.clone()))
         .collect();
 
     if !saved_connections.is_empty() {
@@ -56,13 +58,19 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
             ui.add_space(theme::SPACE_SM);
         }
 
-        for config in saved_connections {
-            render_saved_connection_row(ui, state, bridge, config);
+        let can_reorder = saved_connections.len() > 1;
+        for (_, config) in saved_connections {
+            render_saved_connection_row(ui, state, bridge, config, can_reorder);
             ui.add_space(theme::SPACE_XS);
         }
     }
 
+    if ui.input(|input| input.pointer.any_released()) {
+        state.dragging_saved_connection = None;
+    }
+
     render_explorer_empty_space(ui, state, bridge);
+    render_schema_context_menu_popup(ui, state, bridge);
 }
 
 // ---------------------------------------------------------------------------
@@ -104,14 +112,18 @@ fn render_connection_node(
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        dot_color,
-        true,
-        0,
-        true,
-        icons_svg::DATABASE,
-        "conn",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color,
+            is_root: true,
+            depth: 0,
+            default_open: true,
+            force_open: false,
+            selected: false,
+            icon_svg: icons_svg::DATABASE,
+            icon_name: "conn",
+        },
         |ui| {
             if !is_connected && !is_connecting {
                 indented(ui, |ui| {
@@ -141,7 +153,7 @@ fn render_connection_node(
                 let loading = state
                     .connections
                     .get(&conn_id)
-                    .map_or(false, |c| c.loading_databases);
+                    .is_some_and(|c| c.loading_databases);
                 if !loading {
                     if let Some(c) = state.connections.get_mut(&conn_id) {
                         c.loading_databases = true;
@@ -195,17 +207,131 @@ fn render_saved_connection_row(
     state: &mut AppState,
     bridge: &DbBridge,
     config: ConnectionConfig,
+    can_reorder: bool,
 ) {
     let detail = format!("{}:{}/{}", config.host, config.port, config.database);
-    let response = render_leaf_row(
-        ui,
-        0,
-        icons_svg::DATABASE,
-        "saved_connection",
+    let full_width = ui.available_width().max(1.0);
+    let (rect, response) = ui.allocate_exact_size(
+        egui::vec2(full_width, 54.0),
+        if can_reorder {
+            Sense::click_and_drag()
+        } else {
+            Sense::click()
+        },
+    );
+    let hover_hint = if can_reorder {
+        "Click to connect. Drag to reorder."
+    } else {
+        "Click to connect."
+    };
+
+    if response.hovered() || response.dragged() {
+        ui.painter().rect_filled(
+            rect.shrink2(egui::vec2(2.0, 1.0)),
+            CornerRadius::same(theme::RADIUS_LG),
+            theme::with_alpha(theme::ACCENT_TEAL, 18),
+        );
+    }
+
+    if response.drag_started() {
+        state.dragging_saved_connection = Some(config.id);
+    }
+
+    let dragging_this = state.dragging_saved_connection == Some(config.id);
+    if dragging_this {
+        ui.painter().rect_stroke(
+            rect.shrink2(egui::vec2(2.0, 1.0)),
+            CornerRadius::same(theme::RADIUS_LG),
+            Stroke::new(1.0, theme::ACCENT_EMERALD),
+            egui::StrokeKind::Inside,
+        );
+    }
+
+    let pointer_pos = ui.input(|input| input.pointer.interact_pos());
+    if let (Some(dragged_id), Some(pointer_pos)) = (state.dragging_saved_connection, pointer_pos) {
+        if can_reorder && dragged_id != config.id && rect.contains(pointer_pos) {
+            let insert_after = pointer_pos.y > rect.center().y;
+            let y = if insert_after {
+                rect.bottom() + 1.0
+            } else {
+                rect.top() - 1.0
+            };
+            ui.painter()
+                .hline(rect.x_range(), y, Stroke::new(2.0, theme::ACCENT_EMERALD));
+
+            if ui.input(|input| input.pointer.any_released()) {
+                reorder_saved_connection(state, dragged_id, config.id, insert_after);
+            }
+        }
+    }
+
+    let icon_center = rect.left_center() + egui::vec2(if can_reorder { 29.0 } else { 17.0 }, 0.0);
+    ui.allocate_new_ui(
+        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
+            icon_center,
+            egui::vec2(16.0, 16.0),
+        )),
+        |ui| {
+            icon_img(ui, icons_svg::DATABASE, "saved_connection", 16.0);
+        },
+    );
+
+    if can_reorder {
+        let handle_x = rect.left() + 8.0;
+        for y in [
+            rect.center().y - 6.0,
+            rect.center().y,
+            rect.center().y + 6.0,
+        ] {
+            ui.painter().circle_filled(
+                egui::pos2(handle_x, y),
+                1.4,
+                if dragging_this {
+                    theme::ACCENT_EMERALD
+                } else {
+                    theme::text_disabled()
+                },
+            );
+        }
+    }
+
+    let text_x = rect.left() + if can_reorder { 44.0 } else { 30.0 };
+    let name_y = rect.top() + 18.0;
+    let detail_y = rect.top() + 37.0;
+    let text_right = (rect.right() - theme::SPACE_MD).max(text_x + 24.0);
+    let name_rect = egui::Rect::from_min_max(
+        egui::pos2(text_x, rect.top() + 6.0),
+        egui::pos2(text_right, rect.top() + 29.0),
+    );
+    let detail_rect = egui::Rect::from_min_max(
+        egui::pos2(text_x, rect.top() + 27.0),
+        egui::pos2(text_right, rect.bottom() - 5.0),
+    );
+
+    ui.painter().with_clip_rect(name_rect).text(
+        egui::pos2(text_x, name_y),
+        egui::Align2::LEFT_CENTER,
         &config.display_name,
-        Some(&detail),
-    )
-    .on_hover_text("Connect");
+        egui::FontId::proportional(13.0),
+        theme::text_primary(),
+    );
+
+    ui.painter().with_clip_rect(detail_rect).text(
+        egui::pos2(text_x, detail_y),
+        egui::Align2::LEFT_CENTER,
+        &detail,
+        egui::FontId::monospace(10.5),
+        theme::text_muted(),
+    );
+    show_dark_hover_tooltip(
+        ui,
+        response.id.with("saved_connection_tooltip"),
+        &response,
+        &format!("{}\n{}\n{}", config.display_name, detail, hover_hint),
+    );
+    if response.hovered() {
+        ui.output_mut(|output| output.cursor_icon = egui::CursorIcon::PointingHand);
+    }
 
     if response.clicked() {
         connect_saved_connection(state, bridge, config.clone());
@@ -392,7 +518,7 @@ fn new_connection(state: &mut AppState) {
 
 fn manage_connections(state: &mut AppState) {
     state.connection_dialog = Default::default();
-    state.connection_dialog.clipboard_import_checked = true;
+    state.connection_dialog.clipboard_import_enabled = false;
     state.show_connection_dialog = true;
 }
 
@@ -441,6 +567,46 @@ fn duplicate_connection(state: &mut AppState, config: &ConnectionConfig) {
     save_vault_connections(state);
     state.connection_dialog = crate::state::ConnectionDialogState::from_config(&duplicate);
     state.show_connection_dialog = true;
+}
+
+fn reorder_saved_connection(
+    state: &mut AppState,
+    dragged_id: ConnectionId,
+    target_id: ConnectionId,
+    insert_after: bool,
+) {
+    if dragged_id == target_id {
+        state.dragging_saved_connection = None;
+        return;
+    }
+
+    let Some(from) = state
+        .saved_connections
+        .iter()
+        .position(|config| config.id == dragged_id)
+    else {
+        state.dragging_saved_connection = None;
+        return;
+    };
+
+    let moved = state.saved_connections.remove(from);
+    let Some(mut to) = state
+        .saved_connections
+        .iter()
+        .position(|config| config.id == target_id)
+    else {
+        state.saved_connections.insert(from, moved);
+        state.dragging_saved_connection = None;
+        return;
+    };
+
+    if insert_after {
+        to += 1;
+    }
+    let to = to.min(state.saved_connections.len());
+    state.saved_connections.insert(to, moved);
+    state.dragging_saved_connection = None;
+    save_vault_connections(state);
 }
 
 fn new_query_for_connection(state: &mut AppState, conn_id: Option<ConnectionId>) {
@@ -554,20 +720,24 @@ fn render_database_node(
 
     collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        1,
-        true,
-        icons_svg::DATABASE,
-        "database",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 1,
+            default_open: true,
+            force_open: false,
+            selected: false,
+            icon_svg: icons_svg::DATABASE,
+            icon_name: "database",
+        },
         |ui| {
             if schemas.is_empty() {
                 let loading = state
                     .connections
                     .get(&conn_id)
-                    .map_or(false, |c| c.loading_schemas);
+                    .is_some_and(|c| c.loading_schemas);
                 if !loading {
                     if let Some(c) = state.connections.get_mut(&conn_id) {
                         c.loading_schemas = true;
@@ -605,6 +775,7 @@ fn render_schema_node(
 ) {
     let node_id = egui::Id::new(format!("schema_{conn_id}_{schema}"));
     let schema_owned = schema.to_string();
+    let active_schema = active_data_source_matches(state, conn_id, schema, None);
 
     let header_text = RichText::new(schema)
         .color(theme::text_secondary())
@@ -612,14 +783,18 @@ fn render_schema_node(
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        2,
-        false,
-        icons_svg::SCHEMA,
-        "schema",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 2,
+            default_open: false,
+            force_open: active_schema,
+            selected: false,
+            icon_svg: icons_svg::SCHEMA,
+            icon_name: "schema",
+        },
         |ui| {
             render_table_group_node(
                 ui,
@@ -651,12 +826,354 @@ fn render_schema_node(
         },
     );
 
-    resp.header_response.context_menu(|ui| {
-        if ui.button(t("ctx_new_table")).clicked() {
-            ui.close_menu();
-            crate::ui::table_designer::open_for_new_table_with_schema(state, schema);
+    if resp.header_response.secondary_clicked() {
+        let pos = resp
+            .header_response
+            .interact_pointer_pos()
+            .unwrap_or(resp.header_response.rect.right_center());
+        state.schema_context_menu = Some(SchemaContextMenuState {
+            conn_id,
+            schema: schema.to_string(),
+            pos: [pos.x, pos.y],
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// macOS-style schema context menu
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy)]
+enum SchemaMenuAction {
+    Open,
+    BackupSchema,
+    Edit,
+    NewSchema,
+    Delete,
+    Console,
+    DumpSql,
+    DataDictionary,
+    ReverseModel,
+    Find,
+    Share,
+    Refresh,
+}
+
+const SCHEMA_MENU_WIDTH: f32 = 292.0;
+const SCHEMA_MENU_ITEM_HEIGHT: f32 = 30.0;
+const SCHEMA_MENU_SEPARATOR_HEIGHT: f32 = 9.0;
+
+fn render_schema_context_menu_popup(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    let Some(menu) = state.schema_context_menu.clone() else {
+        return;
+    };
+
+    let mut action = None;
+    let mut close = false;
+    let pos = egui::pos2(menu.pos[0], menu.pos[1]);
+    let area = egui::Area::new(egui::Id::new("schema_context_menu_popup"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(pos)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme::bg_elevated())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(8))
+                .shadow(egui::Shadow {
+                    offset: [0, 8],
+                    blur: 18,
+                    spread: 0,
+                    color: Color32::from_black_alpha(90),
+                })
+                .inner_margin(egui::Margin::symmetric(14, 8))
+                .show(ui, |ui| {
+                    ui.set_min_width(SCHEMA_MENU_WIDTH);
+                    ui.set_max_width(SCHEMA_MENU_WIDTH);
+
+                    if mac_menu_item(ui, &t("ctx_open_schema"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Open);
+                    }
+                    if mac_menu_item(
+                        ui,
+                        &tf("ctx_backup_schema", &[&menu.schema]),
+                        None,
+                        None,
+                        true,
+                    )
+                    .clicked()
+                    {
+                        action = Some(SchemaMenuAction::BackupSchema);
+                    }
+                    mac_menu_separator(ui);
+
+                    if mac_menu_item(ui, &t("ctx_edit_schema"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Edit);
+                    }
+                    if mac_menu_item(ui, &t("ctx_new_schema"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::NewSchema);
+                    }
+                    if mac_menu_item(ui, &t("ctx_delete_schema"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Delete);
+                    }
+                    mac_menu_separator(ui);
+
+                    mac_menu_item(ui, &t("ctx_new_query"), Some("⌘ Y"), None, false);
+                    mac_menu_separator(ui);
+
+                    if mac_menu_item(ui, &t("ctx_console"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Console);
+                    }
+                    mac_menu_item(ui, &t("ctx_execute_sql_file"), None, None, false);
+                    if mac_menu_item(ui, &t("ctx_dump_sql_file"), None, Some("›"), true).clicked()
+                    {
+                        action = Some(SchemaMenuAction::DumpSql);
+                    }
+                    if mac_menu_item(ui, &t("ctx_data_dictionary"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::DataDictionary);
+                    }
+                    if mac_menu_item(ui, &t("ctx_reverse_database_to_model"), None, None, true)
+                        .clicked()
+                    {
+                        action = Some(SchemaMenuAction::ReverseModel);
+                    }
+                    if mac_menu_item(ui, &t("ctx_find_in_database"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Find);
+                    }
+                    mac_menu_separator(ui);
+
+                    if mac_menu_item(ui, &t("ctx_share"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::Share);
+                    }
+                    mac_menu_separator(ui);
+
+                    if mac_menu_item(ui, &t("ctx_refresh"), Some("⌘ R"), None, true).clicked() {
+                        action = Some(SchemaMenuAction::Refresh);
+                    }
+                });
+        });
+
+    let area_rect = area.response.rect;
+    ui.ctx().input(|input| {
+        if input.key_pressed(egui::Key::Escape) {
+            close = true;
+        }
+        if input.pointer.any_pressed()
+            && input
+                .pointer
+                .interact_pos()
+                .is_some_and(|pointer_pos| !area_rect.contains(pointer_pos))
+        {
+            close = true;
         }
     });
+
+    if let Some(action) = action {
+        handle_schema_menu_action(state, bridge, &menu, action);
+        close = true;
+    }
+
+    if close {
+        state.schema_context_menu = None;
+    }
+}
+
+fn mac_menu_item(
+    ui: &mut egui::Ui,
+    label: &str,
+    shortcut: Option<&str>,
+    trailing: Option<&str>,
+    enabled: bool,
+) -> egui::Response {
+    let width = ui.available_width().max(SCHEMA_MENU_WIDTH);
+    let (rect, response) = ui.allocate_exact_size(
+        egui::vec2(width, SCHEMA_MENU_ITEM_HEIGHT),
+        if enabled {
+            Sense::click()
+        } else {
+            Sense::hover()
+        },
+    );
+
+    let hovered = response.hovered() && enabled;
+    if hovered {
+        ui.painter().rect_filled(
+            rect.expand2(egui::vec2(6.0, 0.0)),
+            CornerRadius::same(theme::RADIUS_MD),
+            theme::with_alpha(theme::ACCENT_TEAL, 46),
+        );
+    }
+
+    let text_color = if enabled {
+        theme::text_primary()
+    } else {
+        theme::text_disabled()
+    };
+    let aux_color = if hovered {
+        theme::ACCENT_TEAL
+    } else {
+        theme::text_muted()
+    };
+
+    ui.painter().text(
+        rect.left_center(),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(13.0),
+        text_color,
+    );
+
+    if let Some(shortcut) = shortcut {
+        ui.painter().text(
+            rect.right_center(),
+            egui::Align2::RIGHT_CENTER,
+            shortcut,
+            egui::FontId::proportional(12.0),
+            aux_color,
+        );
+    }
+
+    if let Some(trailing) = trailing {
+        ui.painter().text(
+            rect.right_center(),
+            egui::Align2::RIGHT_CENTER,
+            trailing,
+            egui::FontId::proportional(17.0),
+            if hovered {
+                theme::ACCENT_TEAL
+            } else {
+                theme::text_secondary()
+            },
+        );
+    }
+
+    response
+}
+
+fn mac_menu_separator(ui: &mut egui::Ui) {
+    let width = ui.available_width().max(SCHEMA_MENU_WIDTH);
+    let (rect, _) = ui.allocate_exact_size(
+        egui::vec2(width, SCHEMA_MENU_SEPARATOR_HEIGHT),
+        Sense::hover(),
+    );
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        Stroke::new(1.0, theme::border_default()),
+    );
+}
+
+fn handle_schema_menu_action(
+    state: &mut AppState,
+    bridge: &DbBridge,
+    menu: &SchemaContextMenuState,
+    action: SchemaMenuAction,
+) {
+    match action {
+        SchemaMenuAction::Open => {
+            activate_table_group_view(state, menu.conn_id, &menu.schema, SchemaTableGroup::Tables);
+        }
+        SchemaMenuAction::BackupSchema => {
+            activate_backup_view(state, menu.conn_id, Some(&menu.schema));
+        }
+        SchemaMenuAction::Console => {
+            new_query_for_connection(state, Some(menu.conn_id));
+        }
+        SchemaMenuAction::DumpSql => {
+            activate_backup_view(state, menu.conn_id, Some(&menu.schema));
+        }
+        SchemaMenuAction::Refresh => {
+            refresh_schema_objects(state, bridge, menu.conn_id, &menu.schema)
+        }
+        SchemaMenuAction::ReverseModel => {
+            activate_schema_model_view(state, bridge, menu.conn_id, &menu.schema);
+        }
+        SchemaMenuAction::Edit
+        | SchemaMenuAction::NewSchema
+        | SchemaMenuAction::Delete
+        | SchemaMenuAction::DataDictionary
+        | SchemaMenuAction::Find
+        | SchemaMenuAction::Share => {
+            state.status_message = t("connection_coming_soon");
+        }
+    }
+}
+
+fn activate_schema_model_view(
+    state: &mut AppState,
+    bridge: &DbBridge,
+    conn_id: ConnectionId,
+    schema: &str,
+) {
+    state.active_connection = Some(conn_id);
+    state.er_diagram.selected_schema = schema.to_string();
+    state.er_diagram.search.clear();
+    state.er_diagram.show_diagram = true;
+    state.open_workspace_view(
+        crate::state::MainView::Model,
+        format!("Model: {schema}"),
+        schema,
+        "",
+    );
+
+    let mut request_tables = false;
+    let mut request_foreign_keys = false;
+    if let Some(conn) = state.connections.get(&conn_id) {
+        request_tables = !conn.tables.contains_key(schema) && !conn.loading_tables.contains(schema);
+        request_foreign_keys =
+            !conn.foreign_keys.contains_key(schema) && !conn.loading_foreign_keys.contains(schema);
+    }
+    if let Some(conn) = state.connections.get_mut(&conn_id) {
+        if request_tables {
+            conn.loading_tables.insert(schema.to_string());
+        }
+        if request_foreign_keys {
+            conn.loading_foreign_keys.insert(schema.to_string());
+        }
+    }
+    if request_tables {
+        bridge.send(DbCommand::ListTables {
+            conn_id,
+            schema: schema.to_string(),
+        });
+    }
+    if request_foreign_keys {
+        bridge.send(DbCommand::ListForeignKeys {
+            conn_id,
+            schema: schema.to_string(),
+        });
+    }
+
+    state.status_message = format!("Opening model for schema {schema}");
+}
+
+fn refresh_schema_objects(
+    state: &mut AppState,
+    bridge: &DbBridge,
+    conn_id: ConnectionId,
+    schema: &str,
+) {
+    if let Some(conn) = state.connections.get_mut(&conn_id) {
+        conn.tables.remove(schema);
+        conn.functions.remove(schema);
+        conn.foreign_keys.remove(schema);
+        conn.loading_tables.insert(schema.to_string());
+        conn.loading_functions.insert(schema.to_string());
+        conn.loading_foreign_keys.insert(schema.to_string());
+    }
+
+    bridge.send(DbCommand::ListTables {
+        conn_id,
+        schema: schema.to_string(),
+    });
+    bridge.send(DbCommand::ListFunctions {
+        conn_id,
+        schema: schema.to_string(),
+    });
+    bridge.send(DbCommand::ListForeignKeys {
+        conn_id,
+        schema: schema.to_string(),
+    });
+    state.status_message = format!("Refreshing schema {schema}");
 }
 
 // ---------------------------------------------------------------------------
@@ -708,6 +1225,41 @@ impl SchemaTableGroup {
     }
 }
 
+fn active_data_source_matches(
+    state: &AppState,
+    conn_id: ConnectionId,
+    schema: &str,
+    table: Option<&str>,
+) -> bool {
+    let Some(source) = state.active_data_source() else {
+        return false;
+    };
+    if source.conn_id != conn_id || source.schema != schema {
+        return false;
+    }
+    table.is_none_or(|table| source.table == table)
+}
+
+fn active_table_group_matches(
+    state: &AppState,
+    conn_id: ConnectionId,
+    schema: &str,
+    group: SchemaTableGroup,
+) -> bool {
+    let Some(source) = state.active_data_source() else {
+        return false;
+    };
+    if source.conn_id != conn_id || source.schema != schema {
+        return false;
+    }
+    state
+        .connections
+        .get(&conn_id)
+        .and_then(|conn| conn.tables.get(schema))
+        .and_then(|tables| tables.iter().find(|table| table.name == source.table))
+        .is_none_or(|table| group.matches(&table.table_type))
+}
+
 fn render_table_group_node(
     ui: &mut egui::Ui,
     state: &mut AppState,
@@ -724,17 +1276,22 @@ fn render_table_group_node(
     let header_text = RichText::new(group.label())
         .color(theme::text_secondary())
         .size(12.0);
+    let active_group = active_table_group_matches(state, conn_id, schema, group);
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        3,
-        false,
-        icon_svg,
-        icon_name,
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 3,
+            default_open: false,
+            force_open: active_group,
+            selected: false,
+            icon_svg,
+            icon_name,
+        },
         |ui| {
             let Some(tables) = ensure_schema_tables(ui, state, bridge, conn_id, schema, 4) else {
                 return;
@@ -819,14 +1376,18 @@ fn render_function_group_node(
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        3,
-        false,
-        icons_svg::FUNCTION,
-        "group_functions",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 3,
+            default_open: false,
+            force_open: false,
+            selected: false,
+            icon_svg: icons_svg::FUNCTION,
+            icon_name: "group_functions",
+        },
         |ui| {
             let Some(functions) = ensure_schema_functions(ui, state, bridge, conn_id, schema, 4)
             else {
@@ -869,14 +1430,18 @@ fn render_query_group_node(
 
     collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        3,
-        false,
-        icons_svg::QUERY,
-        "group_queries",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 3,
+            default_open: false,
+            force_open: false,
+            selected: false,
+            icon_svg: icons_svg::QUERY,
+            icon_name: "group_queries",
+        },
         |ui| {
             let response = render_leaf_row(
                 ui,
@@ -927,14 +1492,18 @@ fn render_backups_group_node(
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        3,
-        false,
-        icons_svg::BACKUP,
-        "group_backups",
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 3,
+            default_open: false,
+            force_open: false,
+            selected: false,
+            icon_svg: icons_svg::BACKUP,
+            icon_name: "group_backups",
+        },
         |ui| {
             let schema_response = render_leaf_row(
                 ui,
@@ -1096,6 +1665,7 @@ fn render_table_node(
         "MATERIALIZED VIEW" => (icons_svg::MATERIALIZED_VIEW, "mat_view"),
         _ => (icons_svg::TABLE, "table"),
     };
+    let active_table = active_data_source_matches(state, conn_id, schema, Some(table_name));
 
     let header_text = RichText::new(table_name)
         .color(theme::text_primary())
@@ -1103,14 +1673,18 @@ fn render_table_node(
 
     let resp = collapsing_node(
         ui,
-        node_id,
-        header_text,
-        None,
-        false,
-        4,
-        false,
-        icon_svg,
-        icon_name,
+        CollapsingNodeSpec {
+            id: node_id,
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 4,
+            default_open: false,
+            force_open: active_table,
+            selected: active_table,
+            icon_svg,
+            icon_name,
+        },
         |ui| {
             request_table_metadata(state, bridge, conn_id, schema, table_name);
             render_fields_group(
@@ -1170,17 +1744,10 @@ fn render_table_node(
 
     resp.header_response.context_menu(|ui| {
         if !matches!(table_type, "VIEW" | "MATERIALIZED VIEW") {
-            let edit_resp = ui.button(format!("      {}", t("tree_edit_table")));
-            ui.allocate_new_ui(
-                egui::UiBuilder::new().max_rect(
-                    edit_resp
-                        .rect
-                        .shrink2(egui::vec2(edit_resp.rect.width() - 20.0, 0.0)),
-                ),
-                |ui| {
-                    icon_img(ui, icons_svg::TABLE, "edit_table_icon", 12.0);
-                },
-            );
+            let edit_resp = ui.add(theme::ghost_icon_button(
+                icon_image(ui, icons_svg::TABLE, "edit_table_icon", 12.0),
+                t("tree_edit_table"),
+            ));
             if edit_resp.clicked() {
                 crate::ui::table_designer::open_for_existing_table(
                     state, schema, table_name, bridge,
@@ -1191,33 +1758,25 @@ fn render_table_node(
             ui.separator();
         }
 
-        let view_resp = ui.button(format!("      {}", t("tree_view_data_top_100")));
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(
-                view_resp
-                    .rect
-                    .shrink2(egui::vec2(view_resp.rect.width() - 20.0, 0.0)),
-            ),
-            |ui| {
-                icon_img(ui, icons_svg::EXECUTE, "view_data_icon", 12.0);
-            },
-        );
+        let view_resp = ui.add(theme::ghost_icon_button(
+            icon_image(ui, icons_svg::EXECUTE, "view_data_icon", 12.0),
+            t("tree_view_data_top_100"),
+        ));
         if view_resp.clicked() {
             open_table_data(state, bridge, conn_id, schema, table_name);
             ui.close_menu();
         }
 
-        let copy_resp = ui.button(format!("      {}", t("tree_copy_select")));
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(
-                copy_resp
-                    .rect
-                    .shrink2(egui::vec2(copy_resp.rect.width() - 20.0, 0.0)),
+        let copy_resp = ui.add(theme::ghost_icon_button(
+            crate::ui::icon_image_tinted(
+                ui,
+                icons_svg::COPY,
+                "copy_sql_icon",
+                12.0,
+                theme::ACCENT_BLUE,
             ),
-            |ui| {
-                icon_img(ui, icons_svg::COPY, "copy_sql_icon", 12.0);
-            },
-        );
+            t("tree_copy_select"),
+        ));
         if copy_resp.clicked() {
             let sql = format!(
                 "SELECT * FROM {}.{}",
@@ -1230,17 +1789,10 @@ fn render_table_node(
 
         ui.separator();
 
-        let refresh_resp = ui.button(format!("      {}", t("tree_refresh_metadata")));
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(
-                refresh_resp
-                    .rect
-                    .shrink2(egui::vec2(refresh_resp.rect.width() - 20.0, 0.0)),
-            ),
-            |ui| {
-                icon_img(ui, icons_svg::REFRESH, "refresh_cols_icon", 12.0);
-            },
-        );
+        let refresh_resp = ui.add(theme::ghost_icon_button(
+            icon_image(ui, icons_svg::REFRESH, "refresh_cols_icon", 12.0),
+            t("tree_refresh_metadata"),
+        ));
         if refresh_resp.clicked() {
             let key = (schema.to_string(), table_name.to_string());
             if let Some(conn) = state.connections.get_mut(&conn_id) {
@@ -1300,6 +1852,7 @@ fn open_table_data(
         conn_id,
         schema: schema.to_string(),
         table: table_name.to_string(),
+        filter: None,
     };
     let limit = state.data_edit.page_limit;
     let columns = state.data_columns_for_source(&source);
@@ -1421,9 +1974,7 @@ fn render_fields_group(
         columns.map(|items| items.len()),
         false,
         |ui| match columns {
-            Some(columns) if columns.is_empty() => {
-                render_status_row(ui, 6, &t("tree_empty"), false)
-            }
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(columns) => {
                 for col in columns {
                     render_column_row(ui, col, 6);
@@ -1454,9 +2005,7 @@ fn render_indexes_group(
         indexes.map(|items| items.len()),
         false,
         |ui| match indexes {
-            Some(indexes) if indexes.is_empty() => {
-                render_status_row(ui, 6, &t("tree_empty"), false)
-            }
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(indexes) => {
                 for index in indexes {
                     render_index_row(ui, index, 6);
@@ -1487,7 +2036,7 @@ fn render_foreign_keys_group(
         foreign_keys.map(|items| items.len()),
         false,
         |ui| match foreign_keys {
-            Some(keys) if keys.is_empty() => render_status_row(ui, 6, &t("tree_empty"), false),
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(keys) => {
                 for fk in keys {
                     render_foreign_key_row(ui, fk, 6);
@@ -1526,9 +2075,7 @@ fn render_unique_group(
         unique_indexes.as_ref().map(|items| items.len()),
         false,
         |ui| match unique_indexes.as_deref() {
-            Some(indexes) if indexes.is_empty() => {
-                render_status_row(ui, 6, &t("tree_empty"), false)
-            }
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(indexes) => {
                 for index in indexes {
                     render_index_row(ui, index, 6);
@@ -1559,7 +2106,7 @@ fn render_rules_group(
         rules.map(|items| items.len()),
         false,
         |ui| match rules {
-            Some(rules) if rules.is_empty() => render_status_row(ui, 6, &t("tree_empty"), false),
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(rules) => {
                 for rule in rules {
                     render_rule_row(ui, rule, 6);
@@ -1590,9 +2137,7 @@ fn render_triggers_group(
         triggers.map(|items| items.len()),
         false,
         |ui| match triggers {
-            Some(triggers) if triggers.is_empty() => {
-                render_status_row(ui, 6, &t("tree_empty"), false)
-            }
+            Some([]) => render_status_row(ui, 6, &t("tree_empty"), false),
             Some(triggers) => {
                 for trigger in triggers {
                     render_trigger_row(ui, trigger, 6);
@@ -1626,14 +2171,18 @@ fn render_metadata_group(
 
     collapsing_node(
         ui,
-        egui::Id::new(format!("table_meta_{conn_id}_{schema}_{table}_{group_key}")),
-        header_text,
-        None,
-        false,
-        5,
-        default_open,
-        icon_svg,
-        icon_name,
+        CollapsingNodeSpec {
+            id: egui::Id::new(format!("table_meta_{conn_id}_{schema}_{table}_{group_key}")),
+            label: header_text,
+            dot_color: None,
+            is_root: false,
+            depth: 5,
+            default_open,
+            force_open: false,
+            selected: false,
+            icon_svg,
+            icon_name,
+        },
         body,
     );
 }
@@ -1874,6 +2423,103 @@ fn paint_inline_icon(
     );
 }
 
+fn show_dark_hover_tooltip(
+    ui: &egui::Ui,
+    tooltip_id: egui::Id,
+    response: &egui::Response,
+    text: &str,
+) {
+    if !response.hovered() {
+        return;
+    }
+
+    let pointer = ui
+        .ctx()
+        .pointer_hover_pos()
+        .unwrap_or_else(|| response.rect.left_bottom());
+    let max_width = 420.0;
+    let pos = smart_tooltip_pos(ui.ctx(), pointer, estimate_tooltip_size(text, max_width));
+    egui::Area::new(tooltip_id)
+        .order(egui::Order::Tooltip)
+        .fixed_pos(pos)
+        .interactable(false)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(theme::RADIUS_LG))
+                .inner_margin(Margin::same(theme::SPACE_MD_I))
+                .show(ui, |ui| {
+                    ui.set_max_width(max_width);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(text)
+                                .color(theme::text_secondary())
+                                .monospace()
+                                .size(11.0),
+                        )
+                        .wrap(),
+                    );
+                });
+        });
+}
+
+fn smart_tooltip_pos(
+    ctx: &egui::Context,
+    anchor: egui::Pos2,
+    estimated_size: egui::Vec2,
+) -> egui::Pos2 {
+    let bounds = ctx.screen_rect().shrink(8.0);
+    let gap = 12.0;
+    let right_x = anchor.x + gap;
+    let left_x = anchor.x - gap - estimated_size.x;
+    let bottom_y = anchor.y + gap;
+    let top_y = anchor.y - gap - estimated_size.y;
+
+    let x = if right_x + estimated_size.x <= bounds.right() {
+        right_x
+    } else if left_x >= bounds.left() {
+        left_x
+    } else {
+        clamp_axis(right_x, bounds.left(), bounds.right() - estimated_size.x)
+    };
+
+    let y = if bottom_y + estimated_size.y <= bounds.bottom() {
+        bottom_y
+    } else if top_y >= bounds.top() {
+        top_y
+    } else {
+        clamp_axis(bottom_y, bounds.top(), bounds.bottom() - estimated_size.y)
+    };
+
+    egui::pos2(x, y)
+}
+
+fn estimate_tooltip_size(text: &str, max_width: f32) -> egui::Vec2 {
+    let char_width = 7.2;
+    let content_max = (max_width - theme::SPACE_MD * 2.0).max(80.0);
+    let mut visual_lines = 0.0_f32;
+    let mut widest = 0.0_f32;
+
+    for line in text.lines().chain((text.is_empty()).then_some("")) {
+        let line_width = line.chars().count() as f32 * char_width;
+        widest = widest.max(line_width);
+        visual_lines += (line_width / content_max).ceil().max(1.0);
+    }
+
+    let width = (widest + theme::SPACE_MD * 2.0).clamp(48.0, max_width);
+    let height = visual_lines * 15.0 + theme::SPACE_MD * 2.0;
+    egui::vec2(width, height)
+}
+
+fn clamp_axis(value: f32, min: f32, max: f32) -> f32 {
+    if max <= min {
+        min
+    } else {
+        value.clamp(min, max)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Custom collapsing header widget
 // ---------------------------------------------------------------------------
@@ -1882,46 +2528,57 @@ struct CollapsingResult {
     header_response: egui::Response,
 }
 
-fn collapsing_node(
-    ui: &mut egui::Ui,
+struct CollapsingNodeSpec<'a> {
     id: egui::Id,
     label: RichText,
     dot_color: Option<Color32>,
     is_root: bool,
     depth: usize,
     default_open: bool,
-    icon_svg: &str,
-    icon_name: &str,
+    force_open: bool,
+    selected: bool,
+    icon_svg: &'a str,
+    icon_name: &'a str,
+}
+
+fn collapsing_node(
+    ui: &mut egui::Ui,
+    spec: CollapsingNodeSpec<'_>,
     body: impl FnOnce(&mut egui::Ui),
 ) -> CollapsingResult {
     let mut collapse_state =
         egui::containers::collapsing_header::CollapsingState::load_with_default_open(
             ui.ctx(),
-            id,
-            default_open,
+            spec.id,
+            spec.default_open,
         );
+    if spec.force_open {
+        collapse_state.set_open(true);
+    }
 
     let full_width = ui.available_width();
-    let row_height = if is_root { 26.0 } else { 22.0 };
+    let row_height = if spec.is_root { 26.0 } else { 22.0 };
 
     let (header_rect, header_resp) =
         ui.allocate_exact_size(egui::vec2(full_width, row_height), Sense::click());
 
-    let bg = if header_resp.is_pointer_button_down_on() {
+    let bg = if spec.selected {
+        Some(theme::with_alpha(theme::ACCENT_TEAL, 42))
+    } else if header_resp.is_pointer_button_down_on() {
         Some(theme::bg_elevated())
     } else if header_resp.hovered() {
         Some(theme::with_alpha(theme::ACCENT_TEAL, 20))
-    } else if is_root {
+    } else if spec.is_root {
         Some(theme::bg_dark())
     } else {
         None
     };
 
-    let paint_rect = header_rect.shrink2(egui::vec2(if is_root { 5.0 } else { 2.0 }, 1.0));
+    let paint_rect = header_rect.shrink2(egui::vec2(if spec.is_root { 5.0 } else { 2.0 }, 1.0));
     if let Some(color) = bg {
         ui.painter().rect_filled(
             paint_rect,
-            CornerRadius::same(if is_root {
+            CornerRadius::same(if spec.is_root {
                 theme::RADIUS_LG
             } else {
                 theme::RADIUS_MD
@@ -1929,9 +2586,24 @@ fn collapsing_node(
             color,
         );
     }
+    if spec.selected {
+        ui.painter().rect_stroke(
+            paint_rect,
+            CornerRadius::same(theme::RADIUS_MD),
+            Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 120)),
+            egui::StrokeKind::Inside,
+        );
+        let stripe =
+            egui::Rect::from_min_size(paint_rect.left_top(), egui::vec2(2.0, paint_rect.height()));
+        ui.painter().rect_filled(
+            stripe,
+            CornerRadius::same(theme::RADIUS_SM),
+            theme::ACCENT_TEAL,
+        );
+    }
 
     // Left copper accent stripe for root nodes
-    if is_root {
+    if spec.is_root && !spec.selected {
         let stripe =
             egui::Rect::from_min_size(paint_rect.min, egui::vec2(2.0, paint_rect.height()));
         ui.painter().rect_filled(
@@ -1947,7 +2619,7 @@ fn collapsing_node(
 
     let openness = collapse_state.openness(ui.ctx());
 
-    let indent_x: f32 = depth_indent(depth);
+    let indent_x: f32 = depth_indent(spec.depth);
 
     // Chevron ▾ / ▸
     let (chevron_svg, chevron_name) = if openness > 0.5 {
@@ -1979,12 +2651,12 @@ fn collapsing_node(
             egui::vec2(16.0, 16.0),
         )),
         |ui| {
-            icon_img(ui, icon_svg, icon_name, 14.0);
+            icon_img(ui, spec.icon_svg, spec.icon_name, 14.0);
         },
     );
 
     // Optional status dot
-    let text_start = if let Some(color) = dot_color {
+    let text_start = if let Some(color) = spec.dot_color {
         let dot_x = icon_start + 24.0;
         let dot_center = header_rect.min + egui::vec2(dot_x, row_height / 2.0);
         ui.painter().circle_filled(dot_center, 4.0, color);
@@ -2003,12 +2675,10 @@ fn collapsing_node(
     ui.painter().text(
         text_pos,
         egui::Align2::LEFT_CENTER,
-        label.text(),
-        egui::FontId::proportional(if is_root { 13.0 } else { 12.0 }),
-        if is_root || depth <= 1 {
+        spec.label.text(),
+        egui::FontId::proportional(if spec.is_root { 13.0 } else { 12.0 }),
+        if spec.selected || spec.is_root || spec.depth <= 1 {
             theme::text_primary()
-        } else if depth >= 4 {
-            theme::text_secondary()
         } else {
             theme::text_secondary()
         },

@@ -15,6 +15,12 @@ pub fn render_connection_dialog(ctx: &egui::Context, state: &mut AppState, bridg
         return;
     }
 
+    if state.connection_dialog.clipboard_import_enabled
+        && state.connection_dialog.editing_id.is_none()
+    {
+        ctx.request_repaint_after(std::time::Duration::from_millis(500));
+    }
+
     let mut open = true;
 
     egui::Window::new(t("connection_dialog_title"))
@@ -73,7 +79,7 @@ fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
 
     ui.add_space(theme::SPACE_MD);
     if let Some(ref result) = dialog.test_result.clone() {
-        render_test_result(ui, &result);
+        render_test_result(ui, result);
         ui.add_space(theme::SPACE_SM);
     }
 
@@ -105,18 +111,31 @@ fn render_dialog_content(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
 // ---------------------------------------------------------------------------
 
 fn detect_clipboard_import(dialog: &mut ConnectionDialogState) {
-    if dialog.clipboard_import_checked || dialog.editing_id.is_some() {
+    if !dialog.clipboard_import_enabled || dialog.editing_id.is_some() {
         return;
     }
 
-    dialog.clipboard_import_checked = true;
+    let now = std::time::Instant::now();
+    if dialog
+        .last_clipboard_scan
+        .is_some_and(|last| now.duration_since(last) < std::time::Duration::from_millis(500))
+    {
+        return;
+    }
+    dialog.last_clipboard_scan = Some(now);
 
     let Some(text) = read_clipboard_text() else {
         return;
     };
+    if dialog.last_clipboard_text.as_deref() == Some(text.as_str()) {
+        return;
+    }
+    dialog.last_clipboard_text = Some(text.clone());
 
     if let Some(candidate) = parse_postgres_connection_url(&text) {
-        dialog.pending_clipboard_import = Some(candidate);
+        if dialog.pending_clipboard_import.as_ref() != Some(&candidate) {
+            dialog.pending_clipboard_import = Some(candidate);
+        }
     }
 }
 
@@ -138,25 +157,34 @@ fn render_clipboard_import_prompt(ui: &mut egui::Ui, dialog: &mut ConnectionDial
     };
 
     egui::Frame::new()
-        .fill(theme::with_alpha(theme::ACCENT_TEAL, 18))
-        .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 86)))
-        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-        .inner_margin(Margin::same(theme::SPACE_LG as i8))
+        .fill(theme::bg_medium())
+        .stroke(Stroke::new(1.0, theme::border_default()))
+        .corner_radius(CornerRadius::same(theme::RADIUS_LG))
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_LG as i8,
+            theme::SPACE_MD as i8,
+        ))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                crate::ui::icon_img(
-                    ui,
-                    crate::ui::icons_svg::CONNECTION,
-                    "clipboard_postgres_url",
-                    14.0,
-                );
-                ui.add_space(theme::SPACE_SM);
+                egui::Frame::new()
+                    .fill(theme::with_alpha(theme::ACCENT_TEAL, 22))
+                    .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                    .inner_margin(Margin::same(theme::SPACE_SM as i8))
+                    .show(ui, |ui| {
+                        crate::ui::icon_img(
+                            ui,
+                            crate::ui::icons_svg::CONNECTION,
+                            "clipboard_postgres_url",
+                            16.0,
+                        );
+                    });
+                ui.add_space(theme::SPACE_MD);
                 ui.vertical(|ui| {
                     ui.label(
                         RichText::new(t("connection_clipboard_title"))
                             .color(theme::text_primary())
-                            .size(12.0)
+                            .size(13.0)
                             .strong(),
                     );
                     ui.label(
@@ -165,38 +193,61 @@ fn render_clipboard_import_prompt(ui: &mut egui::Ui, dialog: &mut ConnectionDial
                             .size(11.0),
                     );
                 });
-            });
 
-            ui.add_space(theme::SPACE_SM);
-            ui.horizontal_wrapped(|ui| {
-                clipboard_import_chip(ui, format!("{}:{}", candidate.host, candidate.port));
-                clipboard_import_chip(ui, candidate.database.clone());
-                clipboard_import_chip(ui, candidate.username.clone());
-                clipboard_import_chip(ui, password_label.clone());
-                if candidate.use_tls {
-                    clipboard_import_chip(ui, "TLS".to_string());
-                }
-            });
-
-            ui.add_space(theme::SPACE_SM);
-            ui.allocate_ui_with_layout(
-                egui::vec2(ui.available_width(), 28.0),
-                egui::Layout::right_to_left(egui::Align::Center),
-                |ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
-                        .add(theme::primary_button(&t("connection_clipboard_apply")))
+                        .add_sized(
+                            egui::vec2(62.0, 30.0),
+                            theme::primary_button(&t("connection_clipboard_apply")),
+                        )
                         .clicked()
                     {
                         action = ClipboardImportAction::Apply;
                     }
                     if ui
-                        .add(theme::ghost_button(&t("connection_clipboard_ignore")))
+                        .add_sized(
+                            egui::vec2(62.0, 30.0),
+                            theme::ghost_button(&t("connection_clipboard_ignore")),
+                        )
                         .clicked()
                     {
                         action = ClipboardImportAction::Ignore;
                     }
-                },
-            );
+                });
+            });
+
+            ui.add_space(theme::SPACE_MD);
+            ui.horizontal_wrapped(|ui| {
+                clipboard_import_field(
+                    ui,
+                    t("connection_host"),
+                    format!("{}:{}", candidate.host, candidate.port),
+                    true,
+                );
+                clipboard_import_field(
+                    ui,
+                    t("connection_database"),
+                    candidate.database.clone(),
+                    true,
+                );
+                clipboard_import_field(
+                    ui,
+                    t("connection_username"),
+                    candidate.username.clone(),
+                    true,
+                );
+                clipboard_import_field(ui, t("connection_password"), password_label.clone(), false);
+                clipboard_import_field(
+                    ui,
+                    t("connection_use_tls"),
+                    if candidate.use_tls {
+                        t("connection_encrypted")
+                    } else {
+                        t("connection_unencrypted")
+                    },
+                    false,
+                );
+            });
         });
 
     ui.add_space(theme::SPACE_MD);
@@ -213,21 +264,33 @@ fn render_clipboard_import_prompt(ui: &mut egui::Ui, dialog: &mut ConnectionDial
     }
 }
 
-fn clipboard_import_chip(ui: &mut egui::Ui, text: String) {
+fn clipboard_import_field(ui: &mut egui::Ui, label: String, value: String, monospace: bool) {
     egui::Frame::new()
-        .fill(Color32::from_rgba_unmultiplied(255, 255, 255, 18))
+        .fill(theme::bg_dark())
         .stroke(Stroke::new(1.0, theme::border_subtle()))
-        .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
         .inner_margin(Margin::symmetric(
             theme::SPACE_MD as i8,
-            theme::SPACE_XS as i8,
+            theme::SPACE_SM as i8,
         ))
         .show(ui, |ui| {
-            ui.label(
-                RichText::new(text)
+            ui.set_min_width(104.0);
+            ui.vertical(|ui| {
+                ui.label(
+                    RichText::new(label)
+                        .color(theme::text_muted())
+                        .size(9.5)
+                        .strong(),
+                );
+                let text = RichText::new(value)
                     .color(theme::text_secondary())
-                    .font(egui::FontId::monospace(11.0)),
-            );
+                    .size(11.0);
+                if monospace {
+                    ui.label(text.font(egui::FontId::monospace(11.0)));
+                } else {
+                    ui.label(text);
+                }
+            });
         });
 }
 
@@ -558,19 +621,11 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         // Test — secondary style
         let test_btn = ui.add_enabled(
             !testing,
-            egui::Button::new(format!("      {}", t("connection_test")))
-                .fill(theme::bg_light())
-                .stroke(Stroke::new(1.0, theme::border_strong())),
-        );
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(
-                test_btn
-                    .rect
-                    .shrink2(egui::vec2(test_btn.rect.width() - 24.0, 0.0)),
-            ),
-            |ui| {
-                crate::ui::icon_img(ui, crate::ui::icons_svg::REFRESH, "test_action", 12.0);
-            },
+            theme::secondary_icon_button(
+                crate::ui::icon_image(ui, crate::ui::icons_svg::REFRESH, "test_action", 12.0),
+                t("connection_test"),
+            )
+            .min_size(egui::vec2(160.0, 32.0)),
         );
 
         if test_btn.clicked() {
@@ -586,19 +641,12 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         ui.add_space(theme::SPACE_SM);
 
         // Connect — copper primary
-        let connect_btn = ui.add(theme::primary_button(&format!(
-            "      {}",
-            t("connection_connect")
-        )));
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(
-                connect_btn
-                    .rect
-                    .shrink2(egui::vec2(connect_btn.rect.width() - 24.0, 0.0)),
-            ),
-            |ui| {
-                crate::ui::icon_img(ui, crate::ui::icons_svg::CONNECTION, "conn_action", 12.0);
-            },
+        let connect_btn = ui.add(
+            theme::primary_icon_button(
+                crate::ui::icon_image(ui, crate::ui::icons_svg::CONNECTION, "conn_action", 12.0),
+                t("connection_connect"),
+            )
+            .min_size(egui::vec2(88.0, 32.0)),
         );
 
         if connect_btn.clicked() {

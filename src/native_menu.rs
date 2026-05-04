@@ -22,6 +22,9 @@ pub struct NativeMenu {
     edit_select_all_id: MenuId,
     new_connection_id: MenuId,
     new_tab_id: MenuId,
+    close_window_id: MenuId,
+    show_main_window_id: MenuId,
+    quit_id: MenuId,
     query_view_id: MenuId,
     toggle_theme_id: MenuId,
     er_diagram_id: MenuId,
@@ -31,6 +34,13 @@ pub struct NativeMenu {
 
 #[cfg(not(target_os = "macos"))]
 pub struct NativeMenu;
+
+#[derive(Default)]
+pub struct NativeMenuActions {
+    pub hide_main_window: bool,
+    pub show_main_window: bool,
+    pub quit_requested: bool,
+}
 
 impl NativeMenu {
     #[cfg(target_os = "macos")]
@@ -45,6 +55,12 @@ impl NativeMenu {
             true,
             Some(Accelerator::new(Some(Modifiers::SUPER), Code::Comma)),
         );
+        let quit = MenuItem::with_id(
+            "quit",
+            crate::i18n::t("menu_quit"),
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyQ)),
+        );
         app_menu
             .append_items(&[
                 &about,
@@ -57,7 +73,7 @@ impl NativeMenu {
                 &PredefinedMenuItem::hide_others(None),
                 &PredefinedMenuItem::show_all(None),
                 &PredefinedMenuItem::separator(),
-                &PredefinedMenuItem::quit(None),
+                &quit,
             ])
             .expect("failed to build FerrumGrid app menu");
 
@@ -76,6 +92,12 @@ impl NativeMenu {
                 Code::KeyN,
             )),
         );
+        let close_window = MenuItem::with_id(
+            "close_window",
+            crate::i18n::t("menu_close_window"),
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyW)),
+        );
         let file_menu = Submenu::with_items(
             crate::i18n::t("menu_file"),
             true,
@@ -83,7 +105,7 @@ impl NativeMenu {
                 &new_connection,
                 &new_tab,
                 &PredefinedMenuItem::separator(),
-                &PredefinedMenuItem::close_window(None),
+                &close_window,
             ],
         )
         .expect("failed to build FerrumGrid file menu");
@@ -193,10 +215,18 @@ impl NativeMenu {
         )
         .expect("failed to build FerrumGrid tools menu");
 
+        let show_main_window = MenuItem::with_id(
+            "show_main_window",
+            crate::i18n::t("menu_show_main_window"),
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::Digit0)),
+        );
         let window_menu = Submenu::with_items(
             "Window",
             true,
             &[
+                &show_main_window,
+                &PredefinedMenuItem::separator(),
                 &PredefinedMenuItem::minimize(None),
                 &PredefinedMenuItem::maximize(None),
                 &PredefinedMenuItem::bring_all_to_front(None),
@@ -231,6 +261,9 @@ impl NativeMenu {
             edit_select_all_id: edit_select_all.id().clone(),
             new_connection_id: new_connection.id().clone(),
             new_tab_id: new_tab.id().clone(),
+            close_window_id: close_window.id().clone(),
+            show_main_window_id: show_main_window.id().clone(),
+            quit_id: quit.id().clone(),
             query_view_id: query_view.id().clone(),
             toggle_theme_id: toggle_theme.id().clone(),
             er_diagram_id: er_diagram.id().clone(),
@@ -260,7 +293,8 @@ impl NativeMenu {
         ctx: &egui::Context,
         state: &mut AppState,
         settings: &mut AppSettings,
-    ) {
+    ) -> NativeMenuActions {
+        let mut actions = NativeMenuActions::default();
         while let Ok(event) = muda::MenuEvent::receiver().try_recv() {
             let id = event.id();
             if id == &self.about_id {
@@ -293,6 +327,12 @@ impl NativeMenu {
                     .push(crate::types::EditorTab::new(format!("Query {n}")));
                 state.active_tab = state.editor_tabs.len() - 1;
                 state.open_workspace_main_view(MainView::Query);
+            } else if id == &self.close_window_id {
+                actions.hide_main_window = true;
+            } else if id == &self.show_main_window_id {
+                actions.show_main_window = true;
+            } else if id == &self.quit_id {
+                actions.quit_requested = true;
             } else if id == &self.query_view_id {
                 state.open_workspace_main_view(MainView::Query);
             } else if id == &self.toggle_theme_id {
@@ -308,13 +348,14 @@ impl NativeMenu {
                 crate::storage::settings::save_settings(settings);
             } else if id == &self.er_diagram_id {
                 state.open_workspace_main_view(MainView::Model);
-                state.er_diagram.show_diagram = !state.er_diagram.show_diagram;
+                state.er_diagram.show_diagram = true;
             } else if id == &self.table_designer_id {
                 crate::ui::table_designer::open_for_new_table(state);
             } else if id == &self.prisma_id {
                 crate::prisma::ui::open_prisma_window(state);
             }
         }
+        actions
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -323,7 +364,8 @@ impl NativeMenu {
         _ctx: &egui::Context,
         _state: &mut AppState,
         _settings: &mut AppSettings,
-    ) {
+    ) -> NativeMenuActions {
+        NativeMenuActions::default()
     }
 }
 

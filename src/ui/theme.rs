@@ -6,43 +6,46 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
-// Design token palette — DataGrip-style dark + macOS-style light
+// Design token palette — Supabase-inspired dark developer console
 // ---------------------------------------------------------------------------
 
 static DARK_MODE: AtomicBool = AtomicBool::new(true);
 
 // Background layers (darkest -> lightest)
-pub const BG_SHELL: Color32 = Color32::from_rgb(8, 10, 13);
-pub const BG_DARKEST: Color32 = Color32::from_rgb(12, 14, 18);
-pub const BG_DARK: Color32 = Color32::from_rgb(18, 21, 27);
-pub const BG_MEDIUM: Color32 = Color32::from_rgb(26, 31, 40);
-pub const BG_LIGHT: Color32 = Color32::from_rgb(38, 45, 57);
-pub const BG_ELEVATED: Color32 = Color32::from_rgb(48, 58, 72);
-pub const BG_EDITOR: Color32 = Color32::from_rgb(10, 12, 16);
+pub const BG_SHELL: Color32 = Color32::from_rgb(15, 15, 15);
+pub const BG_DARKEST: Color32 = Color32::from_rgb(15, 15, 15);
+pub const BG_DARK: Color32 = Color32::from_rgb(23, 23, 23);
+pub const BG_MEDIUM: Color32 = Color32::from_rgb(31, 31, 31);
+pub const BG_LIGHT: Color32 = Color32::from_rgb(41, 41, 41);
+pub const BG_ELEVATED: Color32 = Color32::from_rgb(46, 46, 46);
+pub const BG_EDITOR: Color32 = Color32::from_rgb(15, 15, 15);
 
 // Text
-pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(220, 223, 228);
-pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(160, 165, 178);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(100, 106, 122);
-pub const TEXT_DISABLED: Color32 = Color32::from_rgb(68, 72, 84);
+pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(250, 250, 250);
+pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(180, 180, 180);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(137, 137, 137);
+pub const TEXT_DISABLED: Color32 = Color32::from_rgb(77, 77, 77);
 
-// Accent — copper/amber identity
-pub const ACCENT_COPPER: Color32 = Color32::from_rgb(204, 120, 50);
-pub const ACCENT_COPPER_LIGHT: Color32 = Color32::from_rgb(230, 152, 80);
-pub const ACCENT_COPPER_DIM: Color32 = Color32::from_rgb(130, 76, 32);
-pub const ACCENT_TEAL: Color32 = Color32::from_rgb(52, 190, 171);
+// Accent — Supabase emerald identity. Copper names remain as compatibility aliases.
+pub const ACCENT_EMERALD: Color32 = Color32::from_rgb(62, 207, 142);
+pub const ACCENT_EMERALD_LIGHT: Color32 = Color32::from_rgb(92, 230, 167);
+pub const ACCENT_EMERALD_DIM: Color32 = Color32::from_rgb(22, 78, 55);
+pub const ACCENT_COPPER: Color32 = ACCENT_EMERALD;
+pub const ACCENT_COPPER_LIGHT: Color32 = ACCENT_EMERALD_LIGHT;
+pub const ACCENT_COPPER_DIM: Color32 = ACCENT_EMERALD_DIM;
+pub const ACCENT_TEAL: Color32 = Color32::from_rgb(0, 197, 115);
 
 // Semantic colors
-pub const ACCENT_BLUE: Color32 = Color32::from_rgb(86, 156, 214);
-pub const ACCENT_GREEN: Color32 = Color32::from_rgb(78, 190, 100);
-pub const ACCENT_RED: Color32 = Color32::from_rgb(210, 70, 70);
-pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(220, 190, 80);
+pub const ACCENT_BLUE: Color32 = Color32::from_rgb(118, 156, 255);
+pub const ACCENT_GREEN: Color32 = Color32::from_rgb(62, 207, 142);
+pub const ACCENT_RED: Color32 = Color32::from_rgb(229, 72, 77);
+pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
 
 // Borders / separators
-pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(38, 41, 50);
-pub const BORDER_DEFAULT: Color32 = Color32::from_rgb(55, 59, 72);
-pub const BORDER_STRONG: Color32 = Color32::from_rgb(80, 86, 104);
-pub const BORDER_GLOW: Color32 = Color32::from_rgb(96, 78, 61);
+pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(36, 36, 36);
+pub const BORDER_DEFAULT: Color32 = Color32::from_rgb(46, 46, 46);
+pub const BORDER_STRONG: Color32 = Color32::from_rgb(57, 57, 57);
+pub const BORDER_GLOW: Color32 = ACCENT_EMERALD;
 
 // ---------------------------------------------------------------------------
 // Spacing scale — stored as f32 for use in add_space / vec2 calls.
@@ -71,11 +74,12 @@ pub const RADIUS_LG: u8 = 6;
 pub const INPUT_HEIGHT: f32 = 32.0;
 pub const INPUT_MARGIN_X: i8 = 10;
 pub const INPUT_MARGIN_Y: i8 = 6;
-pub const INPUT_BG: Color32 = Color32::from_rgb(13, 16, 21);
+pub const INPUT_BG: Color32 = Color32::from_rgb(15, 15, 15);
+pub const BUTTON_HEIGHT: f32 = 34.0;
 pub const KEYWORD_COLOR: Color32 = ACCENT_BLUE;
-pub const STRING_COLOR: Color32 = Color32::from_rgb(206, 145, 120);
-pub const COMMENT_COLOR: Color32 = Color32::from_rgb(98, 140, 90);
-pub const NUMBER_COLOR: Color32 = Color32::from_rgb(181, 206, 168);
+pub const STRING_COLOR: Color32 = Color32::from_rgb(62, 207, 142);
+pub const COMMENT_COLOR: Color32 = Color32::from_rgb(137, 137, 137);
+pub const NUMBER_COLOR: Color32 = Color32::from_rgb(245, 204, 93);
 
 const LIGHT_BG_SHELL: Color32 = Color32::from_rgb(241, 243, 247);
 const LIGHT_BG_DARKEST: Color32 = Color32::from_rgb(247, 248, 251);
@@ -94,7 +98,7 @@ const LIGHT_TEXT_DISABLED: Color32 = Color32::from_rgb(168, 176, 190);
 const LIGHT_BORDER_SUBTLE: Color32 = Color32::from_rgb(226, 231, 238);
 const LIGHT_BORDER_DEFAULT: Color32 = Color32::from_rgb(205, 212, 224);
 const LIGHT_BORDER_STRONG: Color32 = Color32::from_rgb(176, 186, 202);
-const LIGHT_BORDER_GLOW: Color32 = Color32::from_rgb(213, 161, 111);
+const LIGHT_BORDER_GLOW: Color32 = Color32::from_rgb(62, 207, 142);
 
 pub fn is_dark() -> bool {
     DARK_MODE.load(Ordering::Relaxed)
@@ -165,7 +169,7 @@ pub fn border_glow() -> Color32 {
 }
 
 pub fn accent_copper_dim() -> Color32 {
-    pick(ACCENT_COPPER_DIM, Color32::from_rgb(248, 228, 208))
+    pick(ACCENT_COPPER_DIM, Color32::from_rgb(220, 250, 235))
 }
 
 fn pick(dark: Color32, light: Color32) -> Color32 {
@@ -219,8 +223,9 @@ impl FerrumTheme {
         );
 
         style.spacing.item_spacing = egui::vec2(SPACE_MD, SPACE_SM);
-        style.spacing.button_padding = egui::vec2(SPACE_LG, SPACE_SM);
-        style.spacing.interact_size = egui::vec2(32.0, 30.0);
+        style.spacing.button_padding = egui::vec2(SPACE_XL, 8.0);
+        style.spacing.icon_spacing = 6.0;
+        style.spacing.interact_size = egui::vec2(36.0, BUTTON_HEIGHT);
         style.spacing.menu_margin = Margin::same(SPACE_SM_I);
         style.spacing.window_margin = Margin::same(SPACE_MD_I);
         style.spacing.indent = 16.0;
@@ -240,48 +245,49 @@ impl FerrumTheme {
 
         v.window_stroke = Stroke::new(1.0, BORDER_DEFAULT);
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
-        v.window_shadow = egui::Shadow {
-            offset: [0, 4],
-            blur: 20,
-            spread: 0,
-            color: Color32::from_black_alpha(120),
-        };
+        v.window_shadow = egui::Shadow::NONE;
 
         // Widgets — noninteractive
         v.widgets.noninteractive.bg_fill = BG_MEDIUM;
+        v.widgets.noninteractive.weak_bg_fill = BG_MEDIUM;
         v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, BORDER_SUBTLE);
-        v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_SECONDARY);
+        v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_DISABLED);
         v.widgets.noninteractive.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — inactive
         v.widgets.inactive.bg_fill = BG_LIGHT;
+        v.widgets.inactive.weak_bg_fill = BG_MEDIUM;
         v.widgets.inactive.bg_stroke = Stroke::new(1.0, BORDER_DEFAULT);
         v.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
         v.widgets.inactive.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — hovered
-        v.widgets.hovered.bg_fill = Color32::from_rgb(52, 61, 76);
-        v.widgets.hovered.bg_stroke = Stroke::new(1.0, BORDER_GLOW);
+        v.widgets.hovered.bg_fill = BG_ELEVATED;
+        v.widgets.hovered.weak_bg_fill = Color32::from_rgb(36, 36, 36);
+        v.widgets.hovered.bg_stroke = Stroke::new(1.0, BORDER_STRONG);
         v.widgets.hovered.fg_stroke = Stroke::new(1.5, TEXT_PRIMARY);
         v.widgets.hovered.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — active (pressed)
         v.widgets.active.bg_fill = ACCENT_COPPER_DIM;
+        v.widgets.active.weak_bg_fill = Color32::from_rgb(25, 64, 47);
         v.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
         v.widgets.active.fg_stroke = Stroke::new(2.0, Color32::WHITE);
         v.widgets.active.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — open
         v.widgets.open.bg_fill = BG_ELEVATED;
+        v.widgets.open.weak_bg_fill = BG_ELEVATED;
         v.widgets.open.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
         v.widgets.open.fg_stroke = Stroke::new(1.5, TEXT_PRIMARY);
         v.widgets.open.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.selection.bg_fill = Color32::from_rgba_unmultiplied(204, 120, 50, 55);
+        v.selection.bg_fill = Color32::from_rgba_unmultiplied(62, 207, 142, 38);
         v.selection.stroke = Stroke::new(1.0, ACCENT_COPPER_LIGHT);
 
         v.override_text_color = Some(TEXT_PRIMARY);
         v.hyperlink_color = ACCENT_COPPER_LIGHT;
+        v.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         v
     }
@@ -297,43 +303,44 @@ impl FerrumTheme {
 
         v.window_stroke = Stroke::new(1.0, border_default());
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
-        v.window_shadow = egui::Shadow {
-            offset: [0, 8],
-            blur: 24,
-            spread: 0,
-            color: Color32::from_black_alpha(28),
-        };
+        v.window_shadow = egui::Shadow::NONE;
 
         v.widgets.noninteractive.bg_fill = bg_medium();
+        v.widgets.noninteractive.weak_bg_fill = Color32::from_rgb(248, 250, 253);
         v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, border_subtle());
-        v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, text_secondary());
+        v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, text_disabled());
         v.widgets.noninteractive.corner_radius = CornerRadius::same(RADIUS_MD);
 
         v.widgets.inactive.bg_fill = bg_medium();
+        v.widgets.inactive.weak_bg_fill = Color32::from_rgb(249, 250, 252);
         v.widgets.inactive.bg_stroke = Stroke::new(1.0, border_default());
         v.widgets.inactive.fg_stroke = Stroke::new(1.0, text_primary());
         v.widgets.inactive.corner_radius = CornerRadius::same(RADIUS_MD);
 
         v.widgets.hovered.bg_fill = Color32::from_rgb(246, 248, 251);
+        v.widgets.hovered.weak_bg_fill = Color32::from_rgb(241, 245, 250);
         v.widgets.hovered.bg_stroke = Stroke::new(1.0, border_glow());
         v.widgets.hovered.fg_stroke = Stroke::new(1.5, text_primary());
         v.widgets.hovered.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.widgets.active.bg_fill = Color32::from_rgb(244, 224, 205);
+        v.widgets.active.bg_fill = Color32::from_rgb(220, 250, 235);
+        v.widgets.active.weak_bg_fill = Color32::from_rgb(230, 252, 241);
         v.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
         v.widgets.active.fg_stroke = Stroke::new(2.0, text_primary());
         v.widgets.active.corner_radius = CornerRadius::same(RADIUS_MD);
 
         v.widgets.open.bg_fill = bg_elevated();
+        v.widgets.open.weak_bg_fill = Color32::from_rgb(245, 248, 252);
         v.widgets.open.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
         v.widgets.open.fg_stroke = Stroke::new(1.5, text_primary());
         v.widgets.open.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.selection.bg_fill = Color32::from_rgba_unmultiplied(204, 120, 50, 42);
+        v.selection.bg_fill = Color32::from_rgba_unmultiplied(62, 207, 142, 38);
         v.selection.stroke = Stroke::new(1.0, ACCENT_COPPER);
 
         v.override_text_color = Some(text_primary());
         v.hyperlink_color = ACCENT_COPPER;
+        v.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         v
     }
@@ -342,13 +349,12 @@ impl FerrumTheme {
 // ---------------------------------------------------------------------------
 // Backward-compat entry point
 // ---------------------------------------------------------------------------
-pub fn configure_fonts(ctx: &egui::Context) {
+pub fn configure_fonts(ctx: &egui::Context, language: &str) {
     let mut fonts = FontDefinitions::default();
     install_apple_system_fonts(&mut fonts);
+    install_locale_ui_fonts(&mut fonts, language);
     install_cjk_font_fallbacks(&mut fonts);
     ctx.set_fonts(fonts);
-
-    FerrumTheme::apply_dark(ctx);
 }
 
 pub fn apply_appearance(ctx: &egui::Context, appearance: &str) -> bool {
@@ -384,8 +390,40 @@ fn install_apple_system_fonts(fonts: &mut FontDefinitions) {
     );
 }
 
+fn install_locale_ui_fonts(fonts: &mut FontDefinitions, language: &str) {
+    match language {
+        "ko" => install_font(
+            fonts,
+            "ferrum_apple_sd_gothic_neo",
+            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+            &[FontFamily::Proportional],
+            FontPlacement::Front,
+        ),
+        "zh-CN" => install_font(
+            fonts,
+            "ferrum_st_heiti",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+            &[FontFamily::Proportional],
+            FontPlacement::Front,
+        ),
+        _ => {}
+    }
+}
+
 fn install_cjk_font_fallbacks(fonts: &mut FontDefinitions) {
     let candidates = [
+        (
+            "ferrum_apple_sd_gothic_neo",
+            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+        ),
+        (
+            "ferrum_hiragino_sans_gb",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        ),
+        (
+            "ferrum_st_heiti",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+        ),
         (
             "ferrum_apple_gothic",
             "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
@@ -442,24 +480,75 @@ fn install_font(
 // ---------------------------------------------------------------------------
 
 pub fn primary_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(Color32::WHITE))
-        .fill(ACCENT_COPPER)
-        .stroke(Stroke::new(1.0, ACCENT_COPPER_LIGHT))
-        .corner_radius(CornerRadius::same(RADIUS_MD))
+    egui::Button::new(egui::RichText::new(text).color(Color32::WHITE).size(12.5))
+        .fill(BG_DARKEST)
+        .stroke(Stroke::new(1.0, ACCENT_EMERALD))
+        .corner_radius(CornerRadius::same(255))
+        .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }
 
 pub fn secondary_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(text_primary()))
-        .fill(bg_light())
-        .stroke(Stroke::new(1.0, border_strong()))
+    egui::Button::new(egui::RichText::new(text).color(text_secondary()).size(12.5))
+        .fill(bg_medium())
+        .stroke(Stroke::new(1.0, border_default()))
         .corner_radius(CornerRadius::same(RADIUS_MD))
+        .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }
 
 pub fn ghost_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(text_secondary()))
-        .fill(Color32::TRANSPARENT)
-        .stroke(Stroke::new(1.0, border_default()))
+    egui::Button::new(egui::RichText::new(text).color(text_secondary()).size(12.5))
+        .fill(bg_darkest())
+        .stroke(Stroke::new(1.0, border_subtle()))
         .corner_radius(CornerRadius::same(RADIUS_MD))
+        .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
+}
+
+pub fn primary_icon_button(
+    icon: egui::Image<'static>,
+    text: impl Into<String>,
+) -> egui::Button<'static> {
+    egui::Button::image_and_text(
+        icon,
+        egui::RichText::new(text.into())
+            .color(Color32::WHITE)
+            .size(12.5),
+    )
+    .fill(BG_DARKEST)
+    .stroke(Stroke::new(1.0, ACCENT_EMERALD))
+    .corner_radius(CornerRadius::same(255))
+    .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
+}
+
+pub fn secondary_icon_button(
+    icon: egui::Image<'static>,
+    text: impl Into<String>,
+) -> egui::Button<'static> {
+    egui::Button::image_and_text(
+        icon,
+        egui::RichText::new(text.into())
+            .color(text_secondary())
+            .size(12.5),
+    )
+    .fill(bg_medium())
+    .stroke(Stroke::new(1.0, border_default()))
+    .corner_radius(CornerRadius::same(RADIUS_MD))
+    .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
+}
+
+pub fn ghost_icon_button(
+    icon: egui::Image<'static>,
+    text: impl Into<String>,
+) -> egui::Button<'static> {
+    egui::Button::image_and_text(
+        icon,
+        egui::RichText::new(text.into())
+            .color(text_secondary())
+            .size(12.5),
+    )
+    .fill(bg_darkest())
+    .stroke(Stroke::new(1.0, border_subtle()))
+    .corner_radius(CornerRadius::same(RADIUS_MD))
+    .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }
 
 pub fn with_alpha(color: Color32, alpha: u8) -> Color32 {
@@ -468,6 +557,8 @@ pub fn with_alpha(color: Color32, alpha: u8) -> Color32 {
 
 pub fn text_input(text: &mut String) -> egui::TextEdit<'_> {
     egui::TextEdit::singleline(text)
+        .background_color(input_bg())
+        .text_color(text_primary())
         .margin(Margin::symmetric(INPUT_MARGIN_X, INPUT_MARGIN_Y))
         .min_size(egui::vec2(0.0, INPUT_HEIGHT))
         .vertical_align(egui::Align::Center)
@@ -475,6 +566,17 @@ pub fn text_input(text: &mut String) -> egui::TextEdit<'_> {
 
 pub fn mono_text_input(text: &mut String) -> egui::TextEdit<'_> {
     text_input(text).font(TextStyle::Monospace)
+}
+
+pub fn multiline_text_input(text: &mut String) -> egui::TextEdit<'_> {
+    egui::TextEdit::multiline(text)
+        .background_color(input_bg())
+        .text_color(text_primary())
+        .margin(Margin::symmetric(INPUT_MARGIN_X, INPUT_MARGIN_Y))
+}
+
+pub fn multiline_mono_text_input(text: &mut String) -> egui::TextEdit<'_> {
+    multiline_text_input(text).font(TextStyle::Monospace)
 }
 
 pub fn password_input(text: &mut String, reveal: bool) -> egui::TextEdit<'_> {

@@ -1,5 +1,5 @@
-/// Custom designed SVG icons for FerrumGrid.
-/// Designed to match Navicat's aesthetic.
+//! Custom designed SVG icons for FerrumGrid.
+//! Designed to match Navicat's aesthetic.
 
 pub const CONNECTION: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="connection_g" x1="12" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#74F2A2"/><stop offset="1" stop-color="#28B86D"/></linearGradient></defs>
@@ -187,13 +187,27 @@ pub const ERROR: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill
 
 pub const CONNECT: &str = CONNECTION;
 
+pub const CALENDAR: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" color="#2DBDFF" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="14" width="44" height="40" rx="7" fill="#0D1820" stroke="currentColor" stroke-width="4"/>
+    <path d="M10 26H54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+    <path d="M22 8V18M42 8V18" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M21 36H25M31 36H35M41 36H45M21 45H25M31 45H35" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".82"/>
+</svg>"##;
+
+pub const CLOCK: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" color="#2DBDFF" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="32" cy="32" r="23" fill="#0D1820" stroke="currentColor" stroke-width="4"/>
+    <path d="M32 18V33L43 39" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="32" cy="32" r="3" fill="currentColor"/>
+</svg>"##;
+
 pub const PLUS: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M32 12V52M12 32H52" stroke="#4EBE64" stroke-width="8" stroke-linecap="round"/>
 </svg>"##;
 
-pub const COPY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="20" y="20" width="32" height="32" rx="4" stroke="#569CD6" stroke-width="4"/>
-    <path d="M12 12H44V20H12V44H12V12Z" stroke="#569CD6" stroke-width="4" stroke-opacity="0.5"/>
+pub const COPY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" color="#2DBDFF" xmlns="http://www.w3.org/2000/svg">
+    <rect x="22" y="18" width="30" height="34" rx="5" fill="#0D1820" stroke="currentColor" stroke-width="4"/>
+    <path d="M14 42V14C14 11.7909 15.7909 10 18 10H42" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
+    <path d="M30 30H44M30 39H42" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".82"/>
 </svg>"##;
 
 pub const EXPORT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">

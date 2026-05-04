@@ -231,7 +231,7 @@ fn sql_to_prisma_model(sql: &str) -> Result<String, String> {
                 .collect();
 
             for col in columns {
-                let parts: Vec<&str> = col.trim().split_whitespace().collect();
+                let parts: Vec<&str> = col.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let col_name = parts[0].trim_matches('"').trim_matches('`');
                     let col_type = &parts[1];
@@ -277,9 +277,10 @@ fn sql_type_to_prisma(sql_type: &str) -> String {
         "BigInt".to_string()
     } else if upper.starts_with("NUMERIC") || upper.starts_with("DECIMAL") {
         "Decimal".to_string()
-    } else if upper == "REAL" || upper == "FLOAT" || upper.starts_with("FLOAT") {
-        "Float".to_string()
-    } else if upper == "DOUBLE" || upper.starts_with("DOUBLE PRECISION") {
+    } else if matches!(upper.as_str(), "REAL" | "FLOAT" | "DOUBLE")
+        || upper.starts_with("FLOAT")
+        || upper.starts_with("DOUBLE PRECISION")
+    {
         "Float".to_string()
     } else if upper == "BOOLEAN" || upper == "BOOL" {
         "Boolean".to_string()
@@ -289,8 +290,6 @@ fn sql_type_to_prisma(sql_type: &str) -> String {
         "Json".to_string()
     } else if upper == "BYTEA" || upper == "BLOB" {
         "Bytes".to_string()
-    } else if upper == "UUID" {
-        "String".to_string()
     } else {
         "String".to_string() // Default fallback
     }

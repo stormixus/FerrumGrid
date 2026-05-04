@@ -16,6 +16,7 @@ pub struct FerrumGridApp {
     settings: storage::settings::AppSettings,
     native_menu: crate::native_menu::NativeMenu,
     toasts: egui_notify::Toasts,
+    quit_requested: bool,
 }
 
 fn reload_enum_text_projection_if_needed(state: &mut AppState, bridge: &DbBridge) -> bool {
@@ -73,9 +74,9 @@ fn reload_enum_text_projection_if_needed(state: &mut AppState, bridge: &DbBridge
 impl FerrumGridApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         egui_extras::install_image_loaders(&cc.egui_ctx);
-        ui::theme::configure_fonts(&cc.egui_ctx);
 
         let mut settings = storage::settings::load_settings();
+        ui::theme::configure_fonts(&cc.egui_ctx, &settings.language);
 
         // Initialize i18n system
         init_with_saved(Some(&settings.language));
@@ -127,6 +128,7 @@ impl FerrumGridApp {
             settings,
             native_menu: crate::native_menu::NativeMenu::install(),
             toasts: egui_notify::Toasts::default().with_anchor(egui_notify::Anchor::BottomRight),
+            quit_requested: false,
         }
     }
 
@@ -356,11 +358,6 @@ impl FerrumGridApp {
                         conn.roles = roles;
                     }
                 }
-                DbResponse::QueryCancelled { conn_id } => {
-                    self.state.query_running = false;
-                    self.state.last_error = Some("Query cancelled".to_string());
-                    self.state.status_message = format!("Query cancelled on {conn_id}");
-                }
                 DbResponse::BackupCompleted { record } => {
                     self.state.backup_running = false;
                     self.state.backup_last_error = None;
@@ -430,8 +427,20 @@ impl FerrumGridApp {
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         self.process_responses();
-        self.native_menu
+        let menu_actions = self
+            .native_menu
             .handle_events(ctx, &mut self.state, &mut self.settings);
+        if menu_actions.show_main_window {
+            show_main_window(ctx);
+        }
+        if menu_actions.hide_main_window {
+            hide_main_window(ctx, false);
+        }
+        if menu_actions.quit_requested {
+            self.quit_requested = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        self.handle_close_request(ctx);
 
         if !self.state.vault.is_unlocked() {
             ui::vault::render_vault_window(ctx, &mut self.state);
@@ -446,13 +455,13 @@ impl eframe::App for FerrumGridApp {
         let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
+            ui::theme::configure_fonts(ctx, &self.settings.language);
         }
         if self.settings.dark_mode != previous_dark_mode {
             ctx.send_viewport_cmd(egui::ViewportCommand::Icon(Some(Arc::new(
                 crate::app_icon::icon_for_dark_mode(self.settings.dark_mode),
             ))));
         }
-        ui::er_diagram::render_er_diagram(ctx, &mut self.state, bridge);
         ui::table_designer::render_table_designer(ctx, &mut self.state, bridge);
         crate::prisma::ui::render_prisma_window(ctx, &mut self.state, bridge);
 
@@ -478,4 +487,31 @@ impl eframe::App for FerrumGridApp {
         }
         self.bridge = None;
     }
+}
+
+impl FerrumGridApp {
+    fn handle_close_request(&mut self, ctx: &egui::Context) {
+        if !ctx.input(|input| input.viewport().close_requested()) {
+            return;
+        }
+
+        if self.quit_requested {
+            return;
+        }
+
+        hide_main_window(ctx, true);
+    }
+}
+
+fn hide_main_window(ctx: &egui::Context, cancel_close: bool) {
+    if cancel_close {
+        ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+    }
+    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+}
+
+fn show_main_window(ctx: &egui::Context) {
+    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
 }

@@ -194,7 +194,7 @@ pub fn render_settings_window(
         )
         .show(ctx, |ui| {
             ui.set_min_size(vec2(PREF_WIDTH, PREF_HEIGHT));
-            render_header(ui, state);
+            render_header(ui, state, &mut close_action);
 
             let active_tab = state.active_settings_tab;
             if let Some(draft) = state.settings_draft.as_mut() {
@@ -204,6 +204,8 @@ pub fn render_settings_window(
             render_footer(ui, &mut close_action);
         });
 
+    preview_draft_appearance(ctx, state);
+
     if !open && close_action == CloseAction::None {
         close_action = CloseAction::Cancel;
     }
@@ -211,12 +213,16 @@ pub fn render_settings_window(
     match close_action {
         CloseAction::None => false,
         CloseAction::Cancel => {
+            settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance);
             state.settings_draft = None;
             state.show_settings_dialog = false;
             false
         }
         CloseAction::RestoreDefaults => {
-            state.settings_draft = Some(storage::settings::AppSettings::default());
+            let mut defaults = storage::settings::AppSettings::default();
+            defaults.dark_mode = theme::apply_appearance(ctx, &defaults.appearance);
+            state.settings_draft = Some(defaults);
+            ctx.request_repaint();
             false
         }
         CloseAction::Apply => {
@@ -241,7 +247,19 @@ pub fn render_settings_window(
     }
 }
 
-fn render_header(ui: &mut egui::Ui, state: &mut AppState) {
+fn preview_draft_appearance(ctx: &egui::Context, state: &mut AppState) {
+    let Some(draft) = state.settings_draft.as_mut() else {
+        return;
+    };
+
+    let preview_dark_mode = theme::apply_appearance(ctx, &draft.appearance);
+    if draft.dark_mode != preview_dark_mode {
+        draft.dark_mode = preview_dark_mode;
+        ctx.request_repaint();
+    }
+}
+
+fn render_header(ui: &mut egui::Ui, state: &mut AppState, close_action: &mut CloseAction) {
     let (rect, _) = ui.allocate_exact_size(vec2(PREF_WIDTH, HEADER_HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
 
@@ -257,7 +275,12 @@ fn render_header(ui: &mut egui::Ui, state: &mut AppState) {
         Stroke::new(1.0, theme::border_subtle()),
     );
 
-    paint_traffic_lights(&painter, rect.left_top() + vec2(18.0, 14.0));
+    render_traffic_lights(
+        ui,
+        &painter,
+        rect.left_top() + vec2(18.0, 14.0),
+        close_action,
+    );
     painter.text(
         pos2(rect.left() + 84.0, rect.top() + 15.0),
         Align2::LEFT_CENTER,
@@ -863,14 +886,51 @@ fn paint_theme_preview(ui: &mut egui::Ui) {
     }
 }
 
-fn paint_traffic_lights(painter: &egui::Painter, origin: egui::Pos2) {
-    let colors = [
-        Color32::from_rgb(255, 95, 87),
-        Color32::from_rgb(255, 189, 46),
-        Color32::from_rgb(40, 200, 64),
-    ];
-    for (idx, color) in colors.iter().enumerate() {
-        painter.circle_filled(origin + vec2(idx as f32 * 20.0, 0.0), 6.4, *color);
+fn render_traffic_lights(
+    ui: &mut egui::Ui,
+    painter: &egui::Painter,
+    origin: egui::Pos2,
+    close_action: &mut CloseAction,
+) {
+    let disabled_fill = if theme::is_dark() {
+        Color32::from_rgb(74, 74, 74)
+    } else {
+        Color32::from_rgb(212, 212, 212)
+    };
+    let disabled_stroke = if theme::is_dark() {
+        Color32::from_rgb(86, 86, 86)
+    } else {
+        Color32::from_rgb(194, 194, 194)
+    };
+
+    for idx in 0..3 {
+        let center = origin + vec2(idx as f32 * 20.0, 0.0);
+        let hit_rect = Rect::from_center_size(center, vec2(18.0, 18.0));
+
+        if idx == 0 {
+            let response = ui.interact(
+                hit_rect,
+                egui::Id::new("settings_close_traffic_light"),
+                Sense::click(),
+            );
+            let fill = if response.hovered() {
+                Color32::from_rgb(255, 112, 105)
+            } else {
+                Color32::from_rgb(255, 95, 87)
+            };
+            painter.circle_filled(center, 6.4, fill);
+            painter.circle_stroke(
+                center,
+                6.4,
+                Stroke::new(0.8, Color32::from_rgb(220, 55, 50)),
+            );
+            if response.clicked() {
+                *close_action = CloseAction::Cancel;
+            }
+        } else {
+            painter.circle_filled(center, 6.4, disabled_fill);
+            painter.circle_stroke(center, 6.4, Stroke::new(0.8, disabled_stroke));
+        }
     }
 }
 

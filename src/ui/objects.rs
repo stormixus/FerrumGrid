@@ -1,6 +1,4 @@
-use eframe::egui::{
-    self, Color32, ComboBox, CornerRadius, Margin, RichText, ScrollArea, Sense, Stroke,
-};
+use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, ScrollArea, Sense, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
@@ -215,32 +213,52 @@ fn render_schema_filter(ui: &mut egui::Ui, state: &mut AppState) {
         return;
     }
 
-    ComboBox::from_id_salt("objects_schema_filter")
-        .width(150.0)
-        .selected_text(if state.objects_schema_filter.is_empty() {
-            t("objects_all_schemas")
-        } else {
-            state.objects_schema_filter.clone()
-        })
-        .show_ui(ui, |ui| {
-            if ui
-                .selectable_label(
-                    state.objects_schema_filter.is_empty(),
-                    t("objects_all_schemas"),
-                )
-                .clicked()
-            {
-                state.objects_schema_filter.clear();
-            }
-            for schema in schemas {
-                if ui
-                    .selectable_label(state.objects_schema_filter == schema, &schema)
-                    .clicked()
-                {
-                    state.objects_schema_filter = schema;
+    let selected_label = if state.objects_schema_filter.is_empty() {
+        t("objects_all_schemas")
+    } else {
+        state.objects_schema_filter.clone()
+    };
+    let popup_id = ui.make_persistent_id("objects_schema_filter_popup");
+    let response = schema_filter_button(ui, &selected_label, 180.0);
+    if response.clicked() {
+        ui.memory_mut(|memory| memory.toggle_popup(popup_id));
+    }
+
+    let mut next_schema: Option<String> = None;
+    let mut choose_all = false;
+    show_dark_popup_below(ui, popup_id, &response, 220.0, theme::SPACE_SM_I, |ui| {
+        if schema_filter_option(
+            ui,
+            &t("objects_all_schemas"),
+            state.objects_schema_filter.is_empty(),
+        )
+        .clicked()
+        {
+            choose_all = true;
+            ui.memory_mut(|memory| memory.close_popup());
+        }
+
+        ScrollArea::vertical()
+            .max_height(220.0)
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                for schema in schemas {
+                    if schema_filter_option(ui, &schema, state.objects_schema_filter == schema)
+                        .clicked()
+                    {
+                        next_schema = Some(schema);
+                        ui.memory_mut(|memory| memory.close_popup());
+                    }
                 }
-            }
-        });
+            });
+    });
+
+    if choose_all {
+        state.objects_schema_filter.clear();
+    }
+    if let Some(schema) = next_schema {
+        state.objects_schema_filter = schema;
+    }
 }
 
 fn render_objects_list(
@@ -546,10 +564,12 @@ fn render_backup_repository_card(
                 } else {
                     t("backup_run")
                 };
-                if ui
-                    .add_enabled(can_run, theme::primary_button(&run_label))
-                    .clicked()
-                {
+                let run_button = if can_run {
+                    theme::primary_button(&run_label)
+                } else {
+                    theme::secondary_button(&run_label)
+                };
+                if ui.add_enabled(can_run, run_button).clicked() {
                     let request = BackupRequest {
                         conn_id,
                         config: cfg.clone(),
@@ -587,19 +607,19 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
         BackupFormat::Plain => t("backup_plain_sql"),
     };
     let button = egui::Button::new(RichText::new(label).color(if selected {
-        Color32::WHITE
+        theme::text_primary()
     } else {
         theme::text_secondary()
     }))
     .fill(if selected {
-        theme::ACCENT_COPPER
+        theme::bg_darkest()
     } else {
-        theme::bg_light()
+        theme::bg_medium()
     })
     .stroke(Stroke::new(
         1.0,
         if selected {
-            theme::ACCENT_COPPER_LIGHT
+            theme::ACCENT_EMERALD
         } else {
             theme::border_default()
         },
@@ -698,7 +718,12 @@ fn render_backup_record(ui: &mut egui::Ui, record: &BackupRecord) {
             });
         })
         .response;
-    response.on_hover_text(format!("Connection ID: {}", record.conn_id));
+    show_dark_hover_tooltip(
+        ui,
+        response.id.with("tooltip"),
+        &response,
+        &format!("Connection ID: {}", record.conn_id),
+    );
     ui.add_space(theme::SPACE_SM);
 }
 
@@ -802,44 +827,15 @@ fn render_automation_tools(ui: &mut egui::Ui, state: &AppState) -> Option<Object
 
 fn render_model_tools(
     ui: &mut egui::Ui,
-    state: &AppState,
-    _bridge: &DbBridge,
+    state: &mut AppState,
+    bridge: &DbBridge,
 ) -> Option<ObjectAction> {
     let _ = active_conn(state)?;
-    ui.add_space(theme::SPACE_XL);
-    let mut action = None;
-    egui::Frame::new()
-        .fill(theme::bg_medium())
-        .stroke(Stroke::new(1.0, theme::border_subtle()))
-        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-        .inner_margin(Margin::same(theme::SPACE_XL as i8))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                crate::ui::icon_img(ui, icons_svg::MODEL, "objects_model_large", 24.0);
-                ui.vertical(|ui| {
-                    ui.label(
-                        RichText::new(t("schema_visualizer_title"))
-                            .color(theme::text_primary())
-                            .size(15.0)
-                            .strong(),
-                    );
-                    ui.label(
-                        RichText::new(t("schema_visualizer_desc"))
-                            .color(theme::text_muted())
-                            .size(11.0),
-                    );
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add(theme::primary_button(&t("schema_visualizer_open")))
-                        .clicked()
-                    {
-                        action = Some(ObjectAction::OpenModel);
-                    }
-                });
-            });
-        });
-    action
+    if state.er_diagram.selected_schema.is_empty() {
+        state.er_diagram.selected_schema = selected_schema_or_public(state);
+    }
+    crate::ui::er_diagram::render_er_diagram(ui, state, bridge);
+    None
 }
 
 fn render_bi_tools(ui: &mut egui::Ui, state: &AppState) -> Option<ObjectAction> {
@@ -1262,6 +1258,7 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                 conn_id,
                 schema: schema.clone(),
                 table: name.clone(),
+                filter: None,
             };
             let limit = state.data_edit.page_limit;
             let columns = state.data_columns_for_source(&source);
@@ -1296,15 +1293,9 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
             }
         }
         ObjectAction::OpenModel => {
-            if state.er_diagram.selected_schema.is_empty() {
-                state.er_diagram.selected_schema = selected_schema_or_public(state);
-            }
-            state.open_workspace_view(
-                MainView::Model,
-                format!("Model: {}", state.er_diagram.selected_schema),
-                state.er_diagram.selected_schema.clone(),
-                "",
-            );
+            let schema = selected_schema_or_public(state);
+            state.er_diagram.selected_schema = schema.clone();
+            state.open_workspace_view(MainView::Model, format!("Model: {schema}"), schema, "");
             state.er_diagram.show_diagram = true;
         }
         ObjectAction::AddAutomationQuery { title, sql } => {
@@ -1582,26 +1573,291 @@ fn icon_button(ui: &mut egui::Ui, svg: &str, name: &str, tooltip: String) -> egu
     const BUTTON_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
     const ICON_SIZE: f32 = 13.0;
 
-    let response = ui
-        .add_sized(
-            BUTTON_SIZE,
-            egui::Button::new("")
-                .fill(theme::bg_light())
-                .stroke(Stroke::new(1.0, theme::border_default()))
-                .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
-        )
-        .on_hover_text(tooltip);
+    let (rect, response) = ui.allocate_exact_size(BUTTON_SIZE, Sense::click());
+    let hovered = response.hovered();
+    let fill = if hovered {
+        theme::bg_light()
+    } else {
+        theme::bg_medium()
+    };
+    let stroke = if hovered {
+        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 150))
+    } else {
+        Stroke::new(1.0, theme::border_default())
+    };
 
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+
+    let icon_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(ICON_SIZE, ICON_SIZE));
     ui.scope_builder(
-        egui::UiBuilder::new().max_rect(response.rect).layout(
-            egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-        ),
+        egui::UiBuilder::new()
+            .max_rect(icon_rect)
+            .layout(egui::Layout::centered_and_justified(
+                egui::Direction::LeftToRight,
+            )),
         |ui| {
-            crate::ui::icon_img(ui, svg, name, ICON_SIZE);
+            ui.add(crate::ui::icon_image_tinted(
+                ui,
+                svg,
+                name,
+                ICON_SIZE,
+                theme::ACCENT_TEAL,
+            ));
         },
     );
 
+    set_pointing_cursor_on_hover(ui, &response, true);
+    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &tooltip);
     response
+}
+
+fn schema_filter_button(ui: &mut egui::Ui, label: &str, width: f32) -> egui::Response {
+    let (rect, response) =
+        ui.allocate_exact_size(egui::vec2(width, theme::INPUT_HEIGHT), Sense::click());
+    let hovered = response.hovered();
+    let fill = if hovered {
+        theme::bg_light()
+    } else {
+        theme::bg_medium()
+    };
+    let stroke = if hovered {
+        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 140))
+    } else {
+        Stroke::new(1.0, theme::border_default())
+    };
+
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+
+    let text_rect = rect
+        .shrink2(egui::vec2(theme::SPACE_MD, 0.0))
+        .with_max_x(rect.right() - 30.0);
+    ui.painter().with_clip_rect(text_rect).text(
+        text_rect.left_center(),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(12.5),
+        theme::text_primary(),
+    );
+
+    let icon_rect = egui::Rect::from_center_size(
+        rect.right_center() - egui::vec2(16.0, 0.0),
+        egui::vec2(12.0, 12.0),
+    );
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(icon_rect)
+            .layout(egui::Layout::centered_and_justified(
+                egui::Direction::LeftToRight,
+            )),
+        |ui| {
+            ui.add(crate::ui::icon_image_tinted(
+                ui,
+                icons_svg::CHEVRON_DOWN,
+                "objects_schema_filter_chevron",
+                12.0,
+                theme::text_muted(),
+            ));
+        },
+    );
+
+    set_pointing_cursor_on_hover(ui, &response, true);
+    response
+}
+
+fn schema_filter_option(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
+    let width = ui.available_width().max(180.0);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), Sense::click());
+    let hovered = response.hovered();
+    let fill = if selected {
+        theme::with_alpha(theme::ACCENT_TEAL, 28)
+    } else if hovered {
+        theme::bg_light()
+    } else {
+        Color32::TRANSPARENT
+    };
+    if fill != Color32::TRANSPARENT {
+        ui.painter()
+            .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    }
+
+    let text_color = if selected {
+        theme::text_primary()
+    } else {
+        theme::text_secondary()
+    };
+    ui.painter().text(
+        rect.left_center() + egui::vec2(theme::SPACE_MD, 0.0),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(12.0),
+        text_color,
+    );
+
+    if selected {
+        ui.painter().circle_filled(
+            rect.right_center() - egui::vec2(theme::SPACE_LG, 0.0),
+            3.0,
+            theme::ACCENT_TEAL,
+        );
+    }
+
+    set_pointing_cursor_on_hover(ui, &response, true);
+    response
+}
+
+fn show_dark_popup_below<R>(
+    ui: &mut egui::Ui,
+    popup_id: egui::Id,
+    response: &egui::Response,
+    min_width: f32,
+    margin: i8,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) {
+    if !ui.memory(|memory| memory.is_popup_open(popup_id)) {
+        return;
+    }
+
+    let mut pos = response.rect.left_bottom() + egui::vec2(0.0, 4.0);
+    if let Some(to_global) = ui.ctx().layer_transform_to_global(ui.layer_id()) {
+        pos = to_global * pos;
+    }
+    let popup = egui::Area::new(popup_id)
+        .order(egui::Order::Foreground)
+        .fixed_pos(pos)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(theme::RADIUS_LG))
+                .inner_margin(Margin::same(margin))
+                .show(ui, |ui| {
+                    ui.set_width(min_width);
+                    add_contents(ui);
+                });
+        });
+
+    let should_close = ui.input(|input| input.key_pressed(egui::Key::Escape))
+        || (response.clicked_elsewhere() && popup.response.clicked_elsewhere());
+    if should_close {
+        ui.memory_mut(|memory| memory.close_popup());
+    }
+}
+
+fn show_dark_hover_tooltip(
+    ui: &egui::Ui,
+    tooltip_id: egui::Id,
+    response: &egui::Response,
+    text: &str,
+) {
+    if !response.hovered() {
+        return;
+    }
+
+    let pointer = ui
+        .ctx()
+        .pointer_hover_pos()
+        .unwrap_or_else(|| response.rect.left_bottom());
+    let max_width = 420.0;
+    let pos = smart_tooltip_pos(ui.ctx(), pointer, estimate_tooltip_size(text, max_width));
+    egui::Area::new(tooltip_id)
+        .order(egui::Order::Tooltip)
+        .fixed_pos(pos)
+        .interactable(false)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(theme::bg_medium())
+                .stroke(Stroke::new(1.0, theme::border_strong()))
+                .corner_radius(CornerRadius::same(theme::RADIUS_LG))
+                .inner_margin(Margin::same(theme::SPACE_MD_I))
+                .show(ui, |ui| {
+                    ui.set_max_width(max_width);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(text)
+                                .color(theme::text_secondary())
+                                .monospace()
+                                .size(11.0),
+                        )
+                        .wrap(),
+                    );
+                });
+        });
+}
+
+fn smart_tooltip_pos(
+    ctx: &egui::Context,
+    anchor: egui::Pos2,
+    estimated_size: egui::Vec2,
+) -> egui::Pos2 {
+    let bounds = ctx.screen_rect().shrink(8.0);
+    let gap = 12.0;
+    let right_x = anchor.x + gap;
+    let left_x = anchor.x - gap - estimated_size.x;
+    let bottom_y = anchor.y + gap;
+    let top_y = anchor.y - gap - estimated_size.y;
+
+    let x = if right_x + estimated_size.x <= bounds.right() {
+        right_x
+    } else if left_x >= bounds.left() {
+        left_x
+    } else {
+        clamp_axis(right_x, bounds.left(), bounds.right() - estimated_size.x)
+    };
+
+    let y = if bottom_y + estimated_size.y <= bounds.bottom() {
+        bottom_y
+    } else if top_y >= bounds.top() {
+        top_y
+    } else {
+        clamp_axis(bottom_y, bounds.top(), bounds.bottom() - estimated_size.y)
+    };
+
+    egui::pos2(x, y)
+}
+
+fn estimate_tooltip_size(text: &str, max_width: f32) -> egui::Vec2 {
+    let char_width = 7.2;
+    let content_max = (max_width - theme::SPACE_MD * 2.0).max(80.0);
+    let mut visual_lines = 0.0_f32;
+    let mut widest = 0.0_f32;
+
+    for line in text.lines().chain((text.is_empty()).then_some("")) {
+        let line_width = line.chars().count() as f32 * char_width;
+        widest = widest.max(line_width);
+        visual_lines += (line_width / content_max).ceil().max(1.0);
+    }
+
+    let width = (widest + theme::SPACE_MD * 2.0).clamp(48.0, max_width);
+    let height = visual_lines * 15.0 + theme::SPACE_MD * 2.0;
+    egui::vec2(width, height)
+}
+
+fn clamp_axis(value: f32, min: f32, max: f32) -> f32 {
+    if max <= min {
+        min
+    } else {
+        value.clamp(min, max)
+    }
+}
+
+fn set_pointing_cursor_on_hover(ui: &mut egui::Ui, response: &egui::Response, enabled: bool) {
+    if enabled && response.hovered() {
+        ui.output_mut(|output| output.cursor_icon = egui::CursorIcon::PointingHand);
+    }
 }
 
 fn active_conn(state: &AppState) -> Option<ConnectionId> {

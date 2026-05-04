@@ -7,13 +7,13 @@ use crate::state::{AppState, ConnectionStatus};
 use crate::types::{ColumnInfo, ConnectionId};
 use crate::ui::theme;
 
-const CARD_WIDTH: f32 = 264.0;
+const CARD_WIDTH: f32 = 300.0;
 const CARD_HEADER_HEIGHT: f32 = 42.0;
-const CARD_ROW_HEIGHT: f32 = 24.0;
+const CARD_ROW_HEIGHT: f32 = 23.0;
 const CARD_FOOTER_HEIGHT: f32 = 22.0;
-const CARD_MAX_ROWS: usize = 11;
-const CARD_GAP_X: f32 = 92.0;
-const CARD_GAP_Y: f32 = 48.0;
+const CARD_MAX_ROWS: usize = 8;
+const CARD_GAP_X: f32 = 160.0;
+const CARD_GAP_Y: f32 = 88.0;
 const CARD_START_X: f32 = 44.0;
 const CARD_START_Y: f32 = 44.0;
 
@@ -94,17 +94,31 @@ impl ERDiagramState {
         });
 
         let len = ids.len().max(1);
-        let cols = ((len as f32).sqrt() * 1.25).ceil().max(1.0) as usize;
+        let rows = if len <= 4 { 1 } else { 2 };
+        let mut row_heights = vec![0.0_f32; rows];
 
         for (idx, id) in ids.iter().enumerate() {
-            let col = idx % cols;
-            let row = idx / cols;
+            let (row, _) = layout_slot(idx, rows);
+            if let Some(card) = self.cards.get_mut(id) {
+                row_heights[row] = row_heights[row].max(card.height());
+                card.is_dragging = false;
+            }
+        }
+
+        let mut row_offsets = vec![CARD_START_Y; rows];
+        let mut next_y = CARD_START_Y;
+        for (idx, height) in row_heights.iter().enumerate() {
+            row_offsets[idx] = next_y;
+            next_y += *height + CARD_GAP_Y;
+        }
+
+        for (idx, id) in ids.iter().enumerate() {
+            let (row, col) = layout_slot(idx, rows);
             if let Some(card) = self.cards.get_mut(id) {
                 card.pos = Pos2::new(
                     CARD_START_X + col as f32 * (CARD_WIDTH + CARD_GAP_X),
-                    CARD_START_Y + row as f32 * (card.height() + CARD_GAP_Y),
+                    row_offsets[row],
                 );
-                card.is_dragging = false;
             }
         }
     }
@@ -116,6 +130,14 @@ impl ERDiagramState {
     pub fn get_column_index(&self, schema: &str, table: &str, column: &str) -> Option<usize> {
         self.get_card(schema, table)
             .and_then(|card| card.columns.iter().position(|c| c.name == column))
+    }
+}
+
+fn layout_slot(idx: usize, rows: usize) -> (usize, usize) {
+    if rows <= 1 {
+        (0, idx)
+    } else {
+        (idx % rows, idx / rows)
     }
 }
 
@@ -265,31 +287,46 @@ fn visible_card_ids(er_state: &ERDiagramState) -> HashSet<String> {
         .collect()
 }
 
-fn draw_card(
-    _ctx: &egui::Context,
-    ui: &mut egui::Ui,
+struct CardDrawParams {
     canvas_rect: Rect,
     pan_offset: Vec2,
     zoom: f32,
-    card: &mut TableCard,
-    foreign_keys: &[ForeignKey],
     selected: bool,
     drag_interaction: bool,
-) -> Option<Vec2> {
-    let card_id = Id::new("er_card_").with(&card.full_id());
-    let screen_pos = world_to_screen(card.pos, canvas_rect, pan_offset, zoom);
+}
+
+#[derive(Default)]
+struct CardInteraction {
+    drag_delta: Option<Vec2>,
+    clicked: bool,
+}
+
+fn draw_card(
+    ui: &mut egui::Ui,
+    card: &mut TableCard,
+    foreign_keys: &[ForeignKey],
+    params: CardDrawParams,
+) -> CardInteraction {
+    let card_id = Id::new("er_card_").with(card.full_id());
+    let screen_pos = world_to_screen(card.pos, params.canvas_rect, params.pan_offset, params.zoom);
     let screen_rect = Rect::from_min_size(
         screen_pos,
-        Vec2::new(CARD_WIDTH * zoom, card.height() * zoom),
+        Vec2::new(CARD_WIDTH * params.zoom, card.height() * params.zoom),
     );
+    let zoom = params.zoom;
+    let selected = params.selected;
     let response = ui.interact(screen_rect, card_id, Sense::click_and_drag());
+    let mut interaction = CardInteraction {
+        clicked: response.clicked(),
+        ..Default::default()
+    };
 
-    if drag_interaction {
+    if params.drag_interaction {
         if response.drag_started() {
             card.is_dragging = true;
         }
         if response.dragged() {
-            return Some(response.drag_delta() / zoom);
+            interaction.drag_delta = Some(response.drag_delta() / params.zoom);
         }
         if response.drag_stopped() {
             card.is_dragging = false;
@@ -298,7 +335,7 @@ fn draw_card(
 
     let painter = ui.painter();
     let hovered = response.hovered();
-    let border_color = if selected {
+    let border_color = if params.selected {
         theme::ACCENT_TEAL
     } else if hovered {
         theme::ACCENT_COPPER_LIGHT
@@ -307,7 +344,7 @@ fn draw_card(
     };
     let radius = CornerRadius::same(theme::RADIUS_LG);
 
-    let shadow_rect = screen_rect.translate(Vec2::new(0.0, 5.0 * zoom));
+    let shadow_rect = screen_rect.translate(Vec2::new(0.0, 5.0 * params.zoom));
     painter.rect_filled(
         shadow_rect,
         radius,
@@ -420,7 +457,11 @@ fn draw_card(
             text_x += 24.0 * zoom;
         }
 
-        painter.text(
+        let column_clip = Rect::from_min_max(
+            row_rect.left_top(),
+            Pos2::new(row_rect.right() - 102.0 * zoom, row_rect.bottom()),
+        );
+        painter.with_clip_rect(column_clip).text(
             Pos2::new(text_x, row_rect.center().y),
             egui::Align2::LEFT_CENTER,
             &col.name,
@@ -433,7 +474,11 @@ fn draw_card(
         );
 
         let type_text = format_column_type(col);
-        painter.text(
+        let type_clip = Rect::from_min_max(
+            Pos2::new(row_rect.right() - 112.0 * zoom, row_rect.top()),
+            row_rect.right_bottom(),
+        );
+        painter.with_clip_rect(type_clip).text(
             Pos2::new(row_rect.right() - 4.0 * zoom, row_rect.center().y),
             egui::Align2::RIGHT_CENTER,
             type_text,
@@ -455,7 +500,7 @@ fn draw_card(
         );
     }
 
-    None
+    interaction
 }
 
 fn paint_pill(painter: &egui::Painter, left_center: Pos2, label: &str, color: Color32, zoom: f32) {
@@ -507,20 +552,26 @@ fn table_type_color(table_type: &str) -> Color32 {
     }
 }
 
-pub fn render_er_diagram(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
-    if !state.er_diagram.show_diagram {
-        return;
-    }
-
-    if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
-        state.er_diagram.show_diagram = false;
-        return;
-    }
-
+pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    state.er_diagram.show_diagram = true;
     let active_conn = match state.active_connection {
         Some(id) => id,
         None => return,
     };
+
+    let should_request_schemas = state.connections.get(&active_conn).is_some_and(|conn| {
+        matches!(conn.status, ConnectionStatus::Connected { .. })
+            && conn.schemas.is_empty()
+            && !conn.loading_schemas
+    });
+    if should_request_schemas {
+        if let Some(conn) = state.connections.get_mut(&active_conn) {
+            conn.loading_schemas = true;
+        }
+        bridge.send(crate::db::bridge::DbCommand::ListSchemas {
+            conn_id: active_conn,
+        });
+    }
 
     let conn = match state.connections.get(&active_conn) {
         Some(c) if matches!(c.status, ConnectionStatus::Connected { .. }) => c,
@@ -532,130 +583,121 @@ pub fn render_er_diagram(ctx: &egui::Context, state: &mut AppState, bridge: &DbB
         state.er_diagram.selected_schema = conn.schemas[0].clone();
     }
 
-    let mut open = state.er_diagram.show_diagram;
-    let mut request_close = false;
+    render_toolbar(ui, state, bridge, active_conn);
+    sync_schema_visualizer(state, bridge, active_conn);
 
-    egui::Window::new(t("schema_visualizer_title"))
-        .default_size([1120.0, 720.0])
-        .resizable(true)
-        .collapsible(false)
-        .open(&mut open)
-        .show(ctx, |ui| {
-            request_close = render_toolbar(ui, state, bridge, active_conn);
-            sync_schema_visualizer(state, bridge, active_conn);
+    ui.separator();
 
-            ui.separator();
+    let available = ui.available_size().max(Vec2::new(640.0, 360.0));
+    let (response, painter) = ui.allocate_painter(available, Sense::click_and_drag());
 
-            let available = ui.available_size();
-            let (response, painter) = ui.allocate_painter(available, Sense::click_and_drag());
+    let bg_color = theme::bg_darkest();
+    painter.rect_filled(response.rect, CornerRadius::same(0), bg_color);
+    draw_canvas_grid(
+        &painter,
+        response.rect,
+        state.er_diagram.pan_offset,
+        state.er_diagram.zoom,
+    );
 
-            let bg_color = theme::bg_darkest();
-            painter.rect_filled(response.rect, CornerRadius::same(0), bg_color);
-            draw_canvas_grid(
-                &painter,
-                response.rect,
-                state.er_diagram.pan_offset,
-                state.er_diagram.zoom,
-            );
+    let mouse_pos = ui.ctx().input(|i| i.pointer.hover_pos());
 
-            let mouse_pos = ctx.input(|i| i.pointer.hover_pos());
+    if response.dragged() && state.er_diagram.is_panning {
+        if let (Some(current), Some(last)) = (mouse_pos, state.er_diagram.last_mouse_pos) {
+            state.er_diagram.pan_offset += current - last;
+        }
+    }
 
-            if response.dragged() && state.er_diagram.is_panning {
-                if let (Some(current), Some(last)) = (mouse_pos, state.er_diagram.last_mouse_pos) {
-                    state.er_diagram.pan_offset += current - last;
+    if response.drag_stopped() {
+        state.er_diagram.is_panning = false;
+    }
+
+    if response.drag_started() && !state.er_diagram.cards.values().any(|c| c.is_dragging) {
+        state.er_diagram.is_panning = true;
+    }
+
+    state.er_diagram.last_mouse_pos = mouse_pos;
+
+    let any_dragging = state.er_diagram.cards.values().any(|card| card.is_dragging);
+    let mut drag_delta = Vec2::ZERO;
+
+    if !any_dragging {
+        ui.input(|i| {
+            for (key, delta) in [
+                (egui::Key::ArrowUp, Vec2::new(0.0, -20.0)),
+                (egui::Key::ArrowDown, Vec2::new(0.0, 20.0)),
+                (egui::Key::ArrowLeft, Vec2::new(-20.0, 0.0)),
+                (egui::Key::ArrowRight, Vec2::new(20.0, 0.0)),
+            ] {
+                if i.key_pressed(key) {
+                    drag_delta += delta;
                 }
-            }
-
-            if response.drag_stopped() {
-                state.er_diagram.is_panning = false;
-            }
-
-            if response.drag_started() && !state.er_diagram.cards.values().any(|c| c.is_dragging) {
-                state.er_diagram.is_panning = true;
-            }
-
-            state.er_diagram.last_mouse_pos = mouse_pos;
-
-            let mut any_dragging = false;
-            let mut drag_delta = Vec2::ZERO;
-
-            for card in state.er_diagram.cards.values_mut() {
-                if card.is_dragging {
-                    any_dragging = true;
-                }
-            }
-
-            if !any_dragging {
-                ui.input(|i| {
-                    for (key, delta) in [
-                        (egui::Key::ArrowUp, Vec2::new(0.0, -20.0)),
-                        (egui::Key::ArrowDown, Vec2::new(0.0, 20.0)),
-                        (egui::Key::ArrowLeft, Vec2::new(-20.0, 0.0)),
-                        (egui::Key::ArrowRight, Vec2::new(20.0, 0.0)),
-                    ] {
-                        if i.key_pressed(key) {
-                            drag_delta += delta;
-                        }
-                    }
-                });
-
-                if drag_delta != Vec2::ZERO {
-                    for card in state.er_diagram.cards.values_mut() {
-                        card.pos += drag_delta;
-                    }
-                }
-            }
-
-            let visible_ids = visible_card_ids(&state.er_diagram);
-            let foreign_keys = state.er_diagram.foreign_keys.clone();
-            draw_foreign_keys(&painter, &state.er_diagram, response.rect, &visible_ids);
-
-            let mut card_ids: Vec<String> = state.er_diagram.cards.keys().cloned().collect();
-            card_ids.sort();
-            for card_id in card_ids {
-                if !visible_ids.contains(&card_id) {
-                    continue;
-                }
-                let selected = state.er_diagram.selected_table.as_deref() == Some(card_id.as_str());
-                let Some(card) = state.er_diagram.cards.get_mut(&card_id) else {
-                    continue;
-                };
-                if let Some(delta) = draw_card(
-                    ctx,
-                    ui,
-                    response.rect,
-                    state.er_diagram.pan_offset,
-                    state.er_diagram.zoom,
-                    card,
-                    &foreign_keys,
-                    selected,
-                    true,
-                ) {
-                    card.pos += delta;
-                }
-            }
-
-            if state.er_diagram.cards.is_empty() {
-                paint_canvas_message(
-                    &painter,
-                    response.rect,
-                    &t("visualizer_loading_title"),
-                    &t("visualizer_loading_subtitle"),
-                );
-            } else if visible_ids.is_empty() {
-                paint_canvas_message(
-                    &painter,
-                    response.rect,
-                    &t("visualizer_no_matching_tables"),
-                    &t("visualizer_clear_search_hint"),
-                );
             }
         });
 
-    if request_close {
-        open = false;
+        if drag_delta != Vec2::ZERO {
+            for card in state.er_diagram.cards.values_mut() {
+                card.pos += drag_delta;
+            }
+        }
     }
-    state.er_diagram.show_diagram = open;
+
+    let visible_ids = visible_card_ids(&state.er_diagram);
+    let foreign_keys = state.er_diagram.foreign_keys.clone();
+    draw_foreign_keys(&painter, &state.er_diagram, response.rect, &visible_ids);
+
+    let mut clicked_table = None;
+    let mut card_ids: Vec<String> = state.er_diagram.cards.keys().cloned().collect();
+    card_ids.sort();
+    for card_id in card_ids {
+        if !visible_ids.contains(&card_id) {
+            continue;
+        }
+        let selected = state.er_diagram.selected_table.as_deref() == Some(card_id.as_str());
+        let Some(card) = state.er_diagram.cards.get_mut(&card_id) else {
+            continue;
+        };
+        let interaction = draw_card(
+            ui,
+            card,
+            &foreign_keys,
+            CardDrawParams {
+                canvas_rect: response.rect,
+                pan_offset: state.er_diagram.pan_offset,
+                zoom: state.er_diagram.zoom,
+                selected,
+                drag_interaction: true,
+            },
+        );
+        if let Some(delta) = interaction.drag_delta {
+            card.pos += delta;
+        }
+        if interaction.clicked {
+            clicked_table = Some(card_id);
+        }
+    }
+
+    if let Some(card_id) = clicked_table {
+        state.er_diagram.selected_table = Some(card_id);
+    } else if response.clicked() {
+        state.er_diagram.selected_table = None;
+    }
+
+    if state.er_diagram.cards.is_empty() {
+        paint_canvas_message(
+            &painter,
+            response.rect,
+            &t("visualizer_loading_title"),
+            &t("visualizer_loading_subtitle"),
+        );
+    } else if visible_ids.is_empty() {
+        paint_canvas_message(
+            &painter,
+            response.rect,
+            &t("visualizer_no_matching_tables"),
+            &t("visualizer_clear_search_hint"),
+        );
+    }
 }
 
 fn draw_foreign_keys(
@@ -664,6 +706,17 @@ fn draw_foreign_keys(
     canvas_rect: Rect,
     visible_ids: &HashSet<String>,
 ) {
+    let visible_fk_count = er_state
+        .foreign_keys
+        .iter()
+        .filter(|fk| {
+            visible_ids.contains(&format!("{}.{}", fk.source_schema, fk.source_table))
+                && visible_ids.contains(&format!("{}.{}", fk.target_schema, fk.target_table))
+        })
+        .count();
+    let dense = visible_fk_count > 12 || visible_ids.len() > 8;
+    let selected_id = er_state.selected_table.as_deref();
+
     for fk in &er_state.foreign_keys {
         let source_id = format!("{}.{}", fk.source_schema, fk.source_table);
         let target_id = format!("{}.{}", fk.target_schema, fk.target_table);
@@ -709,7 +762,22 @@ fn draw_foreign_keys(
             er_state.zoom,
         );
 
-        draw_bezier_connection(painter, from, to, &fk.name, theme::ACCENT_TEAL, 1.8);
+        let selected_relation = selected_id.is_some_and(|id| id == source_id || id == target_id);
+        let (color, stroke_width, label) = if selected_relation {
+            (theme::ACCENT_TEAL, 2.1, fk.name.as_str())
+        } else if selected_id.is_some() {
+            (theme::with_alpha(theme::ACCENT_TEAL, 36), 0.8, "")
+        } else if dense {
+            (theme::with_alpha(theme::ACCENT_TEAL, 82), 0.95, "")
+        } else {
+            (
+                theme::with_alpha(theme::ACCENT_TEAL, 170),
+                1.35,
+                fk.name.as_str(),
+            )
+        };
+
+        draw_bezier_connection(painter, from, to, label, color, stroke_width);
     }
 }
 
@@ -718,11 +786,13 @@ fn render_toolbar(
     state: &mut AppState,
     bridge: &DbBridge,
     conn_id: ConnectionId,
-) -> bool {
-    let mut request_close = false;
-
+) {
     ui.horizontal(|ui| {
-        let conn = state.connections.get(&conn_id).unwrap();
+        let schemas = state
+            .connections
+            .get(&conn_id)
+            .map(|conn| conn.schemas.clone())
+            .unwrap_or_default();
 
         ui.label(
             RichText::new(t("visualizer_schema"))
@@ -734,12 +804,20 @@ fn render_toolbar(
             .selected_text(&state.er_diagram.selected_schema)
             .width(170.0)
             .show_ui(ui, |ui| {
-                for schema in &conn.schemas {
+                for schema in &schemas {
                     if ui
                         .selectable_label(state.er_diagram.selected_schema == *schema, schema)
                         .clicked()
                     {
                         state.er_diagram.selected_schema = schema.clone();
+                        if let Some(tab) = state
+                            .workspace_tabs
+                            .get_mut(state.active_workspace_tab)
+                            .filter(|tab| tab.view == crate::state::MainView::Model)
+                        {
+                            tab.title = format!("Model: {schema}");
+                            tab.schema_filter = schema.clone();
+                        }
                     }
                 }
             });
@@ -793,14 +871,6 @@ fn render_toolbar(
         }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui
-                .add(theme::secondary_button(&t("button_close")))
-                .on_hover_text(t("visualizer_close_tooltip"))
-                .clicked()
-            {
-                request_close = true;
-            }
-            ui.add_space(8.0);
             ui.label(
                 RichText::new(tf(
                     "visualizer_count",
@@ -814,8 +884,6 @@ fn render_toolbar(
             );
         });
     });
-
-    request_close
 }
 
 fn world_to_screen(pos: Pos2, canvas_rect: Rect, pan_offset: Vec2, zoom: f32) -> Pos2 {
