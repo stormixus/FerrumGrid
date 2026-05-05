@@ -28,12 +28,23 @@ fn main() -> eframe::Result<()> {
     let startup_icon =
         app_icon::icon_for_dark_mode(app_icon::startup_dark_mode(&startup_settings.appearance));
 
+    let viewport = eframe::egui::ViewportBuilder::default()
+        .with_title("FerrumGrid")
+        .with_inner_size([1280.0, 800.0])
+        .with_min_inner_size([800.0, 600.0])
+        .with_icon(startup_icon);
+
+    // macOS: fullsize content view 로 콘텐츠가 native titlebar 아래로 확장.
+    // title 텍스트는 숨기되 traffic lights (close/min/max) 는 native 로 유지 →
+    // 우리는 상단 28px 영역만 drag region 으로 wire (좌측 ~78px 는 신호등 영역
+    // 으로 비워둠). custom titlebar UI 는 src/ui/titlebar.rs.
+    #[cfg(target_os = "macos")]
+    let viewport = viewport
+        .with_fullsize_content_view(true)
+        .with_title_shown(false);
+
     let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default()
-            .with_title("FerrumGrid")
-            .with_inner_size([1280.0, 800.0])
-            .with_min_inner_size([800.0, 600.0])
-            .with_icon(startup_icon),
+        viewport,
         #[cfg(target_os = "macos")]
         event_loop_builder: Some(Box::new(|builder| {
             builder.with_default_menu(false);

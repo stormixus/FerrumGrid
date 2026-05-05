@@ -3,7 +3,7 @@ use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke, Stroke
 use crate::db::bridge::DbBridge;
 use crate::i18n::t;
 use crate::state::{main_view_title, AppState, ConnectionStatus, MainView};
-use crate::ui::{editor, grid, icons_svg, theme, tree_browser};
+use crate::ui::{editor, grid, icons_svg, theme, titlebar, tree_browser};
 
 pub fn render_panels(
     ctx: &egui::Context,
@@ -11,6 +11,7 @@ pub fn render_panels(
     bridge: &DbBridge,
     settings: &mut crate::storage::settings::AppSettings,
 ) {
+    titlebar::render_titlebar(ctx);
     render_main_toolbar(ctx, state);
     render_status_bar(ctx, state);
 
