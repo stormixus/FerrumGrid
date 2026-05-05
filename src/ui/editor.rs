@@ -561,7 +561,9 @@ fn render_editor_body(
                         .id_salt(("editor_scroll", tab.id))
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
+                            let te_id = egui::Id::new(("sql_editor", tab.id));
                             let output = egui::TextEdit::multiline(&mut tab.content)
+                                .id(te_id)
                                 .font(egui::TextStyle::Monospace)
                                 .code_editor()
                                 .desired_width(f32::INFINITY)
@@ -591,6 +593,7 @@ fn render_editor_body(
                 comp_down,
             ) {
                 if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
+                    let new_cursor_pos = insert.start_char + insert.text.len() + 1;
                     apply_completion(&mut tab.content, &insert);
                     let snapshot = tab.content.clone();
                     ui.data_mut(|d| {
@@ -599,6 +602,16 @@ fn render_editor_body(
                             snapshot,
                         )
                     });
+                    let te_id = egui::Id::new(("sql_editor", tab_id));
+                    if let Some(mut te_state) =
+                        egui::TextEdit::load_state(ui.ctx(), te_id)
+                    {
+                        use egui::text::{CCursor, CCursorRange};
+                        te_state
+                            .cursor
+                            .set_char_range(Some(CCursorRange::one(CCursor::new(new_cursor_pos))));
+                        te_state.store(ui.ctx(), te_id);
+                    }
                 }
             }
         }
