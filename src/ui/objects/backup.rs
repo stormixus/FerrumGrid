@@ -4,7 +4,11 @@
 //! `BackupInfoV1` schema 통합 (status / progress / eta) + DiagnosticsPanel
 //! 합류 진행.
 
-use eframe::egui::{self, CornerRadius, Margin, RichText, Stroke};
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+use chrono::{DateTime, Local};
+use eframe::egui::{self, CornerRadius, Margin, RichText, ScrollArea, Stroke};
 
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
@@ -16,6 +20,80 @@ use crate::ui::{icons_svg, theme};
 use super::{
     active_conn, render_no_connection, show_dark_hover_tooltip, type_chip, ObjectAction,
 };
+
+// ---------------------------------------------------------------------------
+// Backup file browser types
+// ---------------------------------------------------------------------------
+
+const BACKUP_EXTENSIONS: &[&str] = &["sql", "dump", "tar", "gz", "backup", "bak"];
+const MAX_DISPLAY_FILES: usize = 100;
+
+#[derive(Clone, Debug)]
+struct BackupFileEntry {
+    name: String,
+    path: PathBuf,
+    size_bytes: u64,
+    created: Option<String>,
+    modified: Option<String>,
+    /// Raw modified timestamp for sorting (epoch seconds).
+    modified_epoch: i64,
+}
+
+/// Cached scan result stored in egui temp memory.
+#[derive(Clone, Debug)]
+struct BackupFilesCache {
+    directory: String,
+    entries: Vec<BackupFileEntry>,
+}
+
+fn format_system_time(st: SystemTime) -> String {
+    let dt: DateTime<Local> = st.into();
+    dt.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+fn modified_epoch(st: SystemTime) -> i64 {
+    let dt: DateTime<Local> = st.into();
+    dt.timestamp()
+}
+
+fn scan_backup_directory(dir: &str) -> Vec<BackupFileEntry> {
+    let Ok(read_dir) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+
+    let mut entries: Vec<BackupFileEntry> = read_dir
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            if !path.is_file() {
+                return None;
+            }
+            let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+            if !BACKUP_EXTENSIONS.contains(&ext.as_str()) {
+                return None;
+            }
+            let meta = std::fs::metadata(&path).ok()?;
+            let created = meta.created().ok().map(format_system_time);
+            let modified = meta.modified().ok().map(format_system_time);
+            let mod_epoch = meta.modified().ok().map(modified_epoch).unwrap_or(0);
+            Some(BackupFileEntry {
+                name: path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                path,
+                size_bytes: meta.len(),
+                created,
+                modified,
+                modified_epoch: mod_epoch,
+            })
+        })
+        .collect();
+
+    entries.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
+    entries.truncate(MAX_DISPLAY_FILES);
+    entries
+}
 
 pub(super) fn render_backup_tools(
     ui: &mut egui::Ui,
@@ -42,6 +120,8 @@ pub(super) fn render_backup_tools(
         &cfg,
         schema.as_deref(),
     );
+    ui.add_space(theme::SPACE_LG);
+    render_backup_files(ui, settings, state.backup_history.len());
     ui.add_space(theme::SPACE_LG);
     render_backup_history(ui, state);
     None
@@ -240,6 +320,359 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
 
     if ui.add(button).clicked() {
         *value = format;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Backup file browser card
+// ---------------------------------------------------------------------------
+
+fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: usize) {
+    let dir = settings.backup_directory.trim();
+    let folder_set = !dir.is_empty();
+
+    let cache_id = egui::Id::new("backup_files_cache");
+    let refresh_id = egui::Id::new("backup_files_refresh");
+    let delete_confirm_id = egui::Id::new("backup_file_delete_confirm");
+    let history_len_id = egui::Id::new("backup_files_history_len");
+
+    // Detect new backup completion by comparing history length.
+    let history_changed = ui.data_mut(|d| {
+        let prev: usize = d.get_temp(history_len_id).unwrap_or(0);
+        d.insert_temp(history_len_id, history_len);
+        history_len != prev && prev != 0
+    });
+
+    // Determine whether we need a (re-)scan.
+    let needs_scan = history_changed
+        || ui.data_mut(|d| {
+            if d.get_temp::<bool>(refresh_id).unwrap_or(false) {
+                d.insert_temp(refresh_id, false);
+                return true;
+            }
+            match d.get_temp::<BackupFilesCache>(cache_id) {
+                Some(cache) => cache.directory != dir,
+                None => true,
+            }
+        });
+
+    if needs_scan && folder_set {
+        let entries = scan_backup_directory(dir);
+        ui.data_mut(|d| {
+            d.insert_temp(
+                cache_id,
+                BackupFilesCache {
+                    directory: dir.to_owned(),
+                    entries,
+                },
+            );
+        });
+    }
+
+    let entries: Vec<BackupFileEntry> = if folder_set {
+        ui.data_mut(|d| {
+            d.get_temp::<BackupFilesCache>(cache_id)
+                .map(|c| c.entries.clone())
+                .unwrap_or_default()
+        })
+    } else {
+        Vec::new()
+    };
+
+    egui::Frame::new()
+        .fill(theme::bg_medium())
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
+        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+        .inner_margin(Margin::same(theme::SPACE_XL as i8))
+        .show(ui, |ui| {
+            // Header row
+            ui.horizontal(|ui| {
+                let header = if folder_set {
+                    format!("Backup Files ({})", entries.len())
+                } else {
+                    "Backup Files".to_string()
+                };
+                ui.label(
+                    RichText::new(header)
+                        .color(theme::text_primary())
+                        .size(15.0)
+                        .strong(),
+                );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if folder_set
+                        && ui
+                            .add(theme::ghost_button("Refresh"))
+                            .clicked()
+                    {
+                        ui.data_mut(|d| d.insert_temp(refresh_id, true));
+                    }
+                });
+            });
+
+            ui.add_space(theme::SPACE_MD);
+
+            if !folder_set {
+                ui.label(
+                    RichText::new("Set backup folder to browse files")
+                        .color(theme::text_muted())
+                        .size(11.0),
+                );
+                return;
+            }
+
+            if entries.is_empty() {
+                ui.label(
+                    RichText::new("No backup files found")
+                        .color(theme::text_muted())
+                        .size(11.0),
+                );
+                return;
+            }
+
+            // Column header
+            ui.horizontal(|ui| {
+                let header_color = theme::text_muted();
+                let w_name = 220.0;
+                let w_size = 70.0;
+                let w_date = 130.0;
+                ui.allocate_ui_with_layout(
+                    egui::vec2(ui.available_width(), 16.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        ui.add_sized(
+                            [w_name, 16.0],
+                            egui::Label::new(
+                                RichText::new("Name")
+                                    .color(header_color)
+                                    .size(10.5)
+                                    .strong(),
+                            ),
+                        );
+                        ui.add_sized(
+                            [w_size, 16.0],
+                            egui::Label::new(
+                                RichText::new("Size")
+                                    .color(header_color)
+                                    .size(10.5)
+                                    .strong(),
+                            ),
+                        );
+                        ui.add_sized(
+                            [w_date, 16.0],
+                            egui::Label::new(
+                                RichText::new("Created")
+                                    .color(header_color)
+                                    .size(10.5)
+                                    .strong(),
+                            ),
+                        );
+                        ui.add_sized(
+                            [w_date, 16.0],
+                            egui::Label::new(
+                                RichText::new("Modified")
+                                    .color(header_color)
+                                    .size(10.5)
+                                    .strong(),
+                            ),
+                        );
+                        ui.label(
+                            RichText::new("Actions")
+                                .color(header_color)
+                                .size(10.5)
+                                .strong(),
+                        );
+                    },
+                );
+            });
+
+            ui.add_space(theme::SPACE_XS);
+
+            // Separator
+            ui.separator();
+
+            // File rows inside a scroll area
+            ScrollArea::vertical()
+                .id_salt("backup_files_scroll")
+                .max_height(300.0)
+                .show(ui, |ui| {
+                    for (idx, entry) in entries.iter().enumerate() {
+                        let row_bg = if idx % 2 == 0 {
+                            theme::bg_dark()
+                        } else {
+                            theme::bg_medium()
+                        };
+
+                        egui::Frame::new()
+                            .fill(row_bg)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+                            .inner_margin(Margin::symmetric(
+                                theme::SPACE_SM as i8,
+                                theme::SPACE_XS as i8,
+                            ))
+                            .show(ui, |ui| {
+                                let w_name = 220.0;
+                                let w_size = 70.0;
+                                let w_date = 130.0;
+
+                                ui.horizontal(|ui| {
+                                    // Name (monospace)
+                                    ui.add_sized(
+                                        [w_name, 16.0],
+                                        egui::Label::new(
+                                            RichText::new(&entry.name)
+                                                .color(theme::text_primary())
+                                                .size(11.0)
+                                                .monospace(),
+                                        )
+                                        .truncate(),
+                                    );
+
+                                    // Size
+                                    ui.add_sized(
+                                        [w_size, 16.0],
+                                        egui::Label::new(
+                                            RichText::new(format_size(entry.size_bytes))
+                                                .color(theme::text_secondary())
+                                                .size(10.5),
+                                        ),
+                                    );
+
+                                    // Created
+                                    ui.add_sized(
+                                        [w_date, 16.0],
+                                        egui::Label::new(
+                                            RichText::new(
+                                                entry
+                                                    .created
+                                                    .as_deref()
+                                                    .unwrap_or("—"),
+                                            )
+                                            .color(theme::text_muted())
+                                            .size(10.5),
+                                        ),
+                                    );
+
+                                    // Modified
+                                    ui.add_sized(
+                                        [w_date, 16.0],
+                                        egui::Label::new(
+                                            RichText::new(
+                                                entry
+                                                    .modified
+                                                    .as_deref()
+                                                    .unwrap_or("—"),
+                                            )
+                                            .color(theme::text_muted())
+                                            .size(10.5),
+                                        ),
+                                    );
+
+                                    // Actions
+                                    if ui
+                                        .add(theme::ghost_button("Show"))
+                                        .clicked()
+                                    {
+                                        reveal_in_finder(&entry.path);
+                                    }
+
+                                    // Delete with inline confirmation
+                                    let row_delete_id =
+                                        delete_confirm_id.with(idx);
+                                    let confirming = ui.data_mut(|d| {
+                                        d.get_temp::<bool>(row_delete_id)
+                                            .unwrap_or(false)
+                                    });
+
+                                    if confirming {
+                                        ui.label(
+                                            RichText::new("Delete?")
+                                                .color(theme::ACCENT_RED)
+                                                .size(10.5),
+                                        );
+                                        let yes_btn = egui::Button::new(
+                                            RichText::new("Yes")
+                                                .color(egui::Color32::WHITE)
+                                                .size(10.5),
+                                        )
+                                        .fill(theme::ACCENT_RED)
+                                        .corner_radius(CornerRadius::same(
+                                            theme::RADIUS_SM,
+                                        ));
+                                        if ui.add(yes_btn).clicked() {
+                                            let _ =
+                                                std::fs::remove_file(&entry.path);
+                                            ui.data_mut(|d| {
+                                                d.insert_temp(
+                                                    row_delete_id,
+                                                    false,
+                                                );
+                                                d.insert_temp(refresh_id, true);
+                                            });
+                                        }
+                                        let no_btn = egui::Button::new(
+                                            RichText::new("No")
+                                                .color(theme::text_secondary())
+                                                .size(10.5),
+                                        )
+                                        .fill(theme::bg_darkest())
+                                        .corner_radius(CornerRadius::same(
+                                            theme::RADIUS_SM,
+                                        ));
+                                        if ui.add(no_btn).clicked() {
+                                            ui.data_mut(|d| {
+                                                d.insert_temp(
+                                                    row_delete_id,
+                                                    false,
+                                                );
+                                            });
+                                        }
+                                    } else {
+                                        let del_btn = egui::Button::new(
+                                            RichText::new("Delete")
+                                                .color(theme::ACCENT_RED)
+                                                .size(10.5),
+                                        )
+                                        .fill(theme::bg_darkest())
+                                        .stroke(Stroke::new(
+                                            1.0,
+                                            theme::ACCENT_RED,
+                                        ))
+                                        .corner_radius(CornerRadius::same(
+                                            theme::RADIUS_SM,
+                                        ));
+                                        if ui.add(del_btn).clicked() {
+                                            ui.data_mut(|d| {
+                                                d.insert_temp(
+                                                    row_delete_id,
+                                                    true,
+                                                );
+                                            });
+                                        }
+                                    }
+                                });
+                            });
+
+                        if idx < entries.len() - 1 {
+                            ui.add_space(theme::SPACE_XS);
+                        }
+                    }
+                });
+        });
+}
+
+fn reveal_in_finder(path: &std::path::Path) {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
     }
 }
 
