@@ -171,7 +171,7 @@ fn render_sub_toolbar(
 
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.horizontal(|ui| {
             if icon_button(ui, icons_svg::REFRESH, "objects_refresh", t("ctx_refresh")).clicked() {
                 refresh_current_view(state, bridge);
             }
