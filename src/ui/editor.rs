@@ -528,6 +528,24 @@ fn render_editor_body(
         let mut content_snapshot = String::new();
         let tab_id = state.editor_tabs[active_tab].id;
 
+        // Intercept completion keys BEFORE TextEdit consumes them
+        let popup_sel_id = egui::Id::new(("sql_completion_sel", tab_id));
+        let popup_active = ui
+            .data_mut(|d| d.get_persisted::<usize>(popup_sel_id))
+            .is_some_and(|v| v != usize::MAX);
+        let mut comp_accept = false;
+        let mut comp_up = false;
+        let mut comp_down = false;
+        if popup_active && settings.enable_code_completion && settings.code_completion_popup {
+            comp_accept = ui.input_mut(|i| {
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Tab)
+                    || i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
+            });
+            comp_up = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
+            comp_down =
+                ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
+        }
+
         {
             let tab = &mut state.editor_tabs[active_tab];
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
@@ -568,6 +586,9 @@ fn render_editor_body(
                 editor_rect,
                 &content_snapshot,
                 cursor_index,
+                comp_accept,
+                comp_up,
+                comp_down,
             ) {
                 if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
                     apply_completion(&mut tab.content, &insert);
@@ -672,6 +693,9 @@ fn render_completion_popup(
     editor_rect: egui::Rect,
     content: &str,
     cursor_index: Option<usize>,
+    accept: bool,
+    nav_up: bool,
+    nav_down: bool,
 ) -> Option<CompletionInsert> {
     if editor_rect == egui::Rect::NOTHING {
         return None;
@@ -680,16 +704,14 @@ fn render_completion_popup(
     let cursor = cursor_index.unwrap_or_else(|| content.chars().count());
     let context = completion_context(content, cursor)?;
     let suggestions = collect_completions(state, &context);
+    let popup_id = egui::Id::new(("sql_completion_sel", tab_id));
+
     if suggestions.is_empty() {
+        ui.data_mut(|d| d.insert_persisted(popup_id, usize::MAX));
         return None;
     }
 
-    let popup_id = egui::Id::new(("sql_completion_sel", tab_id));
     let mut selected: usize = ui.data_mut(|d| d.get_persisted(popup_id).unwrap_or(0));
-
-    let nav_up = ui.input(|i| i.key_pressed(egui::Key::ArrowUp));
-    let nav_down = ui.input(|i| i.key_pressed(egui::Key::ArrowDown));
-    let accept = ui.input(|i| i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter));
 
     if nav_up {
         selected = selected.saturating_sub(1);
@@ -697,14 +719,15 @@ fn render_completion_popup(
     if nav_down {
         selected = (selected + 1).min(suggestions.len().saturating_sub(1));
     }
+    selected = selected.min(suggestions.len().saturating_sub(1));
     ui.data_mut(|d| d.insert_persisted(popup_id, selected));
 
     if accept {
-        let idx = selected.min(suggestions.len().saturating_sub(1));
+        ui.data_mut(|d| d.insert_persisted(popup_id, usize::MAX));
         return Some(CompletionInsert {
             start_char: context.start_char,
             end_char: context.end_char,
-            text: suggestions[idx].insert_text.clone(),
+            text: suggestions[selected].insert_text.clone(),
         });
     }
 
