@@ -776,9 +776,15 @@ fn render_schema_node(
     let node_id = egui::Id::new(format!("schema_{conn_id}_{schema}"));
     let schema_owned = schema.to_string();
     let active_schema = active_data_source_matches(state, conn_id, schema, None);
+    let schema_selected = state.objects_schema_filter == schema
+        && state.active_connection == Some(conn_id);
 
     let header_text = RichText::new(schema)
-        .color(theme::text_secondary())
+        .color(if schema_selected {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -790,8 +796,8 @@ fn render_schema_node(
             is_root: false,
             depth: 2,
             default_open: false,
-            force_open: active_schema,
-            selected: false,
+            force_open: active_schema || schema_selected,
+            selected: schema_selected,
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
         },
@@ -1660,9 +1666,17 @@ fn render_table_node(
         _ => (icons_svg::TABLE, "table"),
     };
     let active_table = active_data_source_matches(state, conn_id, schema, Some(table_name));
+    let workspace_match = state.active_connection == Some(conn_id)
+        && state.objects_schema_filter == schema
+        && state.objects_search == table_name;
+    let is_selected = active_table || workspace_match;
 
     let header_text = RichText::new(table_name)
-        .color(theme::text_primary())
+        .color(if is_selected {
+            theme::ACCENT_TEAL
+        } else {
+            theme::text_primary()
+        })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -1674,8 +1688,8 @@ fn render_table_node(
             is_root: false,
             depth: 4,
             default_open: false,
-            force_open: active_table,
-            selected: active_table,
+            force_open: is_selected,
+            selected: is_selected,
             icon_svg,
             icon_name,
         },
