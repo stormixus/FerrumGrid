@@ -67,7 +67,7 @@ pub(super) fn clear_sort_clauses(state: &mut AppState, bridge: &DbBridge) {
 // Pagination
 // ---------------------------------------------------------------------------
 
-pub(super) fn set_data_page_index(state: &mut AppState, bridge: &DbBridge, page_index: usize) {
+pub(crate) fn set_data_page_index(state: &mut AppState, bridge: &DbBridge, page_index: usize) {
     if has_dirty_data_edits(state) {
         state.last_error = Some(t("grid_page_unsaved"));
         return;
@@ -78,7 +78,7 @@ pub(super) fn set_data_page_index(state: &mut AppState, bridge: &DbBridge, page_
     reload_data_source(state, bridge);
 }
 
-pub(super) fn apply_data_page_input(state: &mut AppState, bridge: &DbBridge) -> bool {
+pub(crate) fn apply_data_page_input(state: &mut AppState, bridge: &DbBridge) -> bool {
     let raw = state.data_edit.page_index_input.trim().replace(',', "");
     match raw.parse::<usize>() {
         Ok(page) => {
@@ -93,7 +93,7 @@ pub(super) fn apply_data_page_input(state: &mut AppState, bridge: &DbBridge) -> 
     }
 }
 
-pub(super) fn apply_data_limit_input(state: &mut AppState, bridge: &DbBridge) -> bool {
+pub(crate) fn apply_data_limit_input(state: &mut AppState, bridge: &DbBridge) -> bool {
     let raw = state.data_edit.page_limit_input.trim().replace(',', "");
     match raw.parse::<usize>() {
         Ok(limit) => {
@@ -125,7 +125,7 @@ pub(super) fn set_data_limit(state: &mut AppState, bridge: &DbBridge, limit: usi
 // Data reload
 // ---------------------------------------------------------------------------
 
-pub(super) fn reload_data_source(state: &mut AppState, bridge: &DbBridge) {
+pub(crate) fn reload_data_source(state: &mut AppState, bridge: &DbBridge) {
     let Some(source) = state.active_data_source() else {
         return;
     };
@@ -150,15 +150,57 @@ pub(super) fn reload_data_source(state: &mut AppState, bridge: &DbBridge) {
     });
 }
 
-pub(super) fn normalized_data_limit(state: &AppState) -> usize {
+pub(crate) fn normalized_data_limit(state: &AppState) -> usize {
     state.data_edit.page_limit.clamp(1, MAX_DATA_PAGE_LIMIT)
 }
 
-pub(super) fn data_page_offset(state: &AppState) -> usize {
+pub(crate) fn data_page_offset(state: &AppState) -> usize {
     state
         .data_edit
         .page_index
         .saturating_mul(normalized_data_limit(state))
+}
+
+/// Plan v7 / US-I1 — Paste/Delete StateOp 가 미등록 셀에서도 동작하도록 시드.
+/// `current_result.rows[row][col]` 에서 CellValue 를 읽고 columns[col].type_name 으로
+/// EditableCell 등록. 이미 등록된 셀은 noop. row/col out-of-bounds 시 noop.
+///
+/// **Apply/Revert invariant 보장** — original 스냅샷은 result row 의 실제 DB 값
+/// 으로 시드되므로 dirty 추적과 revert 가 정확히 동작.
+pub(crate) fn ensure_data_edit_cell_from_result(
+    state: &mut AppState,
+    row_idx: usize,
+    col_idx: usize,
+) {
+    if state.data_edit.cells.contains_key(&(row_idx, col_idx)) {
+        return;
+    }
+    let Some(result) = state.current_result.as_ref() else {
+        return;
+    };
+    let Some(row) = result.rows.get(row_idx) else {
+        return;
+    };
+    let Some(cell) = row.get(col_idx) else {
+        return;
+    };
+    debug_assert_eq!(
+        result.columns.len(),
+        row.len(),
+        "QueryResult invariant: row width must match columns count"
+    );
+    let type_name = result
+        .columns
+        .get(col_idx)
+        .map(|c| c.type_name.as_str())
+        .unwrap_or("")
+        .to_string();
+    let cell_clone = cell.clone();
+    let timezone = state.data_timezone.clone();
+    state.data_edit.cells.insert(
+        (row_idx, col_idx),
+        crate::state::EditableCell::from_cell_for_type(&cell_clone, &type_name, &timezone),
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -181,15 +223,15 @@ pub(super) enum EditKind {
     Text,
 }
 
-pub(super) struct DataEditSummary {
-    pub(super) conn_id: crate::types::ConnectionId,
-    pub(super) dirty_count: usize,
-    pub(super) can_apply: bool,
-    pub(super) blocked_reason: Option<String>,
-    pub(super) color: Color32,
+pub(crate) struct DataEditSummary {
+    pub(crate) conn_id: crate::types::ConnectionId,
+    pub(crate) dirty_count: usize,
+    pub(crate) can_apply: bool,
+    pub(crate) blocked_reason: Option<String>,
+    pub(crate) color: Color32,
 }
 
-pub(super) fn data_edit_summary(state: &AppState) -> Option<DataEditSummary> {
+pub(crate) fn data_edit_summary(state: &AppState) -> Option<DataEditSummary> {
     if state.active_main_view != MainView::Data {
         return None;
     }
@@ -291,7 +333,7 @@ fn primary_key_columns(state: &AppState) -> Vec<ColumnInfo> {
 // Edit operations
 // ---------------------------------------------------------------------------
 
-pub(super) fn build_data_edits(state: &AppState) -> Result<Vec<crate::db::edits::RowEditOp>, String> {
+pub(crate) fn build_data_edits(state: &AppState) -> Result<Vec<crate::db::edits::RowEditOp>, String> {
     use crate::db::edits::{ColumnAssignment, EditValue, PkColumn, RowEditOp};
     let source = state
         .active_data_source()
@@ -426,7 +468,7 @@ fn count_invalid_edits(state: &AppState) -> usize {
         .count()
 }
 
-pub(super) fn revert_data_edits(state: &mut AppState) {
+pub(crate) fn revert_data_edits(state: &mut AppState) {
     let column_types = state
         .current_result
         .as_ref()
@@ -569,5 +611,83 @@ pub(super) fn parse_bool(value: &str) -> Option<bool> {
         "true" | "t" | "1" | "yes" | "y" | "on" => Some(true),
         "false" | "f" | "0" | "no" | "n" | "off" => Some(false),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{CellValue, ColumnMeta, QueryResult};
+
+    fn make_state(rows: usize, cols: usize) -> AppState {
+        let mut state = AppState::default();
+        let columns = (0..cols)
+            .map(|i| ColumnMeta {
+                name: format!("c{i}"),
+                type_name: if i == 0 { "int4".to_string() } else { "text".to_string() },
+            })
+            .collect();
+        let result_rows = (0..rows)
+            .map(|r| {
+                (0..cols)
+                    .map(|c| {
+                        if c == 0 {
+                            CellValue::Int(r as i64 + 100)
+                        } else {
+                            CellValue::Text(format!("v{r}_{c}"))
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        state.current_result = Some(QueryResult {
+            columns,
+            rows: result_rows,
+            execution_time_ms: 0,
+        });
+        state
+    }
+
+    #[test]
+    fn ensure_from_result_registers_new_cell_with_correct_type() {
+        let mut state = make_state(3, 2);
+        ensure_data_edit_cell_from_result(&mut state, 1, 0);
+        let cell = state.data_edit.cells.get(&(1, 0)).expect("registered");
+        // original should be the result row's CellValue (Int(101))
+        assert!(matches!(cell.original, CellValue::Int(101)));
+    }
+
+    #[test]
+    fn ensure_from_result_is_noop_for_already_registered_cell() {
+        let mut state = make_state(3, 2);
+        // Pre-register with a different value
+        state.data_edit.cells.insert(
+            (1, 0),
+            crate::state::EditableCell {
+                original: CellValue::Int(999),
+                original_text: "999".to_string(),
+                value: "edited".to_string(),
+                is_null: false,
+            },
+        );
+        ensure_data_edit_cell_from_result(&mut state, 1, 0);
+        let cell = state.data_edit.cells.get(&(1, 0)).unwrap();
+        assert!(matches!(cell.original, CellValue::Int(999)));
+        assert_eq!(cell.value, "edited");
+    }
+
+    #[test]
+    fn ensure_from_result_out_of_bounds_is_noop() {
+        let mut state = make_state(2, 2);
+        ensure_data_edit_cell_from_result(&mut state, 99, 0);
+        ensure_data_edit_cell_from_result(&mut state, 0, 99);
+        assert!(state.data_edit.cells.is_empty());
+    }
+
+    #[test]
+    fn ensure_from_result_no_current_result_is_noop() {
+        let mut state = AppState::default();
+        ensure_data_edit_cell_from_result(&mut state, 0, 0);
+        assert!(state.data_edit.cells.is_empty());
     }
 }

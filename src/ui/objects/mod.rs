@@ -80,12 +80,30 @@ pub(super) enum ObjectAction {
         schema: String,
         name: String,
     },
+    DropTable {
+        conn_id: ConnectionId,
+        schema: String,
+        name: String,
+        kind: crate::state::DropTargetKind,
+    },
     CopySql(String),
     NewTable,
     OpenModel,
     AddAutomationQuery {
         title: String,
         sql: String,
+    },
+    AutomationCreate {
+        title: String,
+        sql: String,
+        interval_secs: u64,
+    },
+    AutomationRunNow {
+        id: uuid::Uuid,
+        sql: String,
+    },
+    AutomationCancel {
+        id: uuid::Uuid,
     },
 }
 
@@ -287,6 +305,7 @@ fn render_objects_list(
             MainView::User => roles::render_roles(ui, state, bridge),
             MainView::Backup => backup::render_backup_tools(ui, state, bridge, settings),
             MainView::Automation => automation::render_automation_tools(ui, state),
+            // (signature 가 &mut state 로 변경됨 — Create form draft 입력 보존)
             MainView::Model => model::render_model_tools(ui, state, bridge),
             MainView::BI => bi::render_bi_tools(ui, state, bridge),
             MainView::Connection | MainView::Query | MainView::Data => None,
@@ -406,6 +425,32 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
         ObjectAction::DesignTable { schema, name } => {
             crate::ui::table_designer::open_for_existing_table(state, &schema, &name, bridge);
         }
+        ObjectAction::DropTable {
+            conn_id,
+            schema,
+            name,
+            kind,
+        } => {
+            // US-K1/L1 — Drop 다이얼로그 표시 + dependents fetch trigger.
+            // table 의 oid 를 conn.tables 에서 조회 → FetchDependents 발사.
+            let oid = state
+                .connections
+                .get(&conn_id)
+                .and_then(|c| c.tables.get(&schema))
+                .and_then(|tables| tables.iter().find(|t| t.name == name))
+                .and_then(|t| t.oid);
+            state.drop_dialog = Some(crate::state::DropDialogState::new(
+                conn_id, &schema, &name, kind,
+            ));
+            if let Some(refobjid) = oid {
+                bridge.send(crate::db::bridge::DbCommand::FetchDependents {
+                    conn_id,
+                    refobjid,
+                });
+            } else if let Some(dlg) = state.drop_dialog.as_mut() {
+                dlg.loading = false; // oid 없음 — fetch 불가
+            }
+        }
         ObjectAction::CopySql(sql) => {
             ui.ctx().copy_text(sql);
             state.status_message = "Copied to clipboard".to_string();
@@ -432,6 +477,44 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                 tab.connection_id = state.active_connection;
             }
             state.open_workspace_main_view(MainView::Query);
+        }
+        ObjectAction::AutomationCreate {
+            title,
+            sql,
+            interval_secs,
+        } => {
+            use crate::automation::scheduler::{Schedule, ScheduledTask};
+            let schedule = if interval_secs == 0 {
+                Schedule::Once {
+                    at: chrono::Utc::now(),
+                }
+            } else {
+                Schedule::Interval {
+                    period: std::time::Duration::from_secs(interval_secs),
+                }
+            };
+            state
+                .automation
+                .write()
+                .expect("automation lock poisoned")
+                .add(ScheduledTask::new(title, sql, schedule));
+            state.automation_draft.reset();
+        }
+        ObjectAction::AutomationRunNow { id, sql } => {
+            if let Some(conn_id) = state.active_connection {
+                bridge.send(crate::db::bridge::DbCommand::ExecuteAutomation {
+                    conn_id,
+                    task_id: id,
+                    sql,
+                });
+            }
+        }
+        ObjectAction::AutomationCancel { id } => {
+            state
+                .automation
+                .write()
+                .expect("automation lock poisoned")
+                .remove(id);
         }
     }
 }

@@ -3,6 +3,7 @@ use eframe::egui;
 pub mod about;
 pub mod diagnostics_panel;
 pub mod dialogs;
+pub mod drop_dialog;
 pub mod editor;
 pub mod er_diagram;
 pub mod grid;

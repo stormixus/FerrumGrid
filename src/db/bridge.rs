@@ -82,13 +82,17 @@ pub enum DbCommand {
         request: BackupRequest,
     },
     /// Plan v7 Phase 4b — Automation 의 즉시 실행 (Run Now 버튼) 또는 background
-    /// scheduler (runner.rs) 가 due task 발견 시 발사. UI wiring (P4b2 의 후속
-    /// "Run Now" 버튼) 까지는 호출 site 0 — `#[allow(dead_code)]`.
-    #[allow(dead_code)]
+    /// scheduler (runner.rs) 가 due task 발견 시 발사.
     ExecuteAutomation {
         conn_id: ConnectionId,
         task_id: uuid::Uuid,
         sql: String,
+    },
+    /// US-K1 — Drop 다이얼로그가 dependents 미리보기 위해 발사.
+    /// `refobjid` 는 pg_class.oid (drop 대상 table). 결과는 `DependentsList` 응답.
+    FetchDependents {
+        conn_id: ConnectionId,
+        refobjid: u32,
     },
 }
 
@@ -187,6 +191,16 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         error: DbError,
     },
+    /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
+    /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
+    /// routing 용 (현재 app.rs handler 가 단일 drop_dialog 만 추적하므로 무시).
+    #[allow(dead_code)]
+    DependentsList {
+        conn_id: ConnectionId,
+        refobjid: u32,
+        deps: Vec<String>,
+        truncated: bool,
+    },
 }
 
 pub struct DbBridge {
@@ -220,6 +234,13 @@ impl DbBridge {
             resp_rx,
             _thread: Some(thread),
         }
+    }
+
+    /// Plan v7 Phase 4b3 runner — 외부 (e.g., automation scheduler) 가 cmd
+    /// channel sender 를 clone 해서 spawn 한 task 에서 직접 발사할 수 있도록
+    /// 노출. Sender 는 mpsc 의 Clone trait 으로 self-multiplex.
+    pub fn cmd_sender(&self) -> tokio::sync::mpsc::Sender<DbCommand> {
+        self.cmd_tx.clone()
     }
 
     pub fn send(&self, cmd: DbCommand) {
@@ -284,6 +305,10 @@ enum ConnCommand {
         schema: String,
     },
     ListRoles,
+    /// US-K1 — Drop dialog dependents 미리보기.
+    FetchDependents {
+        refobjid: u32,
+    },
     Shutdown,
 }
 
@@ -457,6 +482,14 @@ async fn dispatch_loop(
             DbCommand::ListRoles { conn_id } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::ListRoles).await;
+                }
+            }
+            DbCommand::FetchDependents { conn_id, refobjid } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::FetchDependents { refobjid })
+                        .await;
                 }
             }
             DbCommand::CancelQuery { conn_id } => {
@@ -818,6 +851,41 @@ async fn connection_task(
                 let response = match crate::db::metadata::list_roles(&client, conn_id).await {
                     Ok(roles) => DbResponse::RoleList { conn_id, roles },
                     Err(e) => DbResponse::Error { conn_id, error: e },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::FetchDependents { refobjid } => {
+                // US-K1 — pg_depend_recursive_sql 실행 후 결과를 표시용 string list 로 변환.
+                let sql = crate::db::dependencies::pg_depend_recursive_sql();
+                let response = match client
+                    .query(sql, &[&(refobjid as i64)])
+                    .await
+                {
+                    Ok(rows) => {
+                        let truncated =
+                            rows.len() >= crate::db::dependencies::PREVIEW_FETCH_LIMIT;
+                        let deps: Vec<String> = rows
+                            .iter()
+                            .take(crate::db::dependencies::MAX_DISPLAY)
+                            .map(|r| {
+                                let objid: i64 = r.get(0);
+                                let classid: i64 = r.get(1);
+                                let kind = crate::db::dependencies::classify_object(classid as u32);
+                                format!("oid {} ({})", objid, kind)
+                            })
+                            .collect();
+                        DbResponse::DependentsList {
+                            conn_id,
+                            refobjid,
+                            deps,
+                            truncated,
+                        }
+                    }
+                    Err(e) => DbResponse::Error {
+                        conn_id,
+                        error: crate::db::error::DbError::from_pg(&e, conn_id),
+                    },
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();

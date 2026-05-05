@@ -532,6 +532,34 @@ fn render_records_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
         &mut draft.auto_commit,
         &t("settings_auto_commit"),
     );
+    // US-J3 — Backup directory picker.
+    form_row(ui, "Backup directory", |ui| {
+        let display = if draft.backup_directory.trim().is_empty() {
+            "(default: ~/Documents)".to_string()
+        } else {
+            draft.backup_directory.clone()
+        };
+        ui.label(
+            egui::RichText::new(display)
+                .monospace()
+                .size(11.0)
+                .color(theme::text_muted()),
+        );
+        if ui.small_button("Browse…").clicked() {
+            let mut dialog = rfd::FileDialog::new();
+            let initial = if draft.backup_directory.trim().is_empty() {
+                std::env::home_dir()
+                    .map(|h| h.join("Documents"))
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+            } else {
+                std::path::PathBuf::from(&draft.backup_directory)
+            };
+            dialog = dialog.set_directory(initial);
+            if let Some(path) = dialog.pick_folder() {
+                draft.backup_directory = path.display().to_string();
+            }
+        }
+    });
     hint(ui);
 }
 

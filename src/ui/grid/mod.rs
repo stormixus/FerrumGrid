@@ -5,13 +5,21 @@
 //! 는 현재 빈 placeholder. 실제 함수 cut-over 는 후속 1.95c sub-stories 에서
 //! 진행. Phase 1.95a 의 dispatch() wire-up 도 cut-over 후 진행.
 
-mod data_ops;
+mod cell_overlay;
+pub(crate) mod data_ops;
+mod date_picker;
 mod footer;
+mod header;
 mod hit_test;
 mod info_panel;
+mod info_row;
+mod json_editor;
+mod pager;
 mod paste;
 mod render;
 mod selection;
+mod table_info;
+mod toolbar;
 mod tooltips;
 
 use data_ops::*;
@@ -20,10 +28,13 @@ use footer::{
     render_data_query_footer, render_grid_body_with_reserved_footer, should_show_data_query_footer,
 };
 pub use render::render_grid;
+pub(super) use header::{render_result_header, result_toolbar_action_width};
 pub(super) use render::{
-    metric_chip, passive_value_pill, render_cell, render_passive_cell,
-    render_passive_copyable_cell, result_toolbar_action_button, result_toolbar_action_width,
-    show_cell_copy_context_menu, show_dark_popup_below,
+    passive_value_pill, render_cell, render_passive_cell, render_passive_copyable_cell,
+    show_cell_copy_context_menu,
+};
+pub(super) use toolbar::{
+    metric_chip, result_toolbar_action_button, show_dark_popup_below,
 };
 pub use info_panel::{render_info_panel, restore_active_data_tab};
 use selection::*;
@@ -46,7 +57,7 @@ use crate::ui::theme;
 const GRID_CELL_LEFT_PAD: f32 = 12.0;
 const GRID_CELL_RIGHT_PAD: f32 = 8.0;
 
-pub(super) fn request_foreign_keys_for_schema(
+pub(crate) fn request_foreign_keys_for_schema(
     state: &mut AppState,
     bridge: &DbBridge,
     conn_id: crate::types::ConnectionId,
@@ -68,7 +79,7 @@ pub(super) fn request_foreign_keys_for_schema(
     });
 }
 
-pub(super) fn request_table_columns_for_data(
+pub(crate) fn request_table_columns_for_data(
     state: &mut AppState,
     bridge: &DbBridge,
     conn_id: crate::types::ConnectionId,
@@ -152,4 +163,3 @@ pub(super) fn open_related_data(state: &mut AppState, bridge: &DbBridge, fk: &Fo
     });
 }
 
-use paste::{export_csv, result_to_tsv};

@@ -583,6 +583,15 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         state.er_diagram.selected_schema = conn.schemas[0].clone();
     }
 
+    // 진단용 로딩 플래그 capture — sync 가 mutate 하기 전 (post-sync 에 사용).
+    // tables/foreign_keys 둘 중 하나라도 in-flight 이면 "loading" 상태.
+    let schema_for_loading = state.er_diagram.selected_schema.clone();
+    let is_schema_loading = !schema_for_loading.is_empty()
+        && state.connections.get(&active_conn).is_some_and(|c| {
+            c.loading_tables.contains(&schema_for_loading)
+                || c.loading_foreign_keys.contains(&schema_for_loading)
+        });
+
     render_toolbar(ui, state, bridge, active_conn);
     sync_schema_visualizer(state, bridge, active_conn);
 
@@ -684,12 +693,21 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     }
 
     if state.er_diagram.cards.is_empty() {
-        paint_canvas_message(
-            &painter,
-            response.rect,
-            &t("visualizer_loading_title"),
-            &t("visualizer_loading_subtitle"),
-        );
+        if is_schema_loading || schema_for_loading.is_empty() {
+            paint_canvas_message(
+                &painter,
+                response.rect,
+                &t("visualizer_loading_title"),
+                &t("visualizer_loading_subtitle"),
+            );
+        } else {
+            paint_canvas_message(
+                &painter,
+                response.rect,
+                &t("visualizer_no_tables_title"),
+                &t("visualizer_no_tables_subtitle"),
+            );
+        }
     } else if visible_ids.is_empty() {
         paint_canvas_message(
             &painter,

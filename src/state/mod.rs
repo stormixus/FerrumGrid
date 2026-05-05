@@ -184,12 +184,110 @@ pub struct AppState {
     pub schema_context_menu: Option<SchemaContextMenuState>,
     pub dragging_saved_connection: Option<ConnectionId>,
     pub diagnostics_panel: DiagnosticsPanel,
+    /// Plan v7 Phase 4b3/4b4 — 등록된 자동화 작업 registry. UI thread + scheduler
+    /// runner 가 공유하므로 Arc<RwLock<>> wrap.
+    pub automation: std::sync::Arc<std::sync::RwLock<crate::automation::scheduler::AutomationStore>>,
+    /// Automation Create form 입력 draft (다음 등록 전 임시 저장).
+    pub automation_draft: AutomationDraft,
     /// Plan v7 Phase 3b — Query 탭 명시 BEGIN 활성 여부.
     pub explicit_tx_active: bool,
     /// Plan v7 Phase 3b — 명시 BEGIN 시작 시각 (dangling tx 경과 측정).
     pub explicit_tx_started: Option<std::time::Instant>,
     /// Plan v7 Phase 3b — 30s warn toast 이미 표시했는지.
     pub explicit_tx_warned: bool,
+    /// US-J1 — Drop CASCADE 미리보기 다이얼로그 상태. None 이면 미표시.
+    pub drop_dialog: Option<DropDialogState>,
+    /// US-M1 — InvalidateTable Pre 가 도착했지만 매칭 Post/SchemaChange 가 아직
+    /// 안 온 oid → 시작 Instant. Post 시 remove. update() 가 5s/30s 임계 초과
+    /// 항목을 EchoTimeout / CacheStale 채널로 push.
+    pub pending_invalidations: HashMap<u32, std::time::Instant>,
+    /// US-M2 — pending_invalidations 의 oid 중 EchoTimeout 을 이미 push 한 oid
+    /// 집합. 동일 oid 에 대한 5s timeout 중복 push 방지. Post 시 함께 remove.
+    pub echo_warned: HashSet<u32>,
+}
+
+/// US-J1 / US-L1 — Drop 다이얼로그의 active 상태.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DropTargetKind {
+    Table,
+    View,
+    MaterializedView,
+}
+
+impl DropTargetKind {
+    /// US-L1 — `table_type` (information_schema 의 'BASE TABLE' / 'VIEW' /
+    /// 'MATERIALIZED VIEW') 를 enum 으로 변환. 기본 fallback 은 Table.
+    pub fn from_table_type(table_type: &str) -> Self {
+        match table_type {
+            "VIEW" => DropTargetKind::View,
+            "MATERIALIZED VIEW" => DropTargetKind::MaterializedView,
+            _ => DropTargetKind::Table,
+        }
+    }
+
+    /// US-L1 — DROP SQL 의 object 키워드 ('TABLE' / 'VIEW' / 'MATERIALIZED VIEW').
+    pub fn drop_keyword(&self) -> &'static str {
+        match self {
+            DropTargetKind::Table => "TABLE",
+            DropTargetKind::View => "VIEW",
+            DropTargetKind::MaterializedView => "MATERIALIZED VIEW",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DropDialogState {
+    pub conn_id: ConnectionId,
+    pub schema: String,
+    pub table: String,
+    /// US-L1 — DROP SQL 의 object 키워드 분기.
+    pub kind: DropTargetKind,
+    /// 종속 객체 표시 (최대 50, truncated 플래그 별도).
+    pub dependents: Vec<String>,
+    pub truncated: bool,
+    /// dependents 조회 진행 중 여부.
+    pub loading: bool,
+    /// 사용자가 'Drop CASCADE' 버튼을 click 한 후 confirmation 진행 중 여부.
+    /// (현재는 dialog 가 즉시 닫히므로 미사용 — 후속 multi-step UX 시 활용)
+    #[allow(dead_code)]
+    pub confirming: bool,
+}
+
+impl DropDialogState {
+    pub fn new(
+        conn_id: ConnectionId,
+        schema: impl Into<String>,
+        table: impl Into<String>,
+        kind: DropTargetKind,
+    ) -> Self {
+        Self {
+            conn_id,
+            schema: schema.into(),
+            table: table.into(),
+            kind,
+            dependents: Vec::new(),
+            truncated: false,
+            loading: true,
+            confirming: false,
+        }
+    }
+}
+
+/// Automation Create form 의 임시 입력 값. 등록 후 reset_for_create() 로 초기화.
+#[derive(Debug, Default, Clone)]
+pub struct AutomationDraft {
+    pub title: String,
+    pub sql: String,
+    /// Interval 모드의 초 단위 주기. 0 이면 Once 로 해석 (즉시 1회).
+    pub interval_secs: u64,
+}
+
+impl AutomationDraft {
+    pub fn reset(&mut self) {
+        self.title.clear();
+        self.sql.clear();
+        self.interval_secs = 0;
+    }
 }
 
 #[derive(Clone)]
@@ -245,9 +343,16 @@ impl Default for AppState {
             schema_context_menu: None,
             dragging_saved_connection: None,
             diagnostics_panel: DiagnosticsPanel::default(),
+            automation: std::sync::Arc::new(std::sync::RwLock::new(
+                crate::automation::scheduler::AutomationStore::default(),
+            )),
+            automation_draft: AutomationDraft::default(),
             explicit_tx_active: false,
             explicit_tx_started: None,
             explicit_tx_warned: false,
+            drop_dialog: None,
+            pending_invalidations: HashMap::new(),
+            echo_warned: HashSet::new(),
         }
     }
 }

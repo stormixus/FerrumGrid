@@ -3,7 +3,7 @@
 use crate::state::AppState;
 use crate::types::QueryResult;
 
-pub(super) fn result_to_tsv(result: &QueryResult) -> String {
+pub(crate) fn result_to_tsv(result: &QueryResult) -> String {
     let mut out = String::new();
     let headers: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
     out.push_str(&headers.join("\t"));
@@ -16,7 +16,7 @@ pub(super) fn result_to_tsv(result: &QueryResult) -> String {
     out
 }
 
-pub(super) fn export_csv(state: &AppState) {
+pub(crate) fn export_csv(state: &AppState) {
     let result = match &state.current_result {
         Some(r) => r,
         None => return,

@@ -114,6 +114,14 @@ fn render_table_row(
                         quote_ident(&row.name)
                     )));
                 }
+                if ui.small_button("Drop").clicked() {
+                    action = Some(ObjectAction::DropTable {
+                        conn_id,
+                        schema: row.schema.clone(),
+                        name: row.name.clone(),
+                        kind: crate::state::DropTargetKind::from_table_type(&row.table_type),
+                    });
+                }
             });
         });
     });

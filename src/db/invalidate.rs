@@ -133,6 +133,52 @@ where
     tokio::time::timeout(Duration::from_secs(5), fut).await
 }
 
+/// US-M2 — invalidate echo timeout 임계 (DiagnosticsPanel EchoTimeout 채널 push 기준).
+pub const ECHO_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// US-M2 — cache stale 임계 (DiagnosticsPanel CacheStale 채널 push + tracker
+/// 정리 기준). Plan §9 — Pre 후 30s 가 지나도 Post 가 안 오면 echo NOTIFY 자체가
+/// 유실되었거나 trigger 미설치 등 cache invalidation pipeline 가 끊어졌다고
+/// 간주한다.
+pub const CACHE_STALE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// US-M2 — pending invalidation tracker 의 tick 결과. app.rs update() 가
+/// `state.pending_invalidations` + `state.echo_warned` snapshot 을 본 함수에
+/// 넘기고, 반환된 액션들을 순서대로 적용 (push + warned set/pending map mutate).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagAction {
+    /// 5s 초과 — EchoTimeout 채널 push 후 echo_warned 에 oid 추가.
+    EchoTimeout(u32),
+    /// 30s 초과 — CacheStale 채널 push 후 pending_invalidations 와
+    /// echo_warned 양쪽에서 oid 제거.
+    CacheStale(u32),
+}
+
+/// US-M2 — pure 결정 로직. `pending` 의 각 oid 에 대해 elapsed 를 계산하고
+/// CacheStale > EchoTimeout 우선순위로 액션을 산출. 동일 oid 에 대해 두 액션
+/// 모두 발생하지는 않는다 (CacheStale 이면 EchoTimeout 은 skip — 어차피
+/// pending 에서 제거되므로 중복 의미 없음).
+pub fn compute_diag_actions(
+    pending: &std::collections::HashMap<u32, std::time::Instant>,
+    warned: &std::collections::HashSet<u32>,
+    now: std::time::Instant,
+) -> Vec<DiagAction> {
+    let mut out = Vec::new();
+    for (&oid, &started) in pending {
+        let elapsed = now.saturating_duration_since(started);
+        if elapsed >= CACHE_STALE_TIMEOUT {
+            out.push(DiagAction::CacheStale(oid));
+        } else if elapsed >= ECHO_TIMEOUT && !warned.contains(&oid) {
+            out.push(DiagAction::EchoTimeout(oid));
+        }
+    }
+    // 결정성: 테스트 기대값을 안정화하기 위해 oid 오름차순 정렬.
+    out.sort_by_key(|a| match a {
+        DiagAction::EchoTimeout(oid) | DiagAction::CacheStale(oid) => *oid,
+    });
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,4 +291,74 @@ mod tests {
     // 보장한다 (tokio test 스위트 검증). 본 모듈은 Ok 경로 + 시그니처 호환만
     // 검증하고, hang 시뮬레이션 테스트는 tokio test-util feature 의존을 피하기
     // 위해 추가하지 않는다.
+
+    // ---------- US-M2 — compute_diag_actions ----------
+
+    use std::collections::{HashMap, HashSet};
+    use std::time::{Duration, Instant};
+
+    fn pending_with(oid: u32, started_ago: Duration) -> HashMap<u32, Instant> {
+        let mut map = HashMap::new();
+        map.insert(oid, Instant::now() - started_ago);
+        map
+    }
+
+    #[test]
+    fn compute_actions_under_5s_returns_empty() {
+        let pending = pending_with(16384, Duration::from_secs(2));
+        let warned = HashSet::new();
+        let actions = compute_diag_actions(&pending, &warned, Instant::now());
+        assert!(actions.is_empty(), "elapsed < 5s 면 액션 없음");
+    }
+
+    #[test]
+    fn compute_actions_between_5s_and_30s_emits_echo_timeout_once() {
+        let pending = pending_with(16384, Duration::from_secs(10));
+        let warned = HashSet::new();
+        let actions = compute_diag_actions(&pending, &warned, Instant::now());
+        assert_eq!(actions, vec![DiagAction::EchoTimeout(16384)]);
+    }
+
+    #[test]
+    fn compute_actions_skips_echo_timeout_if_already_warned() {
+        let pending = pending_with(16384, Duration::from_secs(10));
+        let mut warned = HashSet::new();
+        warned.insert(16384);
+        let actions = compute_diag_actions(&pending, &warned, Instant::now());
+        assert!(actions.is_empty(), "echo_warned 에 포함된 oid 는 EchoTimeout skip");
+    }
+
+    #[test]
+    fn compute_actions_above_30s_emits_cache_stale() {
+        let pending = pending_with(16384, Duration::from_secs(35));
+        // warned 여부와 무관하게 CacheStale 만 발생.
+        let mut warned = HashSet::new();
+        warned.insert(16384);
+        let actions = compute_diag_actions(&pending, &warned, Instant::now());
+        assert_eq!(actions, vec![DiagAction::CacheStale(16384)]);
+    }
+
+    #[test]
+    fn compute_actions_above_30s_does_not_double_emit_with_echo_timeout() {
+        let pending = pending_with(16384, Duration::from_secs(35));
+        let warned = HashSet::new();
+        let actions = compute_diag_actions(&pending, &warned, Instant::now());
+        // CacheStale 만 — EchoTimeout 은 skip.
+        assert_eq!(actions, vec![DiagAction::CacheStale(16384)]);
+    }
+
+    #[test]
+    fn compute_actions_multiple_oids_sorted_by_oid() {
+        let mut pending = HashMap::new();
+        let now = Instant::now();
+        pending.insert(16385, now - Duration::from_secs(35)); // CacheStale
+        pending.insert(16384, now - Duration::from_secs(10)); // EchoTimeout
+        pending.insert(16383, now - Duration::from_secs(2)); // skip
+        let warned = HashSet::new();
+        let actions = compute_diag_actions(&pending, &warned, now);
+        assert_eq!(
+            actions,
+            vec![DiagAction::EchoTimeout(16384), DiagAction::CacheStale(16385)]
+        );
+    }
 }

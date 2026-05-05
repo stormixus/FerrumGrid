@@ -15,7 +15,6 @@ use super::theme;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagSeverity {
     Info,
-    #[allow(dead_code)]
     Warn,
     Error,
 }
@@ -30,11 +29,8 @@ pub enum DiagSeverity {
 /// - `MutationDiagnostic` — Phase 1.1 apply_data_edits 실패 / 부분 성공
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DiagChannel {
-    #[allow(dead_code)]
     EchoTimeout,
-    #[allow(dead_code)]
     DanglingTx,
-    #[allow(dead_code)]
     CacheStale,
     BackupError,
     MutationDiagnostic,
@@ -113,17 +109,14 @@ impl DiagnosticsPanel {
         });
     }
 
-    #[allow(dead_code)]
     pub fn push_echo_timeout(&mut self, message: impl Into<String>) {
         self.push(DiagChannel::EchoTimeout, DiagSeverity::Warn, message);
     }
 
-    #[allow(dead_code)]
     pub fn push_dangling_tx(&mut self, severity: DiagSeverity, message: impl Into<String>) {
         self.push(DiagChannel::DanglingTx, severity, message);
     }
 
-    #[allow(dead_code)]
     pub fn push_cache_stale(&mut self, message: impl Into<String>) {
         self.push(DiagChannel::CacheStale, DiagSeverity::Info, message);
     }

@@ -165,4 +165,16 @@ mod settings_serde_tests {
         let restored: AppSettings = toml::from_str(&serialized).expect("deserialize");
         assert!(restored.unsafe_ctid, "true 가 round-trip 후에도 보존");
     }
+
+    #[test]
+    fn backup_directory_round_trips() {
+        // US-J3 — backup_directory 가 settings.toml 직렬화/역직렬화 round-trip 보존
+        let original = AppSettings {
+            backup_directory: "/Users/test/Documents/Backups".to_string(),
+            ..AppSettings::default()
+        };
+        let serialized = toml::to_string(&original).expect("serialize");
+        let restored: AppSettings = toml::from_str(&serialized).expect("deserialize");
+        assert_eq!(restored.backup_directory, "/Users/test/Documents/Backups");
+    }
 }

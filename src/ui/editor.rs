@@ -17,7 +17,7 @@ pub fn render_editor(
     bridge: &DbBridge,
     settings: &AppSettings,
 ) {
-    render_tab_bar(ui, state);
+    render_tab_bar(ui, state, bridge);
     render_toolbar(ui, state, bridge);
     render_editor_body(ui, state, bridge, settings);
 }
@@ -26,7 +26,7 @@ pub fn render_editor(
 // Tab bar
 // ---------------------------------------------------------------------------
 
-fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
+fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let tab_frame = egui::Frame::new()
         .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
@@ -54,6 +54,19 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState) {
 
             if let Some(idx) = tab_to_close {
                 if state.editor_tabs.len() > 1 {
+                    // US-J2 — explicit tx active 시 tab close 전 ROLLBACK 발사.
+                    if state.explicit_tx_active {
+                        if let Some(conn_id) = state.active_connection {
+                            bridge.send(DbCommand::ExecuteQuery {
+                                conn_id,
+                                sql: "ROLLBACK".to_string(),
+                                row_limit: None,
+                            });
+                        }
+                        state.explicit_tx_active = false;
+                        state.explicit_tx_started = None;
+                        state.explicit_tx_warned = false;
+                    }
                     state.editor_tabs.remove(idx);
                     if state.active_tab >= state.editor_tabs.len() {
                         state.active_tab = state.editor_tabs.len() - 1;
@@ -593,7 +606,7 @@ fn render_editor_body(
                 comp_down,
             ) {
                 if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
-                    let new_cursor_pos = insert.start_char + insert.text.len() + 1;
+                    let new_cursor_pos = completion_cursor_pos(&insert);
                     apply_completion(&mut tab.content, &insert);
                     let snapshot = tab.content.clone();
                     ui.data_mut(|d| {
@@ -706,6 +719,7 @@ fn ensure_completion_metadata(state: &mut AppState, bridge: &DbBridge) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_completion_popup(
     ui: &mut egui::Ui,
     state: &AppState,
@@ -1096,6 +1110,13 @@ fn apply_completion(content: &mut String, insert: &CompletionInsert) {
     content.replace_range(start..end, &with_space);
 }
 
+/// Tab 수락 후 egui `CCursor` 가 위치할 char index — 완성된 텍스트 끝 + trailing
+/// space 1칸. `CCursor` 는 *char* 기반이므로 `text.chars().count()` 로 계산해야
+/// 한다 (byte length 사용 시 non-ASCII identifier 에서 cursor 가 어긋난다).
+fn completion_cursor_pos(insert: &CompletionInsert) -> usize {
+    insert.start_char + insert.text.chars().count() + 1
+}
+
 fn char_to_byte_index(text: &str, char_index: usize) -> usize {
     text.char_indices()
         .nth(char_index)
@@ -1107,11 +1128,31 @@ fn char_to_byte_index(text: &str, char_index: usize) -> usize {
 // Query execution
 // ---------------------------------------------------------------------------
 
+/// US-J2 — classify_explicit_tx 결과에 따라 state.explicit_tx_* 토글.
+/// `execute_current_query` 와 단위 테스트 양쪽에서 호출.
+pub(crate) fn toggle_explicit_tx_for_sql(state: &mut AppState, sql: &str) {
+    use crate::db::begin_detect::{classify_explicit_tx, ExplicitTxClass};
+    match classify_explicit_tx(sql) {
+        ExplicitTxClass::Begin => {
+            state.explicit_tx_active = true;
+            state.explicit_tx_started = Some(std::time::Instant::now());
+            state.explicit_tx_warned = false;
+        }
+        ExplicitTxClass::Commit | ExplicitTxClass::Rollback => {
+            state.explicit_tx_active = false;
+            state.explicit_tx_started = None;
+            state.explicit_tx_warned = false;
+        }
+        _ => {}
+    }
+}
+
 fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
     if let Some(conn_id) = state.active_connection {
         if let Some(tab) = state.editor_tabs.get(state.active_tab) {
             let sql = tab.content.trim().to_string();
             if !sql.is_empty() {
+                toggle_explicit_tx_for_sql(state, &sql);
                 state.query_running = true;
                 state.last_error = None;
                 bridge.send(DbCommand::ExecuteQuery {
@@ -1123,6 +1164,7 @@ fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
         }
     }
 }
+
 
 // ---------------------------------------------------------------------------
 // SQL syntax highlighting
@@ -1313,4 +1355,126 @@ fn highlight_sql(text: &str, wrap_width: f32) -> egui::text::LayoutJob {
 #[inline]
 fn fmt(font_id: egui::FontId, color: Color32) -> egui::text::TextFormat {
     egui::text::TextFormat::simple(font_id, color)
+}
+
+#[cfg(test)]
+mod completion_tests {
+    use super::*;
+
+    fn make_insert(start: usize, end: usize, text: &str) -> CompletionInsert {
+        CompletionInsert {
+            start_char: start,
+            end_char: end,
+            text: text.to_string(),
+        }
+    }
+
+    #[test]
+    fn apply_completion_replaces_partial_token_with_full_text_and_space() {
+        let mut content = "SELECT * FROM us".to_string();
+        let insert = make_insert(14, 16, "users");
+        apply_completion(&mut content, &insert);
+        assert_eq!(content, "SELECT * FROM users ");
+    }
+
+    #[test]
+    fn apply_completion_handles_empty_fragment() {
+        let mut content = "SELECT ".to_string();
+        let insert = make_insert(7, 7, "id");
+        apply_completion(&mut content, &insert);
+        assert_eq!(content, "SELECT id ");
+    }
+
+    #[test]
+    fn apply_completion_in_middle_of_buffer() {
+        let mut content = "SELECT  FROM t".to_string();
+        let insert = make_insert(7, 7, "name");
+        apply_completion(&mut content, &insert);
+        assert_eq!(content, "SELECT name  FROM t");
+    }
+
+    #[test]
+    fn cursor_pos_after_ascii_completion_is_text_end_plus_space() {
+        let insert = make_insert(14, 16, "users");
+        // start=14 + len('users')=5 + 1 (space) = 20
+        assert_eq!(completion_cursor_pos(&insert), 20);
+    }
+
+    #[test]
+    fn cursor_pos_uses_char_count_not_byte_count_for_non_ascii() {
+        // Korean column name: 이름 = 2 chars, 6 bytes (UTF-8)
+        let insert = make_insert(7, 7, "이름");
+        // start=7 + chars('이름')=2 + 1 (space) = 10 (NOT 14 from byte count)
+        assert_eq!(completion_cursor_pos(&insert), 10);
+    }
+
+    #[test]
+    fn cursor_pos_handles_quoted_identifier() {
+        let insert = make_insert(7, 9, "\"my col\"");
+        // start=7 + chars('"my col"')=8 + 1 (space) = 16
+        assert_eq!(completion_cursor_pos(&insert), 16);
+    }
+
+    #[test]
+    fn apply_completion_preserves_content_after_replacement_window() {
+        let mut content = "SELECT us FROM t".to_string();
+        let insert = make_insert(7, 9, "users");
+        apply_completion(&mut content, &insert);
+        assert_eq!(content, "SELECT users  FROM t");
+    }
+
+    #[test]
+    fn char_to_byte_index_at_end_returns_total_byte_length() {
+        let text = "abc";
+        assert_eq!(char_to_byte_index(text, 3), 3);
+        assert_eq!(char_to_byte_index(text, 100), 3); // out of range → end
+    }
+
+    #[test]
+    fn char_to_byte_index_for_multibyte() {
+        let text = "이름";
+        // each Korean char is 3 bytes in UTF-8
+        assert_eq!(char_to_byte_index(text, 0), 0);
+        assert_eq!(char_to_byte_index(text, 1), 3);
+        assert_eq!(char_to_byte_index(text, 2), 6); // beyond last char → end
+    }
+}
+
+#[cfg(test)]
+mod begin_tracking_tests {
+    use super::*;
+
+    #[test]
+    fn begin_sets_explicit_tx_active() {
+        let mut state = AppState::default();
+        toggle_explicit_tx_for_sql(&mut state, "BEGIN");
+        assert!(state.explicit_tx_active);
+        assert!(state.explicit_tx_started.is_some());
+    }
+
+    #[test]
+    fn begin_select_commit_sequence_toggles_correctly() {
+        let mut state = AppState::default();
+        toggle_explicit_tx_for_sql(&mut state, "BEGIN");
+        assert!(state.explicit_tx_active);
+        toggle_explicit_tx_for_sql(&mut state, "SELECT 1");
+        assert!(state.explicit_tx_active, "SELECT keeps tx active");
+        toggle_explicit_tx_for_sql(&mut state, "COMMIT");
+        assert!(!state.explicit_tx_active);
+        assert!(state.explicit_tx_started.is_none());
+    }
+
+    #[test]
+    fn rollback_resets_active_state() {
+        let mut state = AppState {
+            explicit_tx_active: true,
+            explicit_tx_started: Some(std::time::Instant::now()),
+            explicit_tx_warned: true,
+            ..AppState::default()
+        };
+        toggle_explicit_tx_for_sql(&mut state, "ROLLBACK");
+        assert!(!state.explicit_tx_active);
+        assert!(state.explicit_tx_started.is_none());
+        assert!(!state.explicit_tx_warned);
+    }
 }

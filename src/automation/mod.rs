@@ -5,4 +5,5 @@
 //! `src/ui/objects/automation.rs`, runtime scheduler 는 Phase 4b3 의
 //! `runner.rs` (별도 sub-iteration).
 
+pub mod runner;
 pub mod scheduler;

@@ -269,6 +269,11 @@ fn insert_recent_ui_en(en: &mut Translation) {
         "visualizer_clear_search_hint",
         "Clear the search box to show the full schema.",
     );
+    en.insert("visualizer_no_tables_title", "No tables in this schema");
+    en.insert(
+        "visualizer_no_tables_subtitle",
+        "Select another schema or refresh.",
+    );
     en.insert("visualizer_count", "{0} tables  |  {1} relations");
 
     en.insert("workspace_close_tab", "Close Tab");
@@ -551,6 +556,11 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert(
         "visualizer_clear_search_hint",
         "전체 스키마를 보려면 검색어를 지우세요.",
+    );
+    ko.insert("visualizer_no_tables_title", "이 스키마에 테이블이 없습니다");
+    ko.insert(
+        "visualizer_no_tables_subtitle",
+        "다른 스키마를 선택하거나 새로고침하세요.",
     );
     ko.insert("visualizer_count", "{0}개 테이블  |  {1}개 관계");
 

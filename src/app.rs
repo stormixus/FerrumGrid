@@ -17,6 +17,14 @@ pub struct FerrumGridApp {
     native_menu: crate::native_menu::NativeMenu,
     toasts: egui_notify::Toasts,
     quit_requested: bool,
+    /// Plan v7 Phase 4b3 — automation scheduler runner. 첫 Connected event 에서
+    /// 1회 spawn. (handle, shutdown_tx, done_rx). done_rx 는 thread 가 run_scheduler
+    /// 종료 후 신호를 보내며, on_exit 에서 recv_timeout 으로 graceful join.
+    automation_runner: Option<(
+        std::thread::JoinHandle<()>,
+        tokio::sync::oneshot::Sender<()>,
+        std::sync::mpsc::Receiver<()>,
+    )>,
 }
 
 fn reload_enum_text_projection_if_needed(state: &mut AppState, bridge: &DbBridge) -> bool {
@@ -129,6 +137,7 @@ impl FerrumGridApp {
             native_menu: crate::native_menu::NativeMenu::install(),
             toasts: egui_notify::Toasts::default().with_anchor(egui_notify::Anchor::BottomRight),
             quit_requested: false,
+            automation_runner: None,
         }
     }
 
@@ -165,6 +174,33 @@ impl FerrumGridApp {
                         conn.loading_schemas = true;
                     }
                     self.state.status_message = format!("Connected (PostgreSQL {server_version})");
+
+                    // Plan v7 Phase 4b3 — automation scheduler runner 1회 spawn (첫 connection).
+                    if self.automation_runner.is_none() {
+                        let store = self.state.automation.clone();
+                        let cmd_tx = bridge.cmd_sender();
+                        let runner_conn_id = conn_id;
+                        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+                        let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+                        let handle = std::thread::Builder::new()
+                            .name("ferrumgrid-automation".to_string())
+                            .spawn(move || {
+                                let rt = tokio::runtime::Builder::new_current_thread()
+                                    .enable_all()
+                                    .build()
+                                    .expect("automation runtime");
+                                rt.block_on(crate::automation::runner::run_scheduler(
+                                    store,
+                                    cmd_tx,
+                                    runner_conn_id,
+                                    shutdown_rx,
+                                ));
+                                let _ = done_tx.send(());
+                            })
+                            .expect("spawn automation runner");
+                        self.automation_runner = Some((handle, shutdown_tx, done_rx));
+                        tracing::info!("automation runner spawned for conn {conn_id:?}");
+                    }
 
                     // Auto-load the top-level browser model.
                     bridge.send(crate::db::bridge::DbCommand::ListDatabases { conn_id });
@@ -398,9 +434,11 @@ impl FerrumGridApp {
                     task_id,
                     result,
                 } => {
-                    // Plan v7 Phase 4b — Automation 실행 결과 표시. AutomationStore
-                    // 통합 (US-P4b3) 후 task.last_result / last_run 갱신 예정.
+                    // Plan v7 Phase 4b3 — runner / Run-Now 응답을 AutomationStore 에 적용.
                     use crate::automation::scheduler::ApplyResult;
+                    if let Ok(mut store) = self.state.automation.write() {
+                        store.mark_run(task_id, chrono::Utc::now(), result.clone());
+                    }
                     match result {
                         ApplyResult::Success { rows_affected } => {
                             self.toasts.info(format!(
@@ -428,6 +466,19 @@ impl FerrumGridApp {
                         self.state.explicit_tx_active = false;
                         self.state.explicit_tx_started = None;
                         self.state.explicit_tx_warned = false;
+                    }
+                }
+                DbResponse::DependentsList {
+                    conn_id: _,
+                    refobjid: _,
+                    deps,
+                    truncated,
+                } => {
+                    // US-K1 — Drop dialog 의 dependents 채우기 + loading 종료.
+                    if let Some(dlg) = self.state.drop_dialog.as_mut() {
+                        dlg.dependents = deps;
+                        dlg.truncated = truncated;
+                        dlg.loading = false;
                     }
                 }
                 DbResponse::Error { conn_id, error } => {
@@ -526,6 +577,30 @@ impl eframe::App for FerrumGridApp {
             }
         }
 
+        // US-M2 — pending invalidation tick: 5s 초과 → EchoTimeout, 30s 초과 → CacheStale.
+        let actions = crate::db::invalidate::compute_diag_actions(
+            &self.state.pending_invalidations,
+            &self.state.echo_warned,
+            std::time::Instant::now(),
+        );
+        for action in actions {
+            match action {
+                crate::db::invalidate::DiagAction::EchoTimeout(oid) => {
+                    self.state.diagnostics_panel.push_echo_timeout(format!(
+                        "Invalidate echo timeout (>5s) for table_oid {oid} — cache may be stale"
+                    ));
+                    self.state.echo_warned.insert(oid);
+                }
+                crate::db::invalidate::DiagAction::CacheStale(oid) => {
+                    self.state.diagnostics_panel.push_cache_stale(format!(
+                        "Cache stale (>30s without echo) for table_oid {oid} — manual refresh recommended"
+                    ));
+                    self.state.pending_invalidations.remove(&oid);
+                    self.state.echo_warned.remove(&oid);
+                }
+            }
+        }
+
         let menu_actions = self
             .native_menu
             .handle_events(ctx, &mut self.state, &mut self.settings);
@@ -550,6 +625,7 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
+        ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
@@ -577,6 +653,20 @@ impl eframe::App for FerrumGridApp {
             }
         }
         storage::settings::save_settings(&self.settings);
+
+        // Plan v7 Phase 4b3 — automation runner graceful shutdown.
+        // shutdown_tx 발사 → done_rx.recv_timeout(1s) 으로 thread 종료 신호 대기.
+        if let Some((handle, shutdown_tx, done_rx)) = self.automation_runner.take() {
+            let _ = shutdown_tx.send(());
+            match done_rx.recv_timeout(std::time::Duration::from_secs(1)) {
+                Ok(()) => {
+                    let _ = handle.join();
+                }
+                Err(_) => {
+                    tracing::warn!("automation runner did not exit within 1s — leaving as daemon");
+                }
+            }
+        }
 
         // Disconnect all and drop bridge
         if let Some(bridge) = &self.bridge {
