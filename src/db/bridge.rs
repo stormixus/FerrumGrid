@@ -176,6 +176,13 @@ pub enum DbResponse {
         task_id: uuid::Uuid,
         result: crate::automation::scheduler::ApplyResult,
     },
+    /// Plan v7 Phase 3b — Query 탭 명시 BEGIN/COMMIT/ROLLBACK 감지 후 tx 상태 변경.
+    /// `conn_id` 는 future per-connection routing 용 (현재 app.rs handler 가 `_` 로 무시).
+    #[allow(dead_code)]
+    ExplicitTxChanged {
+        conn_id: ConnectionId,
+        active: bool,
+    },
     Error {
         conn_id: ConnectionId,
         error: DbError,
@@ -588,6 +595,20 @@ async fn connection_task(
                     }
                 };
                 let _ = resp_tx.send(response);
+
+                // Plan v7 Phase 3b — classify explicit tx boundary and notify UI.
+                use crate::db::begin_detect::{classify_explicit_tx, ExplicitTxClass};
+                let tx_class = classify_explicit_tx(&sql);
+                match tx_class {
+                    ExplicitTxClass::Begin => {
+                        let _ = resp_tx.send(DbResponse::ExplicitTxChanged { conn_id, active: true });
+                    }
+                    ExplicitTxClass::Commit | ExplicitTxClass::Rollback => {
+                        let _ = resp_tx.send(DbResponse::ExplicitTxChanged { conn_id, active: false });
+                    }
+                    _ => {}
+                }
+
                 ctx.request_repaint();
             }
             ConnCommand::ApplyDdlWithInvalidation {

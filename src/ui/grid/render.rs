@@ -20,6 +20,14 @@ use crate::ui::theme;
 use super::*;
 
 pub fn render_grid(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    // Plan v7 Phase 3b — warn banner when explicit tx active in Query tab.
+    if state.explicit_tx_active {
+        ui.colored_label(
+            crate::ui::theme::ACCENT_YELLOW,
+            "\u{26a0} Explicit transaction active in Query tab \u{2014} data editing disabled. COMMIT or ROLLBACK first.",
+        );
+    }
+
     if let Some(ref error) = state.last_error.clone() {
         render_error_bar(ui, error);
     }
@@ -237,7 +245,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
         |ui| {
             ui.set_clip_rect(right_rect);
             if let Some(summary) = &data_edit_summary {
-                let can_apply = summary.can_apply && !state.data_edit.applying;
+                let can_apply = summary.can_apply && !state.data_edit.applying && !state.explicit_tx_active;
                 let apply_label = t("button_apply");
                 let apply_button = if can_apply {
                     theme::primary_button(&apply_label)

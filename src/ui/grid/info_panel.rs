@@ -1240,9 +1240,22 @@ fn render_info_apply_controls(ui: &mut egui::Ui, state: &mut AppState, bridge: &
         return;
     };
 
+    // Plan v7 Phase 3b — disable apply when explicit tx active.
+    let tx_blocked = state.explicit_tx_active;
+
     ui.add_space(theme::SPACE_LG);
     ui.separator();
     ui.add_space(theme::SPACE_MD);
+
+    if tx_blocked {
+        ui.label(
+            RichText::new("Apply disabled — explicit transaction active in Query tab")
+                .color(theme::ACCENT_YELLOW)
+                .size(11.0),
+        );
+        ui.add_space(theme::SPACE_SM);
+    }
+
     ui.horizontal_wrapped(|ui| {
         metric_chip(
             ui,
@@ -1255,7 +1268,7 @@ fn render_info_apply_controls(ui: &mut egui::Ui, state: &mut AppState, bridge: &
     });
     ui.add_space(theme::SPACE_SM);
     ui.horizontal_wrapped(|ui| {
-        let can_apply = summary.can_apply && !state.data_edit.applying;
+        let can_apply = summary.can_apply && !state.data_edit.applying && !tx_blocked;
         if info_text_action_button(ui, &t("button_apply"), can_apply).clicked() {
             match build_data_edits(state) {
                 Ok(edits) => {

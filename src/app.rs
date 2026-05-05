@@ -191,6 +191,10 @@ impl FerrumGridApp {
                     if self.state.active_connection == Some(conn_id) {
                         self.state.active_connection =
                             self.state.connections.keys().next().copied();
+                        // Clear tx state when the active connection disconnects.
+                        self.state.explicit_tx_active = false;
+                        self.state.explicit_tx_started = None;
+                        self.state.explicit_tx_warned = false;
                     }
                     if self.state.connections.is_empty() {
                         self.state.status_message = "Disconnected".to_string();
@@ -414,6 +418,18 @@ impl FerrumGridApp {
                         }
                     }
                 }
+                DbResponse::ExplicitTxChanged { conn_id: _, active } => {
+                    if active {
+                        self.state.explicit_tx_active = true;
+                        self.state.explicit_tx_started = Some(std::time::Instant::now());
+                        self.state.explicit_tx_warned = false;
+                        self.state.status_message = "Transaction active (BEGIN)".to_string();
+                    } else {
+                        self.state.explicit_tx_active = false;
+                        self.state.explicit_tx_started = None;
+                        self.state.explicit_tx_warned = false;
+                    }
+                }
                 DbResponse::Error { conn_id, error } => {
                     let was_applying_edits = self.state.data_edit.applying;
                     self.state.data_edit.applying = false;
@@ -469,6 +485,47 @@ impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         self.process_responses();
         self.state.diagnostics_panel.unsafe_ctid_active = self.settings.unsafe_ctid;
+
+        // Plan v7 Phase 3b — dangling tx monitoring (30s warn, 60s auto-ROLLBACK).
+        if self.state.explicit_tx_active {
+            if let Some(started) = self.state.explicit_tx_started {
+                let elapsed = started.elapsed();
+                let status = crate::db::dangling_tx::evaluate_status(elapsed);
+                match status {
+                    crate::db::dangling_tx::DanglingTxStatus::ShouldRollback => {
+                        if let Some(conn_id) = self.state.active_connection {
+                            if let Some(bridge) = &self.bridge {
+                                bridge.send(crate::db::bridge::DbCommand::ExecuteQuery {
+                                    conn_id,
+                                    sql: "ROLLBACK".to_string(),
+                                    row_limit: None,
+                                });
+                            }
+                        }
+                        self.state.diagnostics_panel.push_dangling_tx(
+                            crate::ui::diagnostics_panel::DiagSeverity::Error,
+                            format!("Forced ROLLBACK after {}s idle in transaction", elapsed.as_secs()),
+                        );
+                        self.toasts.error("Transaction auto-rolled back after 60s");
+                        self.state.explicit_tx_active = false;
+                        self.state.explicit_tx_started = None;
+                        self.state.explicit_tx_warned = false;
+                    }
+                    crate::db::dangling_tx::DanglingTxStatus::ShouldWarn => {
+                        if !self.state.explicit_tx_warned {
+                            self.state.explicit_tx_warned = true;
+                            self.state.diagnostics_panel.push_dangling_tx(
+                                crate::ui::diagnostics_panel::DiagSeverity::Warn,
+                                format!("Transaction idle for {}s — auto-ROLLBACK at 60s", elapsed.as_secs()),
+                            );
+                            self.toasts.warning(format!("Transaction idle for {}s", elapsed.as_secs()));
+                        }
+                    }
+                    crate::db::dangling_tx::DanglingTxStatus::Ok => {}
+                }
+            }
+        }
+
         let menu_actions = self
             .native_menu
             .handle_events(ctx, &mut self.state, &mut self.settings);

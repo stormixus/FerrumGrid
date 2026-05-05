@@ -184,6 +184,12 @@ pub struct AppState {
     pub schema_context_menu: Option<SchemaContextMenuState>,
     pub dragging_saved_connection: Option<ConnectionId>,
     pub diagnostics_panel: DiagnosticsPanel,
+    /// Plan v7 Phase 3b — Query 탭 명시 BEGIN 활성 여부.
+    pub explicit_tx_active: bool,
+    /// Plan v7 Phase 3b — 명시 BEGIN 시작 시각 (dangling tx 경과 측정).
+    pub explicit_tx_started: Option<std::time::Instant>,
+    /// Plan v7 Phase 3b — 30s warn toast 이미 표시했는지.
+    pub explicit_tx_warned: bool,
 }
 
 #[derive(Clone)]
@@ -239,6 +245,9 @@ impl Default for AppState {
             schema_context_menu: None,
             dragging_saved_connection: None,
             diagnostics_panel: DiagnosticsPanel::default(),
+            explicit_tx_active: false,
+            explicit_tx_started: None,
+            explicit_tx_warned: false,
         }
     }
 }
