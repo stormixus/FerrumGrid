@@ -592,6 +592,12 @@ fn render_editor_body(
             ) {
                 if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
                     apply_completion(&mut tab.content, &insert);
+                    ui.data_mut(|d| {
+                        d.insert_persisted(
+                            egui::Id::new(("sql_completion_applied", tab_id)),
+                            true,
+                        )
+                    });
                 }
             }
         }
@@ -698,6 +704,13 @@ fn render_completion_popup(
     nav_down: bool,
 ) -> Option<CompletionInsert> {
     if editor_rect == egui::Rect::NOTHING {
+        return None;
+    }
+
+    let applied_id = egui::Id::new(("sql_completion_applied", tab_id));
+    let just_applied: bool = ui.data_mut(|d| d.get_persisted(applied_id).unwrap_or(false));
+    if just_applied {
+        ui.data_mut(|d| d.insert_persisted(applied_id, false));
         return None;
     }
 
