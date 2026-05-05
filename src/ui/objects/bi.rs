@@ -6,24 +6,24 @@
 use eframe::egui::{self, CornerRadius, RichText, ScrollArea};
 
 use crate::bi::aggregate::{compute_column_stats, group_by, AggregateOp};
+use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::t;
-use crate::state::AppState;
+use crate::state::{build_data_select_sql_with_columns, AppState};
 use crate::ui::theme;
 
 use super::{
-    cell_label, data_row, empty_state, format_number, render_count_strip, table_header, type_chip,
-    ObjectAction, BI_COLUMNS,
+    active_conn, cell_label, data_row, empty_state, format_number, render_count_strip,
+    selected_schema_or_public, table_header, type_chip, ObjectAction, BI_COLUMNS,
 };
 
-pub(super) fn render_bi_tools(ui: &mut egui::Ui, state: &AppState) -> Option<ObjectAction> {
+pub(super) fn render_bi_tools(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+) -> Option<ObjectAction> {
     ui.add_space(theme::SPACE_LG);
     let Some(result) = state.current_result.as_ref() else {
-        empty_state(
-            ui,
-            "No result set",
-            "Run a query first, then BI will summarize rows and numeric columns here.",
-        );
-        return None;
+        return render_bi_empty(ui, state, bridge);
     };
 
     render_count_strip(
@@ -72,6 +72,74 @@ pub(super) fn render_bi_tools(ui: &mut egui::Ui, state: &AppState) -> Option<Obj
         render_group_analysis_section(ui, result);
     });
 
+    None
+}
+
+fn render_bi_empty(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+) -> Option<ObjectAction> {
+    let conn_id = active_conn(state);
+    let schema = selected_schema_or_public(state);
+    let table = if !state.objects_search.is_empty() {
+        state.objects_search.clone()
+    } else {
+        String::new()
+    };
+
+    if conn_id.is_some() && !table.is_empty() {
+        ui.add_space(theme::SPACE_XXL);
+        ui.vertical_centered(|ui| {
+            ui.label(
+                RichText::new(format!("Analyze: {schema}.{table}"))
+                    .color(theme::text_primary())
+                    .size(14.0)
+                    .strong(),
+            );
+            ui.add_space(theme::SPACE_MD);
+            ui.label(
+                RichText::new("Load table data to see column statistics and group analysis.")
+                    .color(theme::text_muted())
+                    .size(11.0),
+            );
+            ui.add_space(theme::SPACE_LG);
+            if ui.add(theme::primary_button("Load Data")).clicked() {
+                let conn_id = conn_id.unwrap();
+                let source = crate::state::DataSource {
+                    conn_id,
+                    schema: schema.clone(),
+                    table: table.clone(),
+                    filter: None,
+                };
+                let columns = state.data_columns_for_source(&source);
+                state.query_running = true;
+                bridge.send(DbCommand::ExecuteQuery {
+                    conn_id,
+                    sql: build_data_select_sql_with_columns(
+                        &source,
+                        &[],
+                        1000,
+                        0,
+                        &columns,
+                    ),
+                    row_limit: Some(1000),
+                });
+            }
+        });
+        if state.query_running {
+            ui.add_space(theme::SPACE_MD);
+            ui.vertical_centered(|ui| {
+                ui.spinner();
+            });
+        }
+    } else {
+        empty_state(
+            ui,
+            "No table selected",
+            "Select a table from the navigator, then switch to BI to analyze its data.",
+        );
+    }
     None
 }
 

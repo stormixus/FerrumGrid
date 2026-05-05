@@ -288,7 +288,7 @@ fn render_objects_list(
             MainView::Backup => backup::render_backup_tools(ui, state, bridge, settings),
             MainView::Automation => automation::render_automation_tools(ui, state),
             MainView::Model => model::render_model_tools(ui, state, bridge),
-            MainView::BI => bi::render_bi_tools(ui, state),
+            MainView::BI => bi::render_bi_tools(ui, state, bridge),
             MainView::Connection | MainView::Query | MainView::Data => None,
         };
 
