@@ -592,10 +592,11 @@ fn render_editor_body(
             ) {
                 if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
                     apply_completion(&mut tab.content, &insert);
+                    let snapshot = tab.content.clone();
                     ui.data_mut(|d| {
                         d.insert_persisted(
-                            egui::Id::new(("sql_completion_applied", tab_id)),
-                            true,
+                            egui::Id::new(("sql_completion_applied", tab_id)).with("content"),
+                            snapshot,
                         )
                     });
                 }
@@ -708,10 +709,13 @@ fn render_completion_popup(
     }
 
     let applied_id = egui::Id::new(("sql_completion_applied", tab_id));
-    let just_applied: bool = ui.data_mut(|d| d.get_persisted(applied_id).unwrap_or(false));
-    if just_applied {
-        ui.data_mut(|d| d.insert_persisted(applied_id, false));
+    let applied_content: String =
+        ui.data_mut(|d| d.get_persisted(applied_id.with("content")).unwrap_or_default());
+    if !applied_content.is_empty() && applied_content == content {
         return None;
+    }
+    if !applied_content.is_empty() && applied_content != content {
+        ui.data_mut(|d| d.insert_persisted(applied_id.with("content"), String::new()));
     }
 
     let cursor = cursor_index.unwrap_or_else(|| content.chars().count());
