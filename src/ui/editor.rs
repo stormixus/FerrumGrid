@@ -684,12 +684,27 @@ fn render_completion_popup(
         return None;
     }
 
-    let accept_first = ui.input(|input| input.key_pressed(egui::Key::Tab));
-    if accept_first {
+    let popup_id = egui::Id::new(("sql_completion_sel", tab_id));
+    let mut selected: usize = ui.data_mut(|d| d.get_persisted(popup_id).unwrap_or(0));
+
+    let nav_up = ui.input(|i| i.key_pressed(egui::Key::ArrowUp));
+    let nav_down = ui.input(|i| i.key_pressed(egui::Key::ArrowDown));
+    let accept = ui.input(|i| i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter));
+
+    if nav_up {
+        selected = selected.saturating_sub(1);
+    }
+    if nav_down {
+        selected = (selected + 1).min(suggestions.len().saturating_sub(1));
+    }
+    ui.data_mut(|d| d.insert_persisted(popup_id, selected));
+
+    if accept {
+        let idx = selected.min(suggestions.len().saturating_sub(1));
         return Some(CompletionInsert {
             start_char: context.start_char,
             end_char: context.end_char,
-            text: suggestions[0].insert_text.clone(),
+            text: suggestions[idx].insert_text.clone(),
         });
     }
 
@@ -709,12 +724,12 @@ fn render_completion_popup(
                     egui::ScrollArea::vertical()
                         .max_height(270.0)
                         .show(ui, |ui| {
-                            for item in suggestions {
-                                if render_completion_item(ui, &item).clicked() {
+                            for (idx, item) in suggestions.iter().enumerate() {
+                                if render_completion_item(ui, item, idx == selected).clicked() {
                                     picked = Some(CompletionInsert {
                                         start_char: context.start_char,
                                         end_char: context.end_char,
-                                        text: item.insert_text,
+                                        text: item.insert_text.clone(),
                                     });
                                 }
                             }
@@ -725,10 +740,12 @@ fn render_completion_popup(
     picked
 }
 
-fn render_completion_item(ui: &mut egui::Ui, item: &CompletionItem) -> egui::Response {
+fn render_completion_item(ui: &mut egui::Ui, item: &CompletionItem, selected: bool) -> egui::Response {
     let width = ui.available_width().max(360.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
-    let fill = if response.hovered() {
+    let fill = if selected {
+        theme::with_alpha(theme::ACCENT_TEAL, 45)
+    } else if response.hovered() {
         theme::with_alpha(theme::ACCENT_TEAL, 28)
     } else {
         Color32::TRANSPARENT
