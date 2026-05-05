@@ -5,7 +5,6 @@
 //! 텍스트를 분석하여 transaction 경계를 식별 — `dangling_tx` infra 의 입력원.
 
 /// 사용자가 입력한 SQL 의 명시 transaction 경계 분류.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExplicitTxClass {
     /// `BEGIN` / `START TRANSACTION` — explicit tx 시작.
@@ -60,7 +59,6 @@ fn strip_leading_comments_and_whitespace(sql: &str) -> &str {
 /// - `ROLLBACK` / `ABORT` / `ROLLBACK WORK` → `Rollback`
 /// - `SAVEPOINT name` → `Savepoint`
 /// - 그 외 → `None`
-#[allow(dead_code)]
 pub fn classify_explicit_tx(sql: &str) -> ExplicitTxClass {
     let Some(first) = first_keyword_uppercase(sql) else {
         return ExplicitTxClass::None;

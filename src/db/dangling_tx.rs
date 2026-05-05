@@ -48,7 +48,6 @@ pub fn format_probe_sql() -> &'static str {
 }
 
 /// idle-in-tx elapsed 시간을 임계값과 비교한 결과.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DanglingTxStatus {
     /// `< TX_WARN_AFTER` — 정상.
@@ -60,7 +59,6 @@ pub enum DanglingTxStatus {
 }
 
 /// Begin 후 elapsed 시간 → 권장 액션.
-#[allow(dead_code)]
 pub fn evaluate_status(elapsed: Duration) -> DanglingTxStatus {
     if elapsed >= TX_ROLLBACK_AFTER {
         DanglingTxStatus::ShouldRollback
