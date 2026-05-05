@@ -240,6 +240,10 @@ impl FerrumGridApp {
                     self.state.status_message = format!("{applied} data change(s) applied");
                     self.toasts
                         .info(format!("{applied} data change(s) applied"));
+                    self.state.diagnostics_panel.push_mutation_diagnostic(
+                        crate::ui::diagnostics_panel::DiagSeverity::Info,
+                        format!("{applied} data change(s) applied"),
+                    );
 
                     if let Some(source) = self.state.data_edit.source.clone() {
                         self.state.current_result = None;
@@ -381,6 +385,9 @@ impl FerrumGridApp {
                     self.state.backup_last_error = Some(error.clone());
                     self.state.status_message = format!("Backup failed on {conn_id}");
                     self.toasts.error(format!("Backup failed: {error}"));
+                    self.state
+                        .diagnostics_panel
+                        .push_backup_error(format!("Backup failed: {error}"));
                 }
                 DbResponse::AutomationResult {
                     conn_id: _,
@@ -400,10 +407,15 @@ impl FerrumGridApp {
                         ApplyResult::Failed { error } => {
                             self.toasts
                                 .error(format!("Automation {} failed: {}", task_id, error));
+                            self.state.diagnostics_panel.push_mutation_diagnostic(
+                                crate::ui::diagnostics_panel::DiagSeverity::Error,
+                                format!("Automation {task_id} failed: {error}"),
+                            );
                         }
                     }
                 }
                 DbResponse::Error { conn_id, error } => {
+                    let was_applying_edits = self.state.data_edit.applying;
                     self.state.data_edit.applying = false;
                     tracing::warn!(
                         conn_id = %error.conn_id,
@@ -441,6 +453,12 @@ impl FerrumGridApp {
                             self.state.last_error = Some("Query cancelled".to_string());
                         }
                     }
+                    if was_applying_edits {
+                        self.state.diagnostics_panel.push_mutation_diagnostic(
+                            crate::ui::diagnostics_panel::DiagSeverity::Error,
+                            format!("Data edit failed: {}", error.message),
+                        );
+                    }
                 }
             }
         }
@@ -450,6 +468,7 @@ impl FerrumGridApp {
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         self.process_responses();
+        self.state.diagnostics_panel.unsafe_ctid_active = self.settings.unsafe_ctid;
         let menu_actions = self
             .native_menu
             .handle_events(ctx, &mut self.state, &mut self.settings);

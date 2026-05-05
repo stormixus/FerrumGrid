@@ -32,6 +32,7 @@ use crate::types::{
     BackupFormat, BackupRecord, ColumnInfo, ConnectionConfig, ConnectionId, EditorTab,
     FunctionInfo, IndexInfo, QueryResult, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
 };
+use crate::ui::diagnostics_panel::DiagnosticsPanel;
 use crate::ui::er_diagram::ERDiagramState;
 use crate::ui::table_designer::TableDesignerState;
 
@@ -182,6 +183,7 @@ pub struct AppState {
     pub data_timezone: String,
     pub schema_context_menu: Option<SchemaContextMenuState>,
     pub dragging_saved_connection: Option<ConnectionId>,
+    pub diagnostics_panel: DiagnosticsPanel,
 }
 
 #[derive(Clone)]
@@ -236,6 +238,7 @@ impl Default for AppState {
             data_timezone: "Asia/Seoul".to_string(),
             schema_context_menu: None,
             dragging_saved_connection: None,
+            diagnostics_panel: DiagnosticsPanel::default(),
         }
     }
 }

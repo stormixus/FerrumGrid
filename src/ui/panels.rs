@@ -14,6 +14,29 @@ pub fn render_panels(
     render_main_toolbar(ctx, state);
     render_status_bar(ctx, state);
 
+    // Diagnostics panel (above status bar)
+    if state.diagnostics_panel.visible || state.diagnostics_panel.unsafe_ctid_active {
+        let panel_height = if state.diagnostics_panel.visible {
+            140.0
+        } else {
+            28.0
+        };
+        egui::TopBottomPanel::bottom("diagnostics_panel")
+            .min_height(28.0)
+            .default_height(panel_height)
+            .max_height(300.0)
+            .resizable(state.diagnostics_panel.visible)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::bg_darkest())
+                    .inner_margin(Margin::symmetric(theme::SPACE_LG_I, theme::SPACE_SM_I))
+                    .stroke(Stroke::new(1.0, theme::border_subtle())),
+            )
+            .show(ctx, |ui| {
+                state.diagnostics_panel.render(ui);
+            });
+    }
+
     // Left panel: database tree
     if state.show_tree_panel {
         egui::SidePanel::left("tree_panel")
@@ -1158,7 +1181,7 @@ fn paint_toolbar_icon(
 // Status bar
 // ---------------------------------------------------------------------------
 
-fn render_status_bar(ctx: &egui::Context, state: &AppState) {
+fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(24.0)
         .frame(
@@ -1225,6 +1248,56 @@ fn render_status_bar(ctx: &egui::Context, state: &AppState) {
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Diagnostics toggle
+                    {
+                        let count = state.diagnostics_panel.entry_count();
+                        let has_error = count > 0
+                            && state.diagnostics_panel.entries().any(|e| {
+                                e.severity
+                                    == crate::ui::diagnostics_panel::DiagSeverity::Error
+                            });
+                        let color = if count == 0 {
+                            theme::text_disabled()
+                        } else if has_error {
+                            theme::ACCENT_RED
+                        } else {
+                            theme::ACCENT_YELLOW
+                        };
+                        let text = if count > 0 {
+                            format!("\u{25b2} {count}")
+                        } else {
+                            "\u{25b2}".to_string()
+                        };
+                        let btn = ui.add(
+                            egui::Button::new(
+                                RichText::new(&text).color(color).size(10.0).monospace(),
+                            )
+                            .fill(if state.diagnostics_panel.visible {
+                                theme::with_alpha(color, 20)
+                            } else {
+                                Color32::TRANSPARENT
+                            })
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_SM)),
+                        );
+                        let diag_tooltip = if count > 0 {
+                            format!("Diagnostics Panel ({count} entries)")
+                        } else {
+                            "Diagnostics Panel".to_string()
+                        };
+                        show_dark_hover_tooltip(
+                            ui,
+                            btn.id.with("diag_tip"),
+                            &btn,
+                            &diag_tooltip,
+                        );
+                        if btn.clicked() {
+                            state.diagnostics_panel.visible =
+                                !state.diagnostics_panel.visible;
+                        }
+                        ui.separator();
+                    }
+
                     if let Some(ref result) = state.current_result {
                         ui.label(
                             RichText::new(format!(

@@ -71,6 +71,13 @@ pub async fn execute_ddl_with_invalidation(
     // Step 1 — pre_drop NOTIFY (별도 transaction, 즉시 commit 으로 viewer 에 flush)
     let pre_payload = format_notify_payload(table_oid, InvalidationPhase::Pre);
     let pre_sql = build_pg_notify_sql(&pre_payload);
+    tracing::info!(
+        target: "ferrumgrid::ddl",
+        table_oid = ?table_oid,
+        phase = "pre_drop",
+        %conn_id,
+        "sending pre_drop notify"
+    );
     client
         .batch_execute(&pre_sql)
         .await
@@ -80,6 +87,13 @@ pub async fn execute_ddl_with_invalidation(
     tokio::time::sleep(ACK_WINDOW).await;
 
     // Step 2 — actual DDL
+    tracing::info!(
+        target: "ferrumgrid::ddl",
+        table_oid = ?table_oid,
+        sql_len = sql.len(),
+        %conn_id,
+        "executing DDL"
+    );
     client
         .batch_execute(sql)
         .await
@@ -88,6 +102,13 @@ pub async fn execute_ddl_with_invalidation(
     // Step 3 — post_drop NOTIFY (DDL 성공 후에만, viewer 가 metadata refresh)
     let post_payload = format_notify_payload(table_oid, InvalidationPhase::Post);
     let post_sql = build_pg_notify_sql(&post_payload);
+    tracing::info!(
+        target: "ferrumgrid::ddl",
+        table_oid = ?table_oid,
+        phase = "post_drop",
+        %conn_id,
+        "sending post_drop notify"
+    );
     client
         .batch_execute(&post_sql)
         .await

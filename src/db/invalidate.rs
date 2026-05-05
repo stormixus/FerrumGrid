@@ -95,17 +95,30 @@ pub fn parse_payload(payload: &str) -> Option<(u32, InvalidationPhase)> {
     let (oid_str, phase_str) = payload.split_once(':')?;
     let oid = oid_str.parse::<u32>().ok()?;
     let phase = InvalidationPhase::parse(phase_str)?;
+    tracing::info!(
+        target: "ferrumgrid::cache",
+        table_oid = oid,
+        phase = ?phase,
+        "parsed invalidation payload"
+    );
     Some((oid, phase))
 }
 
 /// 동일 프레임 내 중복 도착 dedupe + coarse→fine 발사 순서로 정렬.
 #[allow(dead_code)]
 pub fn dedupe_and_sort(events: Vec<Invalidate>) -> Vec<Invalidate> {
+    let input_count = events.len();
     let unique: HashSet<Invalidate> = events.into_iter().collect();
     let mut sorted: Vec<Invalidate> = unique.into_iter().collect();
     // 1차: coarse→fine, 2차: variant 결정성을 위해 Debug 문자열 비교 (HashSet 순서
     // 무의미 → 테스트 안정성 위해 secondary 정렬).
     sorted.sort_by_key(|e| (e.order_key(), format!("{e:?}")));
+    tracing::info!(
+        target: "ferrumgrid::cache",
+        input = input_count,
+        output = sorted.len(),
+        "deduped invalidation events"
+    );
     sorted
 }
 

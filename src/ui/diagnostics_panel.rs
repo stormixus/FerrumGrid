@@ -9,11 +9,13 @@ use std::time::SystemTime;
 
 use eframe::egui;
 
+use super::theme;
+
 /// 진단 항목의 심각도.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagSeverity {
     Info,
+    #[allow(dead_code)]
     Warn,
     Error,
 }
@@ -26,17 +28,18 @@ pub enum DiagSeverity {
 /// - `CacheStale` — Phase 1.3 cache invalidation 누락 의심
 /// - `BackupError` — Phase 4a BackupStatus::Failed
 /// - `MutationDiagnostic` — Phase 1.1 apply_data_edits 실패 / 부분 성공
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DiagChannel {
+    #[allow(dead_code)]
     EchoTimeout,
+    #[allow(dead_code)]
     DanglingTx,
+    #[allow(dead_code)]
     CacheStale,
     BackupError,
     MutationDiagnostic,
 }
 
-#[allow(dead_code)]
 impl DiagChannel {
     pub fn label(self) -> &'static str {
         match self {
@@ -50,7 +53,6 @@ impl DiagChannel {
 }
 
 /// 단일 진단 항목.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DiagEntry {
     pub timestamp: SystemTime,
@@ -63,7 +65,6 @@ pub struct DiagEntry {
 const RING_CAPACITY: usize = 100;
 
 /// 진단 패널 상태.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DiagnosticsPanel {
     pub visible: bool,
@@ -71,7 +72,16 @@ pub struct DiagnosticsPanel {
     /// 영구 배너 표시. settings 변경 시 app.rs 가 setter 로 동기화한다.
     pub unsafe_ctid_active: bool,
     entries: VecDeque<DiagEntry>,
+    filter: Option<DiagChannel>,
 }
+
+const ALL_CHANNELS: [DiagChannel; 5] = [
+    DiagChannel::EchoTimeout,
+    DiagChannel::DanglingTx,
+    DiagChannel::CacheStale,
+    DiagChannel::BackupError,
+    DiagChannel::MutationDiagnostic,
+];
 
 impl Default for DiagnosticsPanel {
     fn default() -> Self {
@@ -79,12 +89,13 @@ impl Default for DiagnosticsPanel {
             visible: false,
             unsafe_ctid_active: false,
             entries: VecDeque::with_capacity(RING_CAPACITY),
+            filter: None,
         }
     }
 }
 
-#[allow(dead_code)]
 impl DiagnosticsPanel {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -102,14 +113,17 @@ impl DiagnosticsPanel {
         });
     }
 
+    #[allow(dead_code)]
     pub fn push_echo_timeout(&mut self, message: impl Into<String>) {
         self.push(DiagChannel::EchoTimeout, DiagSeverity::Warn, message);
     }
 
+    #[allow(dead_code)]
     pub fn push_dangling_tx(&mut self, severity: DiagSeverity, message: impl Into<String>) {
         self.push(DiagChannel::DanglingTx, severity, message);
     }
 
+    #[allow(dead_code)]
     pub fn push_cache_stale(&mut self, message: impl Into<String>) {
         self.push(DiagChannel::CacheStale, DiagSeverity::Info, message);
     }
@@ -126,6 +140,7 @@ impl DiagnosticsPanel {
         self.entries.iter()
     }
 
+    #[allow(dead_code)]
     pub fn entries_for(&self, channel: DiagChannel) -> impl Iterator<Item = &DiagEntry> {
         self.entries.iter().filter(move |e| e.channel == channel)
     }
@@ -138,14 +153,10 @@ impl DiagnosticsPanel {
         self.entries.clear();
     }
 
-    /// Read-only render. Phase 4b4 — 5 채널 entries 모두 표시.
-    ///
-    /// **`unsafe_ctid` 배너는 `visible` 와 무관하게 항상 노출** — 사용자가
-    /// panel 을 닫아도 위험 모드가 활성인 한 경고가 보여야 한다.
     pub fn render(&mut self, ui: &mut egui::Ui) {
         if self.unsafe_ctid_active {
             ui.colored_label(
-                egui::Color32::from_rgb(220, 80, 60),
+                theme::ACCENT_RED,
                 "⚠ unsafe_ctid 모드 활성 — PK 부재 테이블 편집 시 \
                  VACUUM FULL 또는 동시 INSERT 가 데이터 손상을 유발할 수 있습니다.",
             );
@@ -153,19 +164,126 @@ impl DiagnosticsPanel {
         if !self.visible {
             return;
         }
-        if self.entries.is_empty() {
-            ui.label("Diagnostics — no entries");
+
+        let mut should_clear = false;
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new("Diagnostics")
+                    .strong()
+                    .size(12.0)
+                    .color(theme::text_primary()),
+            );
+            let count = self.entries.len();
+            if count > 0 {
+                ui.label(
+                    egui::RichText::new(format!("({count})"))
+                        .size(10.0)
+                        .color(theme::text_muted()),
+                );
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("Clear").clicked() {
+                    should_clear = true;
+                }
+            });
+        });
+        if should_clear {
+            self.clear();
+        }
+
+        ui.separator();
+
+        // Channel filter tabs
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            let all_selected = self.filter.is_none();
+            if ui
+                .add(channel_filter_button("All", all_selected))
+                .clicked()
+            {
+                self.filter = None;
+            }
+            for ch in ALL_CHANNELS {
+                let selected = self.filter == Some(ch);
+                if ui
+                    .add(channel_filter_button(ch.label(), selected))
+                    .clicked()
+                {
+                    self.filter = Some(ch);
+                }
+            }
+        });
+
+        ui.add_space(2.0);
+
+        let visible_entries: Vec<&DiagEntry> = self
+            .entries
+            .iter()
+            .filter(|e| self.filter.is_none() || self.filter == Some(e.channel))
+            .collect();
+
+        if visible_entries.is_empty() {
+            ui.label(
+                egui::RichText::new("No diagnostics entries")
+                    .color(theme::text_disabled())
+                    .size(11.0),
+            );
             return;
         }
-        for entry in &self.entries {
-            let color = match entry.severity {
-                DiagSeverity::Info => egui::Color32::from_rgb(120, 160, 220),
-                DiagSeverity::Warn => egui::Color32::from_rgb(220, 180, 60),
-                DiagSeverity::Error => egui::Color32::from_rgb(220, 80, 60),
-            };
-            ui.colored_label(color, format!("[{}] {}", entry.channel.label(), entry.message));
-        }
+
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for entry in &visible_entries {
+                    let (icon, color) = severity_icon_color(entry.severity);
+                    let time = format_timestamp(entry.timestamp);
+                    ui.colored_label(
+                        color,
+                        format!(
+                            "{time}  {icon} [{}] {}",
+                            entry.channel.label(),
+                            entry.message,
+                        ),
+                    );
+                }
+            });
     }
+}
+
+fn channel_filter_button(label: &str, selected: bool) -> egui::Button<'_> {
+    let text = egui::RichText::new(label)
+        .size(10.0)
+        .monospace()
+        .color(if selected {
+            theme::text_primary()
+        } else {
+            theme::text_muted()
+        });
+    egui::Button::new(text)
+        .fill(if selected {
+            theme::with_alpha(theme::ACCENT_BLUE, 30)
+        } else {
+            egui::Color32::TRANSPARENT
+        })
+        .stroke(if selected {
+            egui::Stroke::new(1.0, theme::with_alpha(theme::ACCENT_BLUE, 120))
+        } else {
+            egui::Stroke::NONE
+        })
+        .corner_radius(egui::CornerRadius::same(theme::RADIUS_SM))
+}
+
+fn severity_icon_color(severity: DiagSeverity) -> (&'static str, egui::Color32) {
+    match severity {
+        DiagSeverity::Info => ("i", theme::ACCENT_BLUE),
+        DiagSeverity::Warn => ("!", theme::ACCENT_YELLOW),
+        DiagSeverity::Error => ("x", theme::ACCENT_RED),
+    }
+}
+
+fn format_timestamp(t: SystemTime) -> String {
+    let dt: chrono::DateTime<chrono::Local> = t.into();
+    dt.format("%H:%M:%S").to_string()
 }
 
 #[cfg(test)]
