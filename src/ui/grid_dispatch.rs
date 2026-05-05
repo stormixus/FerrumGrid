@@ -13,6 +13,7 @@
 //!   테스트만).
 
 use crate::db::invalidate::InvalidationPhase;
+use crate::state::AppState;
 
 /// Grid 의 cell 좌표 (row, column 인덱스).
 ///
@@ -151,10 +152,17 @@ pub enum StateOp {
 /// `SortHeader` → query 재발사) 을 *후처리* 로 추가해야 한다. 두 함수를
 /// 독립 구현하면 정책 drift 발생 위험.
 #[allow(dead_code)]
-pub fn dispatch(_input: GridInput) -> Option<StateOp> {
-    // FIXME(Phase 1.95c): dispatch_matrix_lookup 호출 후 state-context 주입.
-    // 현재는 dispatch_matrix_lookup 가 정책을 보장.
-    None
+pub fn dispatch(input: GridInput, state: &AppState) -> Option<StateOp> {
+    match &input {
+        GridInput::Edit(EditEvent::Begin) => {
+            let (row, col) = state.data_edit.selected_cell?;
+            Some(StateOp::BeginEdit(CellKey {
+                row: row as i32,
+                col: col as i32,
+            }))
+        }
+        _ => dispatch_matrix_lookup(&input),
+    }
 }
 
 /// Plan v7 §6 Phase 1.95 의 dispatch matrix 의 *결정 함수*.
