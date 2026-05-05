@@ -711,6 +711,14 @@ fn render_completion_popup(
         return None;
     }
 
+    // Hide popup when typed token exactly matches the only suggestion
+    if suggestions.len() == 1
+        && suggestions[0].insert_text.eq_ignore_ascii_case(&context.fragment)
+    {
+        ui.data_mut(|d| d.insert_persisted(popup_id, usize::MAX));
+        return None;
+    }
+
     let mut selected: usize = ui.data_mut(|d| d.get_persisted(popup_id).unwrap_or(0));
 
     if nav_up {
@@ -1054,7 +1062,8 @@ fn sql_ident(identifier: &str) -> String {
 fn apply_completion(content: &mut String, insert: &CompletionInsert) {
     let start = char_to_byte_index(content, insert.start_char);
     let end = char_to_byte_index(content, insert.end_char);
-    content.replace_range(start..end, &insert.text);
+    let with_space = format!("{} ", insert.text);
+    content.replace_range(start..end, &with_space);
 }
 
 fn char_to_byte_index(text: &str, char_index: usize) -> usize {
