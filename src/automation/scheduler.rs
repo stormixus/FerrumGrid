@@ -30,6 +30,7 @@ pub enum ApplyResult {
     Failed { error: String },
 }
 
+#[allow(dead_code)]
 impl ApplyResult {
     pub fn is_success(&self) -> bool {
         matches!(self, ApplyResult::Success { .. })
@@ -60,6 +61,7 @@ pub struct ScheduledTask {
     pub last_result: Option<ApplyResult>,
 }
 
+#[allow(dead_code)]
 impl ScheduledTask {
     /// 새 task 생성. `next_run` 은 schedule 에서 즉시 derive.
     pub fn new(title: impl Into<String>, sql: impl Into<String>, schedule: Schedule) -> Self {

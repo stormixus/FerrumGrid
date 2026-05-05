@@ -79,6 +79,7 @@ impl DependentList {
 /// - 'e' (extension) — 확장 의존성
 ///
 /// 본 query 는 'n' / 'a' 만 노출 (사용자 영향).
+#[allow(dead_code)]
 pub fn pg_depend_recursive_sql() -> &'static str {
     "WITH RECURSIVE deps AS ( \
        SELECT classid, objid, objsubid, refclassid, refobjid, refobjsubid, deptype, 1 AS depth \

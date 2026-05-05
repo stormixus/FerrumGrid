@@ -67,6 +67,7 @@ impl BackupFormat {
 }
 
 /// Backup 진행 상태 (Plan v7 Phase 4a). DiagnosticsPanel 에 노출.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BackupStatus {
     /// 진행 중 backup 없음.
@@ -80,6 +81,7 @@ pub enum BackupStatus {
     Failed { error: String },
 }
 
+#[allow(dead_code)]
 impl BackupStatus {
     /// 진행 중인지 (UI spinner 표시 용도).
     pub fn is_active(&self) -> bool {
@@ -100,6 +102,7 @@ impl BackupStatus {
 /// Plan v7 Phase 4a — Backup 의 *통합 정보 schema* (DiagnosticsPanel + 후속 phase 의
 /// CLI integration 진입점). 기존 `BackupRecord` (완료된 것만) 와 달리 진행 중 status
 /// 까지 포함.
+#[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BackupInfoV1 {
     pub format: BackupFormat,
@@ -137,6 +140,7 @@ impl Default for BackupInfoV1 {
 /// 2. `last_error` → `Failed { error }`
 /// 3. `last_record` → `Done` (직전 backup 의 size/timestamp 노출)
 /// 4. 그 외 → `Idle`
+#[allow(dead_code)]
 pub fn current_backup_info(
     format: BackupFormat,
     running: bool,
