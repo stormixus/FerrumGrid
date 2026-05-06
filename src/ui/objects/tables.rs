@@ -37,6 +37,7 @@ pub(super) fn render_table_like_objects(
     };
 
     request_missing_tables(state, bridge, conn_id);
+    request_missing_metadata(state, bridge, conn_id);
     let rows = collect_table_rows(state, conn_id);
     render_count_strip(ui, rows.len(), "objects");
 
@@ -93,28 +94,28 @@ fn render_table_row(
         });
         cells.col(|ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = theme::SPACE_MD;
-                if ui.small_button("Data").clicked() {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                if action_chip(ui, "Data", theme::ACCENT_TEAL).clicked() {
                     action = Some(ObjectAction::ViewData {
                         conn_id,
                         schema: row.schema.clone(),
                         name: row.name.clone(),
                     });
                 }
-                if row.table_type != "VIEW" && ui.small_button("Design").clicked() {
+                if row.table_type != "VIEW" && action_chip(ui, "Design", theme::ACCENT_COPPER).clicked() {
                     action = Some(ObjectAction::DesignTable {
                         schema: row.schema.clone(),
                         name: row.name.clone(),
                     });
                 }
-                if ui.small_button("SQL").clicked() {
+                if action_chip(ui, "SQL", theme::ACCENT_BLUE).clicked() {
                     action = Some(ObjectAction::CopySql(format!(
                         "SELECT * FROM {}.{};",
                         quote_ident(&row.schema),
                         quote_ident(&row.name)
                     )));
                 }
-                if ui.small_button("Drop").clicked() {
+                if action_chip(ui, "Drop", theme::ACCENT_RED).clicked() {
                     action = Some(ObjectAction::DropTable {
                         conn_id,
                         schema: row.schema.clone(),
@@ -135,6 +136,16 @@ fn render_table_row(
     }
 
     action
+}
+
+fn action_chip(ui: &mut egui::Ui, label: &str, color: egui::Color32) -> egui::Response {
+    let btn = egui::Button::new(
+        egui::RichText::new(label).color(color).size(11.0),
+    )
+    .fill(theme::with_alpha(color, 16))
+    .stroke(egui::Stroke::new(1.0, theme::with_alpha(color, 80)))
+    .corner_radius(egui::CornerRadius::same(theme::RADIUS_SM));
+    ui.add(btn)
 }
 
 fn collect_table_rows(state: &AppState, conn_id: ConnectionId) -> Vec<TableRow> {
@@ -194,6 +205,54 @@ fn request_missing_tables(state: &mut AppState, bridge: &DbBridge, conn_id: Conn
 
     for schema in to_load {
         bridge.send(DbCommand::ListTables { conn_id, schema });
+    }
+}
+
+fn request_missing_metadata(state: &mut AppState, bridge: &DbBridge, conn_id: ConnectionId) {
+    let Some(conn) = state.connections.get(&conn_id) else {
+        return;
+    };
+    let schemas = selected_schemas(state);
+    let mut col_requests = Vec::new();
+    let mut idx_requests = Vec::new();
+    for schema in &schemas {
+        let Some(tables) = conn.tables.get(schema) else {
+            continue;
+        };
+        for table in tables {
+            if !matches_table_kind(state.active_main_view, table) {
+                continue;
+            }
+            let key = (schema.clone(), table.name.clone());
+            if !conn.columns.contains_key(&key) && !conn.loading_columns.contains(&key) {
+                col_requests.push(key.clone());
+            }
+            if !conn.indexes.contains_key(&key) && !conn.loading_indexes.contains(&key) {
+                idx_requests.push(key);
+            }
+        }
+    }
+    if let Some(conn) = state.connections.get_mut(&conn_id) {
+        for key in &col_requests {
+            conn.loading_columns.insert(key.clone());
+        }
+        for key in &idx_requests {
+            conn.loading_indexes.insert(key.clone());
+        }
+    }
+    for (schema, table) in col_requests {
+        bridge.send(DbCommand::ListColumns {
+            conn_id,
+            schema,
+            table,
+        });
+    }
+    for (schema, table) in idx_requests {
+        bridge.send(DbCommand::ListIndexes {
+            conn_id,
+            schema,
+            table,
+        });
     }
 }
 

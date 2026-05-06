@@ -554,19 +554,33 @@ fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
         ui.memory_mut(|m| m.toggle_popup(popup_id));
     }
 
-    egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
-        ui.visuals_mut().widgets.noninteractive.bg_fill = theme::bg_elevated();
-        ui.visuals_mut().window_fill = theme::bg_elevated();
-        ui.visuals_mut().panel_fill = theme::bg_elevated();
-        ui.painter().rect_filled(ui.max_rect(), CornerRadius::same(theme::RADIUS_MD), theme::bg_elevated());
-        ui.set_min_width(86.0);
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 2.0;
-            pane_toggle_icon(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
-            pane_toggle_icon(ui, PaneToggle::Results, &mut state.show_result_panel);
-            pane_toggle_icon(ui, PaneToggle::Info, &mut state.show_info_panel);
-        });
-    });
+    if ui.memory(|m| m.is_popup_open(popup_id)) {
+        let popup_rect = egui::Rect::from_min_size(
+            response.rect.left_bottom() + egui::vec2(-30.0, 2.0),
+            egui::vec2(92.0, 33.0),
+        );
+        egui::Area::new(popup_id)
+            .fixed_pos(popup_rect.min)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::new()
+                    .fill(theme::bg_elevated())
+                    .stroke(Stroke::new(1.0, theme::border_default()))
+                    .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                    .inner_margin(egui::Margin::same(4))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 2.0;
+                            pane_toggle_icon(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
+                            pane_toggle_icon(ui, PaneToggle::Results, &mut state.show_result_panel);
+                            pane_toggle_icon(ui, PaneToggle::Info, &mut state.show_info_panel);
+                        });
+                    });
+            });
+        if ui.input(|i| i.pointer.any_click()) && !popup_rect.contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default())) && !response.rect.contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default())) {
+            ui.memory_mut(|m| m.close_popup());
+        }
+    }
 }
 
 fn pane_toggle_icon(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
