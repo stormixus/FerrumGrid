@@ -1325,8 +1325,6 @@ fn render_table_group_node(
     let header_text = RichText::new(group.label())
         .color(theme::text_secondary())
         .size(12.0);
-    let active_group = active_table_group_matches(state, conn_id, schema, group);
-
     let resp = collapsing_node(
         ui,
         CollapsingNodeSpec {
@@ -1336,7 +1334,7 @@ fn render_table_group_node(
             is_root: false,
             depth: 3,
             default_open: false,
-            force_open: active_group,
+            force_open: false,
             selected: false,
             icon_svg,
             icon_name,
