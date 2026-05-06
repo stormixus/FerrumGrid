@@ -555,6 +555,10 @@ fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
     }
 
     egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+        ui.visuals_mut().widgets.noninteractive.bg_fill = theme::bg_elevated();
+        ui.visuals_mut().window_fill = theme::bg_elevated();
+        ui.visuals_mut().panel_fill = theme::bg_elevated();
+        ui.painter().rect_filled(ui.max_rect(), CornerRadius::same(theme::RADIUS_MD), theme::bg_elevated());
         ui.set_min_width(86.0);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
