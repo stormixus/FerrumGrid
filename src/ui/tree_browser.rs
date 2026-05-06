@@ -2727,7 +2727,8 @@ fn collapsing_node(
         )),
         |ui| {
             if let Some(tint) = spec.icon_tint {
-                icon_img_tinted(ui, spec.icon_svg, spec.icon_name, 14.0, tint);
+                let img = icon_image(ui, spec.icon_svg, spec.icon_name, 14.0).tint(tint);
+                ui.add(img);
             } else {
                 icon_img(ui, spec.icon_svg, spec.icon_name, 14.0);
             }
