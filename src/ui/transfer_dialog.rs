@@ -3,7 +3,7 @@ use eframe::egui::{self, RichText};
 use crate::db::bridge::DbBridge;
 use crate::i18n::t;
 use crate::state::transfer::{IfExists, TransferTableStatus};
-use crate::state::{AppState, ConnectionStatus};
+use crate::state::AppState;
 use crate::types::ConnectionId;
 use crate::ui::theme;
 

@@ -1,6 +1,7 @@
 use crate::types::ConnectionId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum TransferTableStatus {
     Pending,
     InProgress,
@@ -32,6 +33,7 @@ impl Default for TransferOptions {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TransferTableEntry {
     pub schema: String,
     pub name: String,
@@ -43,6 +45,7 @@ pub struct TransferTableEntry {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TransferProgress {
     pub current_table: String,
     pub current_table_index: usize,
@@ -79,6 +82,7 @@ pub struct ClipboardTables {
     pub tables: Vec<String>,
 }
 
+#[allow(dead_code)]
 pub struct TransferState {
     pub show: bool,
     pub source_conn: Option<ConnectionId>,
@@ -93,6 +97,7 @@ pub struct TransferState {
     pub error: Option<String>,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for TransferState {
     fn default() -> Self {
         Self {
@@ -120,6 +125,7 @@ impl TransferState {
         self.progress.is_some() && self.result.is_none()
     }
 
+    #[allow(dead_code)]
     pub fn selected_tables(&self) -> Vec<&TransferTableEntry> {
         self.tables.iter().filter(|t| t.selected).collect()
     }

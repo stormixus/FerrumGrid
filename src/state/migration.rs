@@ -11,6 +11,7 @@ pub enum MigrationStep {
     Complete,
 }
 
+#[allow(dead_code)]
 pub struct MigrationWizardState {
     pub show: bool,
     pub step: MigrationStep,

@@ -2839,7 +2839,7 @@ fn handle_transfer_keyboard(ui: &mut egui::Ui, state: &mut AppState) {
         }
         if let Some(conn) = state.connections.get(&conn_id) {
             let key = (schema.clone(), table.clone());
-            if conn.columns.contains_key(&key) || conn.tables.get(schema.as_str()).is_some() {
+            if conn.columns.contains_key(&key) || conn.tables.contains_key(schema.as_str()) {
                 state.clipboard_tables = Some(ClipboardTables {
                     conn_id,
                     schema: schema.clone(),

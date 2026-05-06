@@ -106,6 +106,7 @@ enum TransferTableError {
     Failed(String),
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn transfer_one_table(
     source: &tokio_postgres::Client,
     target: &tokio_postgres::Client,

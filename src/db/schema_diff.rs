@@ -248,12 +248,9 @@ pub fn generate_migration_sql(diff: &SchemaDiff, target_schema: &str) -> String 
 
     for table_name in &diff.tables_removed {
         sql.push_str(&format!(
-            "DROP TABLE {} CASCADE;\n",
-            format!(
-                "{}.{}",
-                quote_ident(target_schema),
-                quote_ident(table_name)
-            )
+            "DROP TABLE {}.{} CASCADE;\n",
+            quote_ident(target_schema),
+            quote_ident(table_name)
         ));
     }
 

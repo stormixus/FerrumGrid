@@ -13,7 +13,7 @@ mod query;
 pub mod transfer;
 
 pub use migration::MigrationWizardState;
-pub use transfer::{ClipboardTables, TransferRequest, TransferState};
+pub use transfer::{ClipboardTables, TransferState};
 
 // Plan v7 Phase 1.95c2 — data_edit cut-over. 외부 callers 가 `crate::state::*`
 // 로 접근하던 항목을 그대로 노출하기 위해 `pub use` 재출. mod.rs 내부에서는

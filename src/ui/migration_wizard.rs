@@ -66,17 +66,16 @@ pub fn render_migration_wizard(ctx: &egui::Context, state: &mut AppState, bridge
             ui.horizontal(|ui| {
                 if state.migration_wizard.step != MigrationStep::SelectConnections
                     && state.migration_wizard.step != MigrationStep::Applying
+                    && ui.button(t("migration_back")).clicked()
                 {
-                    if ui.button(t("migration_back")).clicked() {
-                        let prev = match state.migration_wizard.step {
-                            MigrationStep::DiffResult => MigrationStep::SelectConnections,
-                            MigrationStep::SqlPreview => MigrationStep::DiffResult,
-                            MigrationStep::Complete => MigrationStep::SqlPreview,
-                            other => other,
-                        };
-                        state.migration_wizard.apply_error = None;
-                        state.migration_wizard.go_to(prev);
-                    }
+                    let prev = match state.migration_wizard.step {
+                        MigrationStep::DiffResult => MigrationStep::SelectConnections,
+                        MigrationStep::SqlPreview => MigrationStep::DiffResult,
+                        MigrationStep::Complete => MigrationStep::SqlPreview,
+                        other => other,
+                    };
+                    state.migration_wizard.apply_error = None;
+                    state.migration_wizard.go_to(prev);
                 }
                 if ui.button(t("migration_close")).clicked() {
                     close = true;

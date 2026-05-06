@@ -580,7 +580,7 @@ pub(super) fn data_row_alt(
     row_index: usize,
     content: impl FnOnce(&mut RowCells<'_>),
 ) -> egui::Response {
-    let fill = if row_index % 2 == 0 {
+    let fill = if row_index.is_multiple_of(2) {
         theme::bg_dark()
     } else {
         theme::bg_shell()

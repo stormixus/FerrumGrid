@@ -261,11 +261,9 @@ pub async fn get_row_count(
 ) -> Result<u64, DbError> {
     let row = client
         .query_one(
-            &format!(
-                "SELECT reltuples::bigint FROM pg_class \
+            "SELECT reltuples::bigint FROM pg_class \
                  JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace \
-                 WHERE nspname = $1 AND relname = $2"
-            ),
+                 WHERE nspname = $1 AND relname = $2",
             &[&schema, &table],
         )
         .await
