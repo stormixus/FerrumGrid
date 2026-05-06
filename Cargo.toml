@@ -2,6 +2,17 @@
 name = "ferrumgrid"
 version = "0.1.1"
 edition = "2021"
+authors = ["Stormix <stormixus@gmail.com>"]
+description = "A modern PostgreSQL desktop client built in Rust"
+license = "MIT"
+repository = "https://github.com/stormixus/FerrumGrid"
+homepage = "https://github.com/stormixus/FerrumGrid"
+
+[package.metadata.wix]
+upgrade-guid = "34FCF08A-72D3-4374-BE95-9CC99E8C7CA1"
+path-guid = "DE8E2603-45F6-4ADC-BA18-66781F46CB78"
+license = false
+eula = false
 
 [dependencies]
 # GUI
@@ -75,3 +86,8 @@ harness = false
 lto = true
 codegen-units = 1
 strip = true
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
