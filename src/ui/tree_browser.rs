@@ -4,7 +4,7 @@ use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
 use crate::state::{
     build_data_select_sql_with_columns, AppState, ConnectionState, ConnectionStatus, DataSource,
-    SchemaContextMenuState,
+    MainView, SchemaContextMenuState,
 };
 use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, RuleInfo, TableInfo,
@@ -1322,8 +1322,21 @@ fn render_table_group_node(
         group.id_key()
     ));
     let (icon_svg, icon_name) = group.icon();
+    let group_active = state.active_connection == Some(conn_id)
+        && state.objects_schema_filter == schema
+        && match group {
+            SchemaTableGroup::Tables => matches!(state.active_main_view, MainView::Table),
+            SchemaTableGroup::Views => matches!(state.active_main_view, MainView::View),
+            SchemaTableGroup::MaterializedViews => {
+                matches!(state.active_main_view, MainView::MaterializedView)
+            }
+        };
     let header_text = RichText::new(group.label())
-        .color(theme::text_secondary())
+        .color(if group_active {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        })
         .size(12.0);
     let resp = collapsing_node(
         ui,
@@ -1335,7 +1348,7 @@ fn render_table_group_node(
             depth: 3,
             default_open: false,
             force_open: false,
-            selected: false,
+            selected: group_active,
             icon_svg,
             icon_name,
             double_click_to_expand: true,
@@ -1419,8 +1432,11 @@ fn render_function_group_node(
     schema: &str,
 ) {
     let node_id = egui::Id::new(format!("schema_group_{conn_id}_{schema}_functions"));
+    let fn_active = state.active_connection == Some(conn_id)
+        && state.objects_schema_filter == schema
+        && matches!(state.active_main_view, MainView::Function);
     let header_text = RichText::new(t("tree_functions"))
-        .color(theme::text_secondary())
+        .color(if fn_active { theme::text_primary() } else { theme::text_secondary() })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -1433,7 +1449,7 @@ fn render_function_group_node(
             depth: 3,
             default_open: false,
             force_open: false,
-            selected: false,
+            selected: fn_active,
             icon_svg: icons_svg::FUNCTION,
             icon_name: "group_functions",
             double_click_to_expand: true,
@@ -1475,8 +1491,11 @@ fn render_query_group_node(
     schema: &str,
 ) {
     let node_id = egui::Id::new(format!("schema_group_{conn_id}_{schema}_queries"));
+    let q_active = state.active_connection == Some(conn_id)
+        && state.objects_schema_filter == schema
+        && matches!(state.active_main_view, MainView::Query);
     let header_text = RichText::new(t("tree_queries"))
-        .color(theme::text_secondary())
+        .color(if q_active { theme::text_primary() } else { theme::text_secondary() })
         .size(12.0);
 
     collapsing_node(
@@ -1489,7 +1508,7 @@ fn render_query_group_node(
             depth: 3,
             default_open: false,
             force_open: false,
-            selected: false,
+            selected: q_active,
             icon_svg: icons_svg::QUERY,
             icon_name: "group_queries",
             double_click_to_expand: true,
@@ -1539,8 +1558,11 @@ fn render_backups_group_node(
     schema: &str,
 ) {
     let node_id = egui::Id::new(format!("schema_group_{conn_id}_{schema}_backups"));
+    let bk_active = state.active_connection == Some(conn_id)
+        && state.objects_schema_filter == schema
+        && matches!(state.active_main_view, MainView::Backup);
     let header_text = RichText::new(t("tree_backups"))
-        .color(theme::text_secondary())
+        .color(if bk_active { theme::text_primary() } else { theme::text_secondary() })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -1553,7 +1575,7 @@ fn render_backups_group_node(
             depth: 3,
             default_open: false,
             force_open: false,
-            selected: false,
+            selected: bk_active,
             icon_svg: icons_svg::BACKUP,
             icon_name: "group_backups",
             double_click_to_expand: true,
