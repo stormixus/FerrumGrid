@@ -821,15 +821,11 @@ fn render_schema_node(
             depth: 2,
             default_open: false,
             force_open: schema_opened,
-            selected: schema_selected,
+            selected: false,
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
             double_click_to_expand: true,
-            icon_tint: if schema_opened {
-                None
-            } else {
-                Some(Color32::from_gray(55))
-            },
+            icon_tint: None,
         },
         |ui| {
             if !schema_opened {
