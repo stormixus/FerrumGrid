@@ -1140,8 +1140,9 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
             egui::Frame::new()
                 .fill(theme::bg_shell())
                 .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
-                .stroke(Stroke::new(1.0, theme::border_subtle())),
+                .stroke(Stroke::NONE),
         )
+        .show_separator_line(true)
         .show(ctx, |ui| {
             ui.set_min_height(24.0);
             ui.horizontal(|ui| {
