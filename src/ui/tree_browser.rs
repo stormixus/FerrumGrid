@@ -825,7 +825,11 @@ fn render_schema_node(
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
             double_click_to_expand: true,
-            icon_tint: None,
+            icon_tint: if schema_opened {
+                None
+            } else {
+                Some(theme::text_muted())
+            },
         },
         |ui| {
             if !schema_opened {
