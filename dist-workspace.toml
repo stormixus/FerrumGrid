@@ -16,10 +16,12 @@ installers = ["shell", "powershell", "msi"]
 targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 
 # macos-13 (x86 Mac runner) has long queues / restricted availability,
-# so cross-compile x86_64-apple-darwin from a macos-14 (arm64) runner.
-# macOS doesn't need a sysroot for cross-compile, so this just works.
+# so we route both Mac targets through macos-14 (Apple Silicon). x86_64
+# is built via cross-compile (macOS needs no sysroot for that), aarch64
+# is native.
 [dist.github-custom-runners]
 x86_64-apple-darwin = "macos-14"
+aarch64-apple-darwin = "macos-14"
 
 # Linux system dependencies for eframe / egui (GTK, XCB, xkb, OpenSSL).
 [dist.dependencies.apt]
