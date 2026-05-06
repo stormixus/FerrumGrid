@@ -119,6 +119,7 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("ctx_manage_group", "Manage Group");
     en.insert("ctx_create_group", "Create Group...");
     en.insert("ctx_move_to_group", "Move to Group...");
+    en.insert("ctx_compare_schema", "Compare Schema...");
     en.insert("ctx_share", "Share...");
     en.insert("ctx_refresh", "Refresh");
     en.insert("ctx_close_all_connections", "Close All Connections");
@@ -412,6 +413,28 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("transfer_start", "Transfer");
     en.insert("transfer_cancel", "Cancel");
     en.insert("transfer_not_implemented", "Transfer backend not yet connected");
+    en.insert("migration_title", "Schema Migration Wizard");
+    en.insert("migration_step_select", "Select");
+    en.insert("migration_step_diff", "Diff");
+    en.insert("migration_step_sql", "SQL");
+    en.insert("migration_source_conn", "Source:");
+    en.insert("migration_source_schema", "Schema:");
+    en.insert("migration_target_conn", "Target:");
+    en.insert("migration_target_schema", "Schema:");
+    en.insert("migration_compare", "Compare");
+    en.insert("migration_comparing", "Comparing schemas...");
+    en.insert("migration_no_diff", "No diff available");
+    en.insert("migration_no_changes", "Schemas are identical — no changes needed");
+    en.insert("migration_tables_added", "tables added");
+    en.insert("migration_tables_modified", "tables modified");
+    en.insert("migration_tables_removed", "tables removed");
+    en.insert("migration_preview_sql", "Preview SQL");
+    en.insert("migration_copy_sql", "Copy SQL");
+    en.insert("migration_apply", "Apply to Target");
+    en.insert("migration_applying", "Applying migration...");
+    en.insert("migration_success", "Migration applied successfully!");
+    en.insert("migration_back", "Back");
+    en.insert("migration_close", "Close");
 }
 
 fn insert_recent_ui_ko(ko: &mut Translation) {
@@ -445,6 +468,7 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("ctx_manage_group", "그룹 관리");
     ko.insert("ctx_create_group", "그룹 만들기...");
     ko.insert("ctx_move_to_group", "그룹으로 이동...");
+    ko.insert("ctx_compare_schema", "스키마 비교...");
     ko.insert("ctx_share", "공유...");
     ko.insert("ctx_refresh", "새로고침");
     ko.insert("ctx_close_all_connections", "모든 연결 닫기");
@@ -729,6 +753,28 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("transfer_start", "전송");
     ko.insert("transfer_cancel", "취소");
     ko.insert("transfer_not_implemented", "전송 백엔드가 아직 연결되지 않음");
+    ko.insert("migration_title", "스키마 마이그레이션 마법사");
+    ko.insert("migration_step_select", "선택");
+    ko.insert("migration_step_diff", "비교");
+    ko.insert("migration_step_sql", "SQL");
+    ko.insert("migration_source_conn", "소스:");
+    ko.insert("migration_source_schema", "스키마:");
+    ko.insert("migration_target_conn", "대상:");
+    ko.insert("migration_target_schema", "스키마:");
+    ko.insert("migration_compare", "비교");
+    ko.insert("migration_comparing", "스키마 비교 중...");
+    ko.insert("migration_no_diff", "비교 결과 없음");
+    ko.insert("migration_no_changes", "스키마가 동일합니다 — 변경 불필요");
+    ko.insert("migration_tables_added", "테이블 추가");
+    ko.insert("migration_tables_modified", "테이블 수정");
+    ko.insert("migration_tables_removed", "테이블 삭제");
+    ko.insert("migration_preview_sql", "SQL 미리보기");
+    ko.insert("migration_copy_sql", "SQL 복사");
+    ko.insert("migration_apply", "대상에 적용");
+    ko.insert("migration_applying", "마이그레이션 적용 중...");
+    ko.insert("migration_success", "마이그레이션 적용 완료!");
+    ko.insert("migration_back", "뒤로");
+    ko.insert("migration_close", "닫기");
 }
 
 fn insert_recent_ui_ja(ja: &mut Translation) {
@@ -762,6 +808,7 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
     ja.insert("ctx_manage_group", "グループを管理");
     ja.insert("ctx_create_group", "グループを作成...");
     ja.insert("ctx_move_to_group", "グループへ移動...");
+    ja.insert("ctx_compare_schema", "スキーマを比較...");
     ja.insert("ctx_share", "共有...");
     ja.insert("ctx_refresh", "更新");
     ja.insert("ctx_close_all_connections", "すべての接続を閉じる");
@@ -1043,6 +1090,28 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
     ja.insert("transfer_start", "転送");
     ja.insert("transfer_cancel", "キャンセル");
     ja.insert("transfer_not_implemented", "転送バックエンドはまだ接続されていません");
+    ja.insert("migration_title", "スキーマ移行ウィザード");
+    ja.insert("migration_step_select", "選択");
+    ja.insert("migration_step_diff", "差分");
+    ja.insert("migration_step_sql", "SQL");
+    ja.insert("migration_source_conn", "ソース:");
+    ja.insert("migration_source_schema", "スキーマ:");
+    ja.insert("migration_target_conn", "ターゲット:");
+    ja.insert("migration_target_schema", "スキーマ:");
+    ja.insert("migration_compare", "比較");
+    ja.insert("migration_comparing", "スキーマを比較中...");
+    ja.insert("migration_no_diff", "差分結果なし");
+    ja.insert("migration_no_changes", "スキーマは同一です。変更は不要です");
+    ja.insert("migration_tables_added", "テーブル追加");
+    ja.insert("migration_tables_modified", "テーブル変更");
+    ja.insert("migration_tables_removed", "テーブル削除");
+    ja.insert("migration_preview_sql", "SQLプレビュー");
+    ja.insert("migration_copy_sql", "SQLコピー");
+    ja.insert("migration_apply", "ターゲットに適用");
+    ja.insert("migration_applying", "移行を適用中...");
+    ja.insert("migration_success", "移行が正常に適用されました!");
+    ja.insert("migration_back", "戻る");
+    ja.insert("migration_close", "閉じる");
 }
 
 fn insert_recent_ui_zh(zh: &mut Translation) {
@@ -1073,6 +1142,7 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
     zh.insert("ctx_manage_group", "管理分组");
     zh.insert("ctx_create_group", "创建分组...");
     zh.insert("ctx_move_to_group", "移动到分组...");
+    zh.insert("ctx_compare_schema", "比较架构...");
     zh.insert("ctx_share", "共享...");
     zh.insert("ctx_refresh", "刷新");
     zh.insert("ctx_close_all_connections", "关闭所有连接");
@@ -1327,6 +1397,28 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
     zh.insert("transfer_start", "传输");
     zh.insert("transfer_cancel", "取消");
     zh.insert("transfer_not_implemented", "传输后端尚未连接");
+    zh.insert("migration_title", "架构迁移向导");
+    zh.insert("migration_step_select", "选择");
+    zh.insert("migration_step_diff", "差异");
+    zh.insert("migration_step_sql", "SQL");
+    zh.insert("migration_source_conn", "来源:");
+    zh.insert("migration_source_schema", "架构:");
+    zh.insert("migration_target_conn", "目标:");
+    zh.insert("migration_target_schema", "架构:");
+    zh.insert("migration_compare", "比较");
+    zh.insert("migration_comparing", "正在比较架构...");
+    zh.insert("migration_no_diff", "无差异结果");
+    zh.insert("migration_no_changes", "架构相同，无需更改");
+    zh.insert("migration_tables_added", "表已添加");
+    zh.insert("migration_tables_modified", "表已修改");
+    zh.insert("migration_tables_removed", "表已删除");
+    zh.insert("migration_preview_sql", "预览SQL");
+    zh.insert("migration_copy_sql", "复制SQL");
+    zh.insert("migration_apply", "应用到目标");
+    zh.insert("migration_applying", "正在应用迁移...");
+    zh.insert("migration_success", "迁移应用成功!");
+    zh.insert("migration_back", "返回");
+    zh.insert("migration_close", "关闭");
 }
 
 fn insert_recent_ui_es(es: &mut Translation) {
@@ -1360,6 +1452,7 @@ fn insert_recent_ui_es(es: &mut Translation) {
     es.insert("ctx_manage_group", "Administrar grupo");
     es.insert("ctx_create_group", "Crear grupo...");
     es.insert("ctx_move_to_group", "Mover a grupo...");
+    es.insert("ctx_compare_schema", "Comparar esquema...");
     es.insert("ctx_share", "Compartir...");
     es.insert("ctx_refresh", "Actualizar");
     es.insert("ctx_close_all_connections", "Cerrar todas las conexiones");
@@ -1701,6 +1794,28 @@ fn insert_recent_ui_es(es: &mut Translation) {
     es.insert("transfer_start", "Transferir");
     es.insert("transfer_cancel", "Cancelar");
     es.insert("transfer_not_implemented", "Backend de transferencia aún no conectado");
+    es.insert("migration_title", "Asistente de migración de esquema");
+    es.insert("migration_step_select", "Seleccionar");
+    es.insert("migration_step_diff", "Diferencias");
+    es.insert("migration_step_sql", "SQL");
+    es.insert("migration_source_conn", "Origen:");
+    es.insert("migration_source_schema", "Esquema:");
+    es.insert("migration_target_conn", "Destino:");
+    es.insert("migration_target_schema", "Esquema:");
+    es.insert("migration_compare", "Comparar");
+    es.insert("migration_comparing", "Comparando esquemas...");
+    es.insert("migration_no_diff", "Sin resultados de diferencia");
+    es.insert("migration_no_changes", "Los esquemas son idénticos, no se necesitan cambios");
+    es.insert("migration_tables_added", "tablas añadidas");
+    es.insert("migration_tables_modified", "tablas modificadas");
+    es.insert("migration_tables_removed", "tablas eliminadas");
+    es.insert("migration_preview_sql", "Vista previa SQL");
+    es.insert("migration_copy_sql", "Copiar SQL");
+    es.insert("migration_apply", "Aplicar al destino");
+    es.insert("migration_applying", "Aplicando migración...");
+    es.insert("migration_success", "¡Migración aplicada correctamente!");
+    es.insert("migration_back", "Atrás");
+    es.insert("migration_close", "Cerrar");
 }
 
 fn insert_recent_ui_fr(fr: &mut Translation) {
@@ -1740,6 +1855,7 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
     fr.insert("ctx_manage_group", "Gérer le groupe");
     fr.insert("ctx_create_group", "Créer un groupe...");
     fr.insert("ctx_move_to_group", "Déplacer vers le groupe...");
+    fr.insert("ctx_compare_schema", "Comparer le schéma...");
     fr.insert("ctx_share", "Partager...");
     fr.insert("ctx_refresh", "Actualiser");
     fr.insert("ctx_close_all_connections", "Fermer toutes les connexions");
@@ -2084,6 +2200,28 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
     fr.insert("transfer_start", "Transférer");
     fr.insert("transfer_cancel", "Annuler");
     fr.insert("transfer_not_implemented", "Backend de transfert pas encore connecté");
+    fr.insert("migration_title", "Assistant de migration de schéma");
+    fr.insert("migration_step_select", "Sélection");
+    fr.insert("migration_step_diff", "Différences");
+    fr.insert("migration_step_sql", "SQL");
+    fr.insert("migration_source_conn", "Source :");
+    fr.insert("migration_source_schema", "Schéma :");
+    fr.insert("migration_target_conn", "Cible :");
+    fr.insert("migration_target_schema", "Schéma :");
+    fr.insert("migration_compare", "Comparer");
+    fr.insert("migration_comparing", "Comparaison des schémas...");
+    fr.insert("migration_no_diff", "Aucun résultat de différence");
+    fr.insert("migration_no_changes", "Les schémas sont identiques, aucun changement nécessaire");
+    fr.insert("migration_tables_added", "tables ajoutées");
+    fr.insert("migration_tables_modified", "tables modifiées");
+    fr.insert("migration_tables_removed", "tables supprimées");
+    fr.insert("migration_preview_sql", "Aperçu SQL");
+    fr.insert("migration_copy_sql", "Copier SQL");
+    fr.insert("migration_apply", "Appliquer à la cible");
+    fr.insert("migration_applying", "Application de la migration...");
+    fr.insert("migration_success", "Migration appliquée avec succès !");
+    fr.insert("migration_back", "Retour");
+    fr.insert("migration_close", "Fermer");
 }
 
 fn insert_recent_ui_de(de: &mut Translation) {
@@ -2117,6 +2255,7 @@ fn insert_recent_ui_de(de: &mut Translation) {
     de.insert("ctx_manage_group", "Gruppe verwalten");
     de.insert("ctx_create_group", "Gruppe erstellen...");
     de.insert("ctx_move_to_group", "In Gruppe verschieben...");
+    de.insert("ctx_compare_schema", "Schema vergleichen...");
     de.insert("ctx_share", "Teilen...");
     de.insert("ctx_refresh", "Aktualisieren");
     de.insert("ctx_close_all_connections", "Alle Verbindungen schließen");
@@ -2452,6 +2591,28 @@ fn insert_recent_ui_de(de: &mut Translation) {
     de.insert("transfer_start", "Übertragen");
     de.insert("transfer_cancel", "Abbrechen");
     de.insert("transfer_not_implemented", "Transfer-Backend noch nicht verbunden");
+    de.insert("migration_title", "Schema-Migrationsassistent");
+    de.insert("migration_step_select", "Auswahl");
+    de.insert("migration_step_diff", "Unterschiede");
+    de.insert("migration_step_sql", "SQL");
+    de.insert("migration_source_conn", "Quelle:");
+    de.insert("migration_source_schema", "Schema:");
+    de.insert("migration_target_conn", "Ziel:");
+    de.insert("migration_target_schema", "Schema:");
+    de.insert("migration_compare", "Vergleichen");
+    de.insert("migration_comparing", "Schemas werden verglichen...");
+    de.insert("migration_no_diff", "Kein Vergleichsergebnis");
+    de.insert("migration_no_changes", "Schemas sind identisch, keine Änderungen nötig");
+    de.insert("migration_tables_added", "Tabellen hinzugefügt");
+    de.insert("migration_tables_modified", "Tabellen geändert");
+    de.insert("migration_tables_removed", "Tabellen entfernt");
+    de.insert("migration_preview_sql", "SQL-Vorschau");
+    de.insert("migration_copy_sql", "SQL kopieren");
+    de.insert("migration_apply", "Auf Ziel anwenden");
+    de.insert("migration_applying", "Migration wird angewendet...");
+    de.insert("migration_success", "Migration erfolgreich angewendet!");
+    de.insert("migration_back", "Zurück");
+    de.insert("migration_close", "Schließen");
 }
 
 pub fn init() {

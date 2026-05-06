@@ -8,9 +8,11 @@
 
 mod data_edit;
 mod designer;
+pub mod migration;
 mod query;
 pub mod transfer;
 
+pub use migration::MigrationWizardState;
 pub use transfer::{ClipboardTables, TransferRequest, TransferState};
 
 // Plan v7 Phase 1.95c2 — data_edit cut-over. 외부 callers 가 `crate::state::*`
@@ -213,6 +215,7 @@ pub struct AppState {
     pub echo_warned: HashSet<u32>,
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
+    pub migration_wizard: MigrationWizardState,
 }
 
 /// US-J1 / US-L1 — Drop 다이얼로그의 active 상태.
@@ -364,6 +367,7 @@ impl Default for AppState {
             echo_warned: HashSet::new(),
             transfer: TransferState::default(),
             clipboard_tables: None,
+            migration_wizard: MigrationWizardState::default(),
         }
     }
 }

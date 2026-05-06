@@ -14,5 +14,7 @@ pub mod metadata;
 pub mod metadata_fk;
 pub mod queries;
 pub mod row_key;
+pub mod schema_diff;
+pub mod schema_diff_exec;
 pub mod transfer;
 pub mod transfer_exec;

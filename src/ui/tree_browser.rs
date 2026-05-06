@@ -913,6 +913,7 @@ enum SchemaMenuAction {
     Find,
     Share,
     Refresh,
+    CompareSchema,
 }
 
 const SCHEMA_MENU_WIDTH: f32 = 292.0;
@@ -988,6 +989,11 @@ fn render_schema_context_menu_popup(ui: &mut egui::Ui, state: &mut AppState, bri
                     }
                     if mac_menu_item(ui, &t("ctx_find_in_database"), None, None, true).clicked() {
                         action = Some(SchemaMenuAction::Find);
+                    }
+                    mac_menu_separator(ui);
+
+                    if mac_menu_item(ui, &t("ctx_compare_schema"), None, None, true).clicked() {
+                        action = Some(SchemaMenuAction::CompareSchema);
                     }
                     mac_menu_separator(ui);
 
@@ -1136,6 +1142,11 @@ fn handle_schema_menu_action(
         }
         SchemaMenuAction::ReverseModel => {
             activate_schema_model_view(state, bridge, menu.conn_id, &menu.schema);
+        }
+        SchemaMenuAction::CompareSchema => {
+            state.migration_wizard.open();
+            state.migration_wizard.source_conn = Some(menu.conn_id);
+            state.migration_wizard.source_schema = menu.schema.clone();
         }
         SchemaMenuAction::Edit
         | SchemaMenuAction::NewSchema

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::db::edits::{MutationOutcome, RowEditOp};
 use crate::db::error::DbError;
+use crate::db::schema_diff::SchemaDiff;
 use crate::state::transfer::{TransferProgress, TransferRequest, TransferResult};
 use crate::types::{
     BackupRecord, BackupRequest, ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo,
@@ -97,6 +98,16 @@ pub enum DbCommand {
     },
     TransferTables {
         request: TransferRequest,
+    },
+    CompareSchemas {
+        source_config: ConnectionConfig,
+        target_config: ConnectionConfig,
+        source_schema: String,
+        target_schema: String,
+    },
+    ApplyMigration {
+        target_config: ConnectionConfig,
+        sql: String,
     },
 }
 
@@ -200,6 +211,16 @@ pub enum DbResponse {
     },
     TransferComplete {
         result: TransferResult,
+    },
+    SchemaDiffResult {
+        diff: SchemaDiff,
+    },
+    SchemaDiffError {
+        error: String,
+    },
+    MigrationApplied,
+    MigrationFailed {
+        error: String,
     },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
@@ -525,6 +546,55 @@ async fn dispatch_loop(
                         ctx.request_repaint();
                     }
                 }
+            }
+            DbCommand::CompareSchemas {
+                source_config,
+                target_config,
+                source_schema,
+                target_schema,
+            } => {
+                let resp_tx = resp_tx.clone();
+                let ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let response =
+                        match crate::db::schema_diff_exec::compare_schemas(
+                            &source_config,
+                            &target_config,
+                            &source_schema,
+                            &target_schema,
+                        )
+                        .await
+                    {
+                        Ok(diff) => DbResponse::SchemaDiffResult { diff },
+                        Err(e) => DbResponse::SchemaDiffError {
+                            error: e.to_string(),
+                        },
+                    };
+                    let _ = resp_tx.send(response);
+                    ctx.request_repaint();
+                });
+            }
+            DbCommand::ApplyMigration {
+                target_config,
+                sql,
+            } => {
+                let resp_tx = resp_tx.clone();
+                let ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let response = match crate::db::connection::connect_any(&target_config).await {
+                        Ok(client) => match client.batch_execute(&sql).await {
+                            Ok(()) => DbResponse::MigrationApplied,
+                            Err(e) => DbResponse::MigrationFailed {
+                                error: e.to_string(),
+                            },
+                        },
+                        Err(e) => DbResponse::MigrationFailed {
+                            error: e.to_string(),
+                        },
+                    };
+                    let _ = resp_tx.send(response);
+                    ctx.request_repaint();
+                });
             }
             DbCommand::TransferTables { request } => {
                 let resp_tx = resp_tx.clone();

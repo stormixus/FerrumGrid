@@ -487,6 +487,38 @@ impl FerrumGridApp {
                         dlg.loading = false;
                     }
                 }
+                DbResponse::SchemaDiffResult { diff } => {
+                    self.state.migration_wizard.loading_diff = false;
+                    let (added, modified, removed) = diff.summary_counts();
+                    self.state.status_message = format!(
+                        "Schema diff: {added} added, {modified} modified, {removed} removed"
+                    );
+                    self.state.migration_wizard.diff = Some(diff);
+                    self.state.migration_wizard.go_to(
+                        crate::state::migration::MigrationStep::DiffResult,
+                    );
+                }
+                DbResponse::SchemaDiffError { error } => {
+                    self.state.migration_wizard.loading_diff = false;
+                    self.state.migration_wizard.apply_error = Some(error.clone());
+                    self.state.status_message = format!("Schema diff failed: {error}");
+                }
+                DbResponse::MigrationApplied => {
+                    self.state.migration_wizard.applying = false;
+                    self.state.migration_wizard.apply_success = true;
+                    self.state.migration_wizard.go_to(
+                        crate::state::migration::MigrationStep::Complete,
+                    );
+                    self.state.status_message = "Migration applied successfully".to_string();
+                    self.toasts
+                        .info("Migration applied successfully")
+                        .duration(Some(std::time::Duration::from_secs(5)));
+                }
+                DbResponse::MigrationFailed { error } => {
+                    self.state.migration_wizard.applying = false;
+                    self.state.migration_wizard.apply_error = Some(error.clone());
+                    self.state.status_message = format!("Migration failed: {error}");
+                }
                 DbResponse::TransferProgress { progress } => {
                     self.state.transfer.progress = Some(progress);
                 }
@@ -659,6 +691,7 @@ impl eframe::App for FerrumGridApp {
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
+        ui::migration_wizard::render_migration_wizard(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
