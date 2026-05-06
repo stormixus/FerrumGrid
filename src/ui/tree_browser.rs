@@ -1803,6 +1803,11 @@ fn render_table_node(
         },
     );
 
+    if resp.header_response.clicked() {
+        state.active_connection = Some(conn_id);
+        state.objects_schema_filter = schema.to_string();
+        state.objects_search = table_name.to_string();
+    }
     if resp.header_response.double_clicked() {
         open_table_data(state, bridge, conn_id, schema, table_name);
     }
