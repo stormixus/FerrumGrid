@@ -3,8 +3,8 @@ use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Sense, Stroke}
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
 use crate::state::{
-    build_data_select_sql_with_columns, AppState, ConnectionState, ConnectionStatus, DataSource,
-    MainView, SchemaContextMenuState,
+    build_data_select_sql_with_columns, AppState, ClipboardTables, ConnectionState,
+    ConnectionStatus, DataSource, MainView, SchemaContextMenuState,
 };
 use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, RuleInfo, TableInfo,
@@ -70,6 +70,7 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     }
 
     render_explorer_empty_space(ui, state, bridge);
+    handle_transfer_keyboard(ui, state);
     render_schema_context_menu_popup(ui, state, bridge);
 }
 
@@ -1860,6 +1861,20 @@ fn render_table_node(
             ui.close_menu();
         }
 
+        let copy_table_resp = ui.add(theme::ghost_icon_button(
+            icon_image(ui, icons_svg::COPY, "copy_table_icon", 12.0),
+            t("tree_copy_table"),
+        ));
+        if copy_table_resp.clicked() {
+            state.clipboard_tables = Some(ClipboardTables {
+                conn_id,
+                schema: schema.to_string(),
+                tables: vec![table_name.to_string()],
+            });
+            state.status_message = format!("Copied table: {schema}.{table_name}");
+            ui.close_menu();
+        }
+
         ui.separator();
 
         let refresh_resp = ui.add(theme::ghost_icon_button(
@@ -2786,6 +2801,65 @@ fn indented(ui: &mut egui::Ui, f: impl FnOnce(&mut egui::Ui)) {
         ui.add_space(20.0);
         ui.vertical(f);
     });
+}
+
+fn handle_transfer_keyboard(ui: &mut egui::Ui, state: &mut AppState) {
+    let modifiers = ui.ctx().input(|i| i.modifiers);
+    let cmd = if cfg!(target_os = "macos") {
+        modifiers.mac_cmd
+    } else {
+        modifiers.ctrl
+    };
+    if !cmd {
+        return;
+    }
+
+    let c_pressed = ui.ctx().input(|i| i.key_pressed(egui::Key::C));
+    let v_pressed = ui.ctx().input(|i| i.key_pressed(egui::Key::V));
+
+    if c_pressed {
+        let Some(conn_id) = state.active_connection else {
+            return;
+        };
+        let schema = &state.objects_schema_filter;
+        let table = &state.objects_search;
+        if schema.is_empty() || table.is_empty() {
+            return;
+        }
+        if let Some(conn) = state.connections.get(&conn_id) {
+            let key = (schema.clone(), table.clone());
+            if conn.columns.contains_key(&key) || conn.tables.get(schema.as_str()).is_some() {
+                state.clipboard_tables = Some(ClipboardTables {
+                    conn_id,
+                    schema: schema.clone(),
+                    tables: vec![table.clone()],
+                });
+                state.status_message = format!("Copied table: {schema}.{table}");
+            }
+        }
+    }
+
+    if v_pressed {
+        if state.clipboard_tables.is_none() {
+            return;
+        }
+        let Some(conn_id) = state.active_connection else {
+            return;
+        };
+        let schema = state.objects_schema_filter.clone();
+        if schema.is_empty() {
+            return;
+        }
+        if let Some(clipboard) = state.clipboard_tables.clone() {
+            if clipboard.conn_id == conn_id && clipboard.schema == schema {
+                state.status_message = "Cannot paste to the same schema".to_string();
+                return;
+            }
+            state
+                .transfer
+                .open_from_clipboard(&clipboard, conn_id, schema);
+        }
+    }
 }
 
 fn depth_indent(depth: usize) -> f32 {

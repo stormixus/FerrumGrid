@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::db::edits::{MutationOutcome, RowEditOp};
 use crate::db::error::DbError;
+use crate::state::transfer::{TransferProgress, TransferRequest, TransferResult};
 use crate::types::{
     BackupRecord, BackupRequest, ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo,
     IndexInfo, QueryResult, RoleInfo, RuleInfo, TableInfo, TriggerInfo,
@@ -93,6 +94,9 @@ pub enum DbCommand {
     FetchDependents {
         conn_id: ConnectionId,
         refobjid: u32,
+    },
+    TransferTables {
+        request: TransferRequest,
     },
 }
 
@@ -190,6 +194,12 @@ pub enum DbResponse {
     Error {
         conn_id: ConnectionId,
         error: DbError,
+    },
+    TransferProgress {
+        progress: TransferProgress,
+    },
+    TransferComplete {
+        result: TransferResult,
     },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
@@ -515,6 +525,17 @@ async fn dispatch_loop(
                         ctx.request_repaint();
                     }
                 }
+            }
+            DbCommand::TransferTables { request } => {
+                let resp_tx = resp_tx.clone();
+                let ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let result =
+                        crate::db::transfer_exec::execute_transfer(request, resp_tx.clone(), ctx.clone())
+                            .await;
+                    let _ = resp_tx.send(DbResponse::TransferComplete { result });
+                    ctx.request_repaint();
+                });
             }
             DbCommand::RunBackup { request } => {
                 let resp_tx = resp_tx.clone();

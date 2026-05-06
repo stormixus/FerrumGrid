@@ -15,6 +15,7 @@ pub mod settings;
 pub mod table_designer;
 pub mod theme;
 pub mod titlebar;
+pub mod transfer_dialog;
 pub mod tree_browser;
 pub mod vault;
 

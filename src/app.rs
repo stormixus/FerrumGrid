@@ -487,6 +487,21 @@ impl FerrumGridApp {
                         dlg.loading = false;
                     }
                 }
+                DbResponse::TransferProgress { progress } => {
+                    self.state.transfer.progress = Some(progress);
+                }
+                DbResponse::TransferComplete { result } => {
+                    self.state.transfer.result = Some(result.clone());
+                    self.state.transfer.progress = None;
+                    let msg = format!(
+                        "Transfer: {} ok, {} failed, {} skipped",
+                        result.tables_success, result.tables_failed, result.tables_skipped
+                    );
+                    self.state.status_message = msg.clone();
+                    self.toasts
+                        .info(msg)
+                        .duration(Some(std::time::Duration::from_secs(5)));
+                }
                 DbResponse::Error { conn_id, error } => {
                     let was_applying_edits = self.state.data_edit.applying;
                     self.state.data_edit.applying = false;
@@ -643,6 +658,7 @@ impl eframe::App for FerrumGridApp {
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
+        ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {

@@ -9,6 +9,9 @@
 mod data_edit;
 mod designer;
 mod query;
+pub mod transfer;
+
+pub use transfer::{ClipboardTables, TransferRequest, TransferState};
 
 // Plan v7 Phase 1.95c2 — data_edit cut-over. 외부 callers 가 `crate::state::*`
 // 로 접근하던 항목을 그대로 노출하기 위해 `pub use` 재출. mod.rs 내부에서는
@@ -208,6 +211,8 @@ pub struct AppState {
     /// US-M2 — pending_invalidations 의 oid 중 EchoTimeout 을 이미 push 한 oid
     /// 집합. 동일 oid 에 대한 5s timeout 중복 push 방지. Post 시 함께 remove.
     pub echo_warned: HashSet<u32>,
+    pub transfer: TransferState,
+    pub clipboard_tables: Option<ClipboardTables>,
 }
 
 /// US-J1 / US-L1 — Drop 다이얼로그의 active 상태.
@@ -357,6 +362,8 @@ impl Default for AppState {
             drop_dialog: None,
             pending_invalidations: HashMap::new(),
             echo_warned: HashSet::new(),
+            transfer: TransferState::default(),
+            clipboard_tables: None,
         }
     }
 }

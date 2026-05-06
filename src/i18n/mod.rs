@@ -148,6 +148,7 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("tree_edit_table", "Edit Table");
     en.insert("tree_view_data_top_100", "View Data (Top 100)");
     en.insert("tree_copy_select", "Copy SELECT *");
+    en.insert("tree_copy_table", "Copy Table (Transfer)");
     en.insert("tree_refresh_metadata", "Refresh Metadata");
     en.insert("tree_copy_signature", "Copy Signature");
     en.insert("tree_copy_rule_ddl", "Copy Rule DDL");
@@ -400,6 +401,17 @@ fn insert_recent_ui_en(en: &mut Translation) {
         "data_info_no_metadata",
         "Column metadata is still loading, so editing is disabled.",
     );
+    en.insert("transfer_title", "Transfer Tables");
+    en.insert("transfer_source", "Source:");
+    en.insert("transfer_target", "Target:");
+    en.insert("transfer_tables_header", "Tables to transfer (dependency order):");
+    en.insert("transfer_select_all", "Select All");
+    en.insert("transfer_deselect_all", "Deselect All");
+    en.insert("transfer_include_data", "Include data");
+    en.insert("transfer_if_exists", "If exists:");
+    en.insert("transfer_start", "Transfer");
+    en.insert("transfer_cancel", "Cancel");
+    en.insert("transfer_not_implemented", "Transfer backend not yet connected");
 }
 
 fn insert_recent_ui_ko(ko: &mut Translation) {
@@ -462,6 +474,7 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("tree_edit_table", "테이블 편집");
     ko.insert("tree_view_data_top_100", "데이터 보기 (상위 100)");
     ko.insert("tree_copy_select", "SELECT * 복사");
+    ko.insert("tree_copy_table", "테이블 복사 (전송)");
     ko.insert("tree_refresh_metadata", "메타데이터 새로고침");
     ko.insert("tree_copy_signature", "시그니처 복사");
     ko.insert("tree_copy_rule_ddl", "룰 DDL 복사");
@@ -705,6 +718,17 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
         "data_info_no_metadata",
         "컬럼 메타데이터를 불러오는 중이라 편집이 비활성화됩니다.",
     );
+    ko.insert("transfer_title", "테이블 전송");
+    ko.insert("transfer_source", "소스:");
+    ko.insert("transfer_target", "대상:");
+    ko.insert("transfer_tables_header", "전송할 테이블 (의존성 순서):");
+    ko.insert("transfer_select_all", "전체 선택");
+    ko.insert("transfer_deselect_all", "전체 해제");
+    ko.insert("transfer_include_data", "데이터 포함");
+    ko.insert("transfer_if_exists", "이미 존재 시:");
+    ko.insert("transfer_start", "전송");
+    ko.insert("transfer_cancel", "취소");
+    ko.insert("transfer_not_implemented", "전송 백엔드가 아직 연결되지 않음");
 }
 
 fn insert_recent_ui_ja(ja: &mut Translation) {
@@ -767,6 +791,7 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
     ja.insert("tree_edit_table", "テーブルを編集");
     ja.insert("tree_view_data_top_100", "データを表示（上位100件）");
     ja.insert("tree_copy_select", "SELECT * をコピー");
+    ja.insert("tree_copy_table", "テーブルをコピー（転送）");
     ja.insert("tree_refresh_metadata", "メタデータを更新");
     ja.insert("tree_copy_signature", "シグネチャをコピー");
     ja.insert("tree_copy_rule_ddl", "ルールDDLをコピー");
@@ -1007,6 +1032,17 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
         "data_info_no_metadata",
         "カラムのメタデータを読み込み中のため、編集が無効になっています。",
     );
+    ja.insert("transfer_title", "テーブル転送");
+    ja.insert("transfer_source", "ソース:");
+    ja.insert("transfer_target", "ターゲット:");
+    ja.insert("transfer_tables_header", "転送するテーブル（依存順）:");
+    ja.insert("transfer_select_all", "全選択");
+    ja.insert("transfer_deselect_all", "全解除");
+    ja.insert("transfer_include_data", "データを含む");
+    ja.insert("transfer_if_exists", "既存の場合:");
+    ja.insert("transfer_start", "転送");
+    ja.insert("transfer_cancel", "キャンセル");
+    ja.insert("transfer_not_implemented", "転送バックエンドはまだ接続されていません");
 }
 
 fn insert_recent_ui_zh(zh: &mut Translation) {
@@ -1063,6 +1099,7 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
     zh.insert("tree_edit_table", "编辑表");
     zh.insert("tree_view_data_top_100", "查看数据（前100条）");
     zh.insert("tree_copy_select", "复制 SELECT *");
+    zh.insert("tree_copy_table", "复制表（传输）");
     zh.insert("tree_refresh_metadata", "刷新元数据");
     zh.insert("tree_copy_signature", "复制签名");
     zh.insert("tree_copy_rule_ddl", "复制规则DDL");
@@ -1279,6 +1316,17 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
         "data_info_no_metadata",
         "列元数据仍在加载中，因此编辑已禁用。",
     );
+    zh.insert("transfer_title", "传输表");
+    zh.insert("transfer_source", "来源:");
+    zh.insert("transfer_target", "目标:");
+    zh.insert("transfer_tables_header", "要传输的表（依赖顺序）:");
+    zh.insert("transfer_select_all", "全选");
+    zh.insert("transfer_deselect_all", "全部取消");
+    zh.insert("transfer_include_data", "包含数据");
+    zh.insert("transfer_if_exists", "如果已存在:");
+    zh.insert("transfer_start", "传输");
+    zh.insert("transfer_cancel", "取消");
+    zh.insert("transfer_not_implemented", "传输后端尚未连接");
 }
 
 fn insert_recent_ui_es(es: &mut Translation) {
@@ -1344,6 +1392,7 @@ fn insert_recent_ui_es(es: &mut Translation) {
     es.insert("tree_edit_table", "Editar tabla");
     es.insert("tree_view_data_top_100", "Ver datos (top 100)");
     es.insert("tree_copy_select", "Copiar SELECT *");
+    es.insert("tree_copy_table", "Copiar tabla (transferir)");
     es.insert("tree_refresh_metadata", "Actualizar metadatos");
     es.insert("tree_copy_signature", "Copiar firma");
     es.insert("tree_copy_rule_ddl", "Copiar DDL de regla");
@@ -1641,6 +1690,17 @@ fn insert_recent_ui_es(es: &mut Translation) {
         "data_info_no_metadata",
         "Los metadatos de columna aún se están cargando, por lo que la edición está deshabilitada.",
     );
+    es.insert("transfer_title", "Transferir tablas");
+    es.insert("transfer_source", "Origen:");
+    es.insert("transfer_target", "Destino:");
+    es.insert("transfer_tables_header", "Tablas a transferir (orden de dependencia):");
+    es.insert("transfer_select_all", "Seleccionar todo");
+    es.insert("transfer_deselect_all", "Deseleccionar todo");
+    es.insert("transfer_include_data", "Incluir datos");
+    es.insert("transfer_if_exists", "Si existe:");
+    es.insert("transfer_start", "Transferir");
+    es.insert("transfer_cancel", "Cancelar");
+    es.insert("transfer_not_implemented", "Backend de transferencia aún no conectado");
 }
 
 fn insert_recent_ui_fr(fr: &mut Translation) {
@@ -1712,6 +1772,7 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
     fr.insert("tree_edit_table", "Modifier la table");
     fr.insert("tree_view_data_top_100", "Voir les données (100 premières)");
     fr.insert("tree_copy_select", "Copier SELECT *");
+    fr.insert("tree_copy_table", "Copier la table (transfert)");
     fr.insert("tree_refresh_metadata", "Actualiser les métadonnées");
     fr.insert("tree_copy_signature", "Copier la signature");
     fr.insert("tree_copy_rule_ddl", "Copier le DDL de règle");
@@ -2012,6 +2073,17 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
         "data_info_no_metadata",
         "Les métadonnées de colonne sont encore en cours de chargement, la modification est donc désactivée.",
     );
+    fr.insert("transfer_title", "Transférer les tables");
+    fr.insert("transfer_source", "Source :");
+    fr.insert("transfer_target", "Cible :");
+    fr.insert("transfer_tables_header", "Tables à transférer (ordre de dépendance) :");
+    fr.insert("transfer_select_all", "Tout sélectionner");
+    fr.insert("transfer_deselect_all", "Tout désélectionner");
+    fr.insert("transfer_include_data", "Inclure les données");
+    fr.insert("transfer_if_exists", "Si existe :");
+    fr.insert("transfer_start", "Transférer");
+    fr.insert("transfer_cancel", "Annuler");
+    fr.insert("transfer_not_implemented", "Backend de transfert pas encore connecté");
 }
 
 fn insert_recent_ui_de(de: &mut Translation) {
@@ -2074,6 +2146,7 @@ fn insert_recent_ui_de(de: &mut Translation) {
     de.insert("tree_edit_table", "Tabelle bearbeiten");
     de.insert("tree_view_data_top_100", "Daten anzeigen (Top 100)");
     de.insert("tree_copy_select", "SELECT * kopieren");
+    de.insert("tree_copy_table", "Tabelle kopieren (Transfer)");
     de.insert("tree_refresh_metadata", "Metadaten aktualisieren");
     de.insert("tree_copy_signature", "Signatur kopieren");
     de.insert("tree_copy_rule_ddl", "Regel-DDL kopieren");
@@ -2368,6 +2441,17 @@ fn insert_recent_ui_de(de: &mut Translation) {
         "data_info_no_metadata",
         "Spaltenmetadaten werden noch geladen, daher ist die Bearbeitung deaktiviert.",
     );
+    de.insert("transfer_title", "Tabellen übertragen");
+    de.insert("transfer_source", "Quelle:");
+    de.insert("transfer_target", "Ziel:");
+    de.insert("transfer_tables_header", "Zu übertragende Tabellen (Abhängigkeitsreihenfolge):");
+    de.insert("transfer_select_all", "Alle auswählen");
+    de.insert("transfer_deselect_all", "Alle abwählen");
+    de.insert("transfer_include_data", "Daten einschließen");
+    de.insert("transfer_if_exists", "Falls vorhanden:");
+    de.insert("transfer_start", "Übertragen");
+    de.insert("transfer_cancel", "Abbrechen");
+    de.insert("transfer_not_implemented", "Transfer-Backend noch nicht verbunden");
 }
 
 pub fn init() {

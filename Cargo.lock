@@ -1599,6 +1599,7 @@ dependencies = [
  "eframe",
  "egui-notify",
  "egui_extras",
+ "futures-util",
  "lazy_static",
  "muda",
  "native-tls",

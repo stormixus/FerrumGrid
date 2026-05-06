@@ -75,6 +75,26 @@ pub async fn connect_no_tls(
         .map_err(|e| DbError::from_pg(&e, cfg.id))
 }
 
+pub async fn connect_any(cfg: &ConnectionConfig) -> Result<Client, DbError> {
+    if cfg.use_tls {
+        let (client, connection) = connect(cfg).await?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                tracing::error!("transfer connection error: {e}");
+            }
+        });
+        Ok(client)
+    } else {
+        let (client, connection) = connect_no_tls(cfg).await?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                tracing::error!("transfer connection error: {e}");
+            }
+        });
+        Ok(client)
+    }
+}
+
 pub async fn cancel_query(
     token: CancelToken,
     use_tls: bool,
