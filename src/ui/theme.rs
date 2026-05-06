@@ -252,10 +252,15 @@ impl FerrumTheme {
         v.extreme_bg_color = INPUT_BG;
         v.code_bg_color = BG_EDITOR;
 
-        v.window_stroke = Stroke::new(1.0, BORDER_DEFAULT);
+        v.window_stroke = Stroke::new(1.0, BORDER_STRONG);
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
         v.window_shadow = egui::Shadow::NONE;
-        v.popup_shadow = egui::Shadow::NONE;
+        v.popup_shadow = egui::Shadow {
+            offset: [0, 2],
+            blur: 8,
+            spread: 0,
+            color: Color32::from_black_alpha(80),
+        };
         v.menu_corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — noninteractive
@@ -315,6 +320,13 @@ impl FerrumTheme {
         v.window_stroke = Stroke::new(1.0, border_default());
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
         v.window_shadow = egui::Shadow::NONE;
+        v.popup_shadow = egui::Shadow {
+            offset: [0, 2],
+            blur: 12,
+            spread: 0,
+            color: Color32::from_black_alpha(30),
+        };
+        v.menu_corner_radius = CornerRadius::same(RADIUS_MD);
 
         v.widgets.noninteractive.bg_fill = bg_medium();
         v.widgets.noninteractive.weak_bg_fill = Color32::from_rgb(248, 250, 253);
