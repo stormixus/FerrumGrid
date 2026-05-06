@@ -144,7 +144,7 @@ fn render_backup_scope_card(ui: &mut egui::Ui, cfg: &ConnectionConfig, schema: O
                             None => t("backup_full_database"),
                         })
                         .color(theme::text_primary())
-                        .size(15.0)
+                        .size(12.0)
                         .strong(),
                     );
                     ui.label(
@@ -195,7 +195,7 @@ fn render_backup_repository_card(
                     ui.label(
                         RichText::new(t("backup_folder_title"))
                             .color(theme::text_primary())
-                            .size(15.0)
+                            .size(12.0)
                             .strong(),
                     );
                     ui.label(
@@ -395,7 +395,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                 ui.label(
                     RichText::new(header)
                         .color(theme::text_primary())
-                        .size(15.0)
+                        .size(12.0)
                         .strong(),
                 );
 
@@ -592,7 +592,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                                         );
                                         let yes_btn = egui::Button::new(
                                             RichText::new("Yes")
-                                                .color(egui::Color32::WHITE)
+                                                .color(theme::text_primary())
                                                 .size(10.5),
                                         )
                                         .fill(theme::ACCENT_RED)
@@ -686,7 +686,7 @@ fn render_backup_history(ui: &mut egui::Ui, state: &AppState) {
             ui.label(
                 RichText::new(t("backup_recent"))
                     .color(theme::text_primary())
-                    .size(15.0)
+                    .size(12.0)
                     .strong(),
             );
             ui.add_space(theme::SPACE_MD);

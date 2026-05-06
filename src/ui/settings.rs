@@ -532,7 +532,7 @@ fn label_cell_sized(ui: &mut egui::Ui, label: &str, height: f32) {
 
 fn section_heading(ui: &mut egui::Ui, title: String) {
     ui.add_space(10.0);
-    ui.label(RichText::new(title).color(text_color()).size(15.0).strong());
+    ui.label(RichText::new(title).color(text_color()).size(12.0).strong());
     ui.add_space(16.0);
 }
 

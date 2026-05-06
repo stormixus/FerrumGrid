@@ -94,7 +94,7 @@ fn render_bi_empty(
             ui.label(
                 RichText::new(format!("Analyze: {schema}.{table}"))
                     .color(theme::text_primary())
-                    .size(14.0)
+                    .size(12.0)
                     .strong(),
             );
             ui.add_space(theme::SPACE_MD);
@@ -150,7 +150,7 @@ fn render_group_analysis_section(ui: &mut egui::Ui, result: &crate::types::Query
         ui.label(
             RichText::new("Group Analysis")
                 .color(theme::text_primary())
-                .size(13.0)
+                .size(12.0)
                 .strong(),
         );
     });

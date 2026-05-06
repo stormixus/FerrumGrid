@@ -138,7 +138,7 @@ fn render_tabs(ui: &mut egui::Ui, state: &AppState) {
             ui.label(
                 RichText::new(title)
                     .color(theme::text_primary())
-                    .size(13.0)
+                    .size(12.0)
                     .strong(),
             );
             ui.label(
@@ -535,7 +535,7 @@ pub(super) fn empty_state(ui: &mut egui::Ui, title: &str, subtitle: &str) {
         ui.add_space(100.0);
         crate::ui::icon_img(ui, icons_svg::DATABASE, "objects_empty", 32.0);
         ui.add_space(theme::SPACE_MD);
-        ui.label(RichText::new(title).color(theme::text_muted()).size(16.0));
+        ui.label(RichText::new(title).color(theme::text_muted()).size(12.0));
         ui.label(
             RichText::new(subtitle)
                 .color(theme::text_disabled())

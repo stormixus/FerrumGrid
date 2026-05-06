@@ -20,7 +20,7 @@ pub(super) fn render_automation_tools(
         ui.label(
             RichText::new("Automation")
                 .color(theme::text_primary())
-                .size(14.0)
+                .size(12.0)
                 .strong(),
         );
         ui.label(
