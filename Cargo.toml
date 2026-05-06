@@ -67,6 +67,10 @@ url = "2.5"
 csv = "1.3"
 rfd = "0.15"
 
+# Update check (GitHub Releases API)
+ureq = { version = "2.10", default-features = false, features = ["native-tls", "json"] }
+semver = "1"
+
 # macOS native integration
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
