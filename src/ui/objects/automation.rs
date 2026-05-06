@@ -189,7 +189,7 @@ fn render_create_form(ui: &mut egui::Ui, state: &mut AppState) -> Option<ObjectA
                         .size(11.0),
                 );
                 ui.add(
-                    egui::TextEdit::singleline(&mut state.automation_draft.title)
+                    theme::text_input(&mut state.automation_draft.title)
                         .hint_text("e.g., Daily Vacuum")
                         .desired_width(240.0),
                 );
@@ -202,11 +202,10 @@ fn render_create_form(ui: &mut egui::Ui, state: &mut AppState) -> Option<ObjectA
                     .size(11.0),
             );
             ui.add(
-                egui::TextEdit::multiline(&mut state.automation_draft.sql)
+                theme::multiline_mono_text_input(&mut state.automation_draft.sql)
                     .hint_text("VACUUM ANALYZE my_table;")
                     .desired_rows(3)
-                    .desired_width(f32::INFINITY)
-                    .font(egui::TextStyle::Monospace),
+                    .desired_width(f32::INFINITY),
             );
             ui.add_space(theme::SPACE_SM);
 

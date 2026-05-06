@@ -255,6 +255,8 @@ impl FerrumTheme {
         v.window_stroke = Stroke::new(1.0, BORDER_DEFAULT);
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
         v.window_shadow = egui::Shadow::NONE;
+        v.popup_shadow = egui::Shadow::NONE;
+        v.menu_corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — noninteractive
         v.widgets.noninteractive.bg_fill = BG_MEDIUM;
