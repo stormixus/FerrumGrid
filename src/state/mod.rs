@@ -68,6 +68,7 @@ pub struct ConnectionState {
     pub loading_functions: HashSet<String>,
     pub loading_roles: bool,
     pub connection_error: Option<String>,
+    pub opened_schemas: HashSet<String>,
 }
 
 impl ConnectionState {
@@ -87,6 +88,7 @@ impl ConnectionState {
             roles: Vec::new(),
             loading_databases: false,
             loading_schemas: false,
+            opened_schemas: HashSet::new(),
             loading_tables: HashSet::new(),
             loading_columns: HashSet::new(),
             loading_indexes: HashSet::new(),

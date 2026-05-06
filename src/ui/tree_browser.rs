@@ -124,6 +124,8 @@ fn render_connection_node(
             selected: false,
             icon_svg: icons_svg::DATABASE,
             icon_name: "conn",
+            double_click_to_expand: false,
+            icon_tint: None,
         },
         |ui| {
             if !is_connected && !is_connecting {
@@ -740,6 +742,8 @@ fn render_database_node(
             selected: false,
             icon_svg: icons_svg::DATABASE,
             icon_name: "database",
+            double_click_to_expand: false,
+            icon_tint: None,
         },
         |ui| {
             if schemas.is_empty() {
@@ -784,15 +788,20 @@ fn render_schema_node(
 ) {
     let node_id = egui::Id::new(format!("schema_{conn_id}_{schema}"));
     let schema_owned = schema.to_string();
-    let active_schema = active_data_source_matches(state, conn_id, schema, None);
+    let schema_opened = state
+        .connections
+        .get(&conn_id)
+        .is_some_and(|c| c.opened_schemas.contains(schema));
     let schema_selected = state.objects_schema_filter == schema
         && state.active_connection == Some(conn_id);
 
     let header_text = RichText::new(schema)
         .color(if schema_selected {
             theme::text_primary()
-        } else {
+        } else if schema_opened {
             theme::text_secondary()
+        } else {
+            theme::text_muted()
         })
         .size(12.0);
 
@@ -805,12 +814,21 @@ fn render_schema_node(
             is_root: false,
             depth: 2,
             default_open: false,
-            force_open: active_schema || schema_selected,
+            force_open: false,
             selected: schema_selected,
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
+            double_click_to_expand: false,
+            icon_tint: if schema_opened {
+                Some(theme::ACCENT_GREEN)
+            } else {
+                Some(theme::text_muted())
+            },
         },
         |ui| {
+            if !schema_opened {
+                return;
+            }
             render_table_group_node(
                 ui,
                 state,
@@ -840,6 +858,22 @@ fn render_schema_node(
             render_backups_group_node(ui, state, conn_id, &schema_owned);
         },
     );
+
+    if resp.header_response.clicked() && !resp.header_response.double_clicked() {
+        if let Some(conn) = state.connections.get_mut(&conn_id) {
+            if conn.opened_schemas.contains(schema) {
+                conn.opened_schemas.remove(schema);
+            } else {
+                conn.opened_schemas.insert(schema.to_string());
+                if !conn.tables.contains_key(schema) {
+                    bridge.send(DbCommand::ListTables {
+                        conn_id,
+                        schema: schema.to_string(),
+                    });
+                }
+            }
+        }
+    }
 
     if resp.header_response.secondary_clicked() {
         let pos = resp
@@ -1300,6 +1334,8 @@ fn render_table_group_node(
             selected: false,
             icon_svg,
             icon_name,
+            double_click_to_expand: true,
+            icon_tint: None,
         },
         |ui| {
             let Some(tables) = ensure_schema_tables(ui, state, bridge, conn_id, schema, 4) else {
@@ -1396,6 +1432,8 @@ fn render_function_group_node(
             selected: false,
             icon_svg: icons_svg::FUNCTION,
             icon_name: "group_functions",
+            double_click_to_expand: true,
+            icon_tint: None,
         },
         |ui| {
             let Some(functions) = ensure_schema_functions(ui, state, bridge, conn_id, schema, 4)
@@ -1450,6 +1488,8 @@ fn render_query_group_node(
             selected: false,
             icon_svg: icons_svg::QUERY,
             icon_name: "group_queries",
+            double_click_to_expand: true,
+            icon_tint: None,
         },
         |ui| {
             let response = render_leaf_row(
@@ -1512,6 +1552,8 @@ fn render_backups_group_node(
             selected: false,
             icon_svg: icons_svg::BACKUP,
             icon_name: "group_backups",
+            double_click_to_expand: true,
+            icon_tint: None,
         },
         |ui| {
             let schema_response = render_leaf_row(
@@ -1701,6 +1743,8 @@ fn render_table_node(
             selected: is_selected,
             icon_svg,
             icon_name,
+            double_click_to_expand: false,
+            icon_tint: None,
         },
         |ui| {
             request_table_metadata(state, bridge, conn_id, schema, table_name);
@@ -2199,6 +2243,8 @@ fn render_metadata_group(
             selected: false,
             icon_svg,
             icon_name,
+            double_click_to_expand: false,
+            icon_tint: None,
         },
         body,
     );
@@ -2556,6 +2602,8 @@ struct CollapsingNodeSpec<'a> {
     selected: bool,
     icon_svg: &'a str,
     icon_name: &'a str,
+    double_click_to_expand: bool,
+    icon_tint: Option<Color32>,
 }
 
 fn collapsing_node(
@@ -2630,7 +2678,11 @@ fn collapsing_node(
         );
     }
 
-    if header_resp.clicked() {
+    if spec.double_click_to_expand {
+        if header_resp.double_clicked() {
+            collapse_state.toggle(ui);
+        }
+    } else if header_resp.clicked() {
         collapse_state.toggle(ui);
     }
 
@@ -2668,7 +2720,11 @@ fn collapsing_node(
             egui::vec2(16.0, 16.0),
         )),
         |ui| {
-            icon_img(ui, spec.icon_svg, spec.icon_name, 14.0);
+            if let Some(tint) = spec.icon_tint {
+                icon_img_tinted(ui, spec.icon_svg, spec.icon_name, 14.0, tint);
+            } else {
+                icon_img(ui, spec.icon_svg, spec.icon_name, 14.0);
+            }
         },
     );
 
