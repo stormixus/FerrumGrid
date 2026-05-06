@@ -9,8 +9,11 @@ cargo-dist-version = "0.28.7"
 ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "msi"]
-# Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Target platforms to build apps for (Rust target-triple syntax).
+# aarch64-unknown-linux-gnu intentionally omitted: cross-compiling GTK3
+# from x86 runners hits pkg-config sysroot pain that's not worth solving
+# right now — ARM Linux users can build from source.
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 
 # Linux system dependencies for eframe / egui (GTK, XCB, xkb, OpenSSL).
 [dist.dependencies.apt]
