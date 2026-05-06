@@ -707,6 +707,1669 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     );
 }
 
+fn insert_recent_ui_ja(ja: &mut Translation) {
+    ja.insert("ctx_close_connection", "接続を閉じる");
+    ja.insert("ctx_open_connection", "接続を開く");
+    ja.insert("ctx_switch_connection_profile", "接続プロファイルの切り替え");
+    ja.insert("ctx_no_saved_profiles", "保存済みプロファイルなし");
+    ja.insert("ctx_edit_connection", "接続を編集...");
+    ja.insert("ctx_new_connection", "新規接続");
+    ja.insert("ctx_delete_connection", "接続を削除");
+    ja.insert("ctx_duplicate_connection", "接続を複製...");
+    ja.insert("ctx_new_database", "新規データベース...");
+    ja.insert("ctx_new_table", "新規テーブル");
+    ja.insert("ctx_new_query", "新規クエリ");
+    ja.insert("ctx_console", "コンソール");
+    ja.insert("ctx_execute_sql_file", "SQLファイルを実行...");
+    ja.insert("ctx_open_schema", "スキーマを開く");
+    ja.insert("ctx_backup_schema", "{0} をバックアップ");
+    ja.insert("ctx_edit_schema", "スキーマを編集...");
+    ja.insert("ctx_new_schema", "新規スキーマ...");
+    ja.insert("ctx_delete_schema", "スキーマを削除");
+    ja.insert("ctx_dump_sql_file", "SQLファイルをダンプ");
+    ja.insert("ctx_data_dictionary", "データ辞書...");
+    ja.insert(
+        "ctx_reverse_database_to_model",
+        "データベースをモデルにリバース...",
+    );
+    ja.insert("ctx_find_in_database", "データベース内を検索...");
+    ja.insert("ctx_add_star", "スターを追加");
+    ja.insert("ctx_color", "色:");
+    ja.insert("ctx_manage_group", "グループを管理");
+    ja.insert("ctx_create_group", "グループを作成...");
+    ja.insert("ctx_move_to_group", "グループへ移動...");
+    ja.insert("ctx_share", "共有...");
+    ja.insert("ctx_refresh", "更新");
+    ja.insert("ctx_close_all_connections", "すべての接続を閉じる");
+    ja.insert("ctx_manage_connections", "接続を管理...");
+    ja.insert("ctx_new_group", "新規グループ");
+
+    ja.insert("tree_no_connections", "接続なし");
+    ja.insert(
+        "tree_create_connection",
+        "スキーマを閲覧するには接続を作成してください",
+    );
+    ja.insert("tree_empty", "(空)");
+    ja.insert("tree_tables", "テーブル");
+    ja.insert("tree_views", "ビュー");
+    ja.insert("tree_materialized_views", "マテリアライズドビュー");
+    ja.insert("tree_functions", "関数");
+    ja.insert("tree_queries", "クエリ");
+    ja.insert("tree_backups", "バックアップ");
+    ja.insert("tree_schema_backup", "スキーマバックアップ");
+    ja.insert("tree_full_database_backup", "フルデータベースバックアップ");
+    ja.insert("tree_fields", "フィールド");
+    ja.insert("tree_indexes", "インデックス");
+    ja.insert("tree_foreign_keys", "外部キー");
+    ja.insert("tree_unique", "ユニーク");
+    ja.insert("tree_rules", "ルール");
+    ja.insert("tree_triggers", "トリガー");
+    ja.insert("tree_edit_table", "テーブルを編集");
+    ja.insert("tree_view_data_top_100", "データを表示（上位100件）");
+    ja.insert("tree_copy_select", "SELECT * をコピー");
+    ja.insert("tree_refresh_metadata", "メタデータを更新");
+    ja.insert("tree_copy_signature", "シグネチャをコピー");
+    ja.insert("tree_copy_rule_ddl", "ルールDDLをコピー");
+    ja.insert("tree_copy_trigger_ddl", "トリガーDDLをコピー");
+    ja.insert("tree_show_functions", "関数を表示");
+    ja.insert("tree_show_group", "{0} を表示");
+    ja.insert("tree_showing_group", "{1} の {0} を表示中");
+    ja.insert("tree_showing_functions", "{0} の関数を表示中");
+    ja.insert("tree_backup_schema_title", "バックアップ: {0}");
+    ja.insert("tree_backup_full_title", "バックアップ: フル");
+    ja.insert("tree_backup_scope_schema", "バックアップ範囲: {0} スキーマ");
+    ja.insert("tree_backup_scope_full", "バックアップ範囲: フルデータベース");
+    ja.insert("tree_refreshing_connections", "{0} 件の接続を更新中...");
+    ja.insert("tree_explorer_refreshed", "エクスプローラーを更新しました");
+    ja.insert("tree_closing_all_connections", "すべての接続を閉じています...");
+
+    ja.insert("objects_all_schemas", "すべてのスキーマ");
+    ja.insert("objects_schema", "スキーマ");
+    ja.insert("objects_name", "名前");
+    ja.insert("objects_type", "タイプ");
+    ja.insert("objects_columns", "カラム");
+    ja.insert("objects_indexes", "インデックス");
+    ja.insert("objects_actions", "操作");
+    ja.insert("objects_search", "検索");
+    ja.insert("objects_new_table", "新規テーブル");
+    ja.insert("objects_open_model", "ER図を開く");
+    ja.insert("objects_signature", "シグネチャ");
+    ja.insert("objects_returns", "戻り値");
+    ja.insert("objects_lang", "言語");
+    ja.insert("objects_role", "ロール");
+    ja.insert("objects_login", "ログイン");
+    ja.insert("objects_privileges", "権限");
+    ja.insert("objects_valid_until", "有効期限");
+    ja.insert("objects_column", "カラム");
+    ja.insert("objects_non_null", "NULLなし");
+    ja.insert("objects_min", "最小");
+    ja.insert("objects_max", "最大");
+    ja.insert("objects_average", "平均");
+    ja.insert("objects_no_active_connection", "アクティブな接続なし");
+    ja.insert(
+        "objects_no_active_connection_help",
+        "PostgreSQLに接続してデータベースオブジェクトを閲覧・操作してください。",
+    );
+    ja.insert("objects_tables_title", "テーブル");
+    ja.insert("objects_tables_subtitle", "ベーステーブルと編集可能なリレーション");
+    ja.insert("objects_views_title", "ビュー");
+    ja.insert("objects_views_subtitle", "クエリベースの仮想オブジェクト");
+    ja.insert("objects_materialized_title", "マテリアライズドビュー");
+    ja.insert("objects_materialized_subtitle", "保存されたクエリスナップショット");
+    ja.insert("objects_functions_title", "関数");
+    ja.insert("objects_functions_subtitle", "スキーマ別PostgreSQLルーティン");
+    ja.insert("objects_users_title", "ユーザー");
+    ja.insert("objects_users_subtitle", "ロールとログイン権限");
+    ja.insert("objects_backup_title", "バックアップ");
+    ja.insert("objects_backup_subtitle", "pg_dumpおよびリストアコマンドビルダー");
+    ja.insert("objects_automation_title", "自動化");
+    ja.insert("objects_automation_subtitle", "メンテナンスクエリプリセット");
+    ja.insert("objects_model_title", "モデル");
+    ja.insert("objects_model_subtitle", "ER図とスキーマモデリング");
+    ja.insert("objects_bi_title", "BI");
+    ja.insert("objects_bi_subtitle", "結果セットのクイックプロファイリング");
+    ja.insert("objects_connections_title", "接続");
+    ja.insert("objects_connections_subtitle", "データベース接続の設定");
+    ja.insert("objects_query_title", "クエリ");
+    ja.insert("objects_query_subtitle", "SQLエディター");
+    ja.insert("objects_data_title", "データ");
+    ja.insert("objects_data_subtitle", "テーブル行の閲覧");
+
+    ja.insert("backup_schema", "スキーマバックアップ");
+    ja.insert("backup_full_database", "フルデータベースバックアップ");
+    ja.insert(
+        "backup_no_folder_selected",
+        "バックアップフォルダーが選択されていません",
+    );
+    ja.insert("backup_folder_title", "FerrumGrid バックアップフォルダー");
+    ja.insert("backup_choose_folder", "フォルダーを選択");
+    ja.insert("backup_open_folder", "フォルダーを開く");
+    ja.insert("backup_folder_updated", "バックアップフォルダーを更新しました");
+    ja.insert("backup_format", "フォーマット");
+    ja.insert("backup_custom_archive", "カスタムアーカイブ (.dump)");
+    ja.insert("backup_plain_sql", "プレーンSQL (.sql)");
+    ja.insert("backup_running_label", "バックアップ中...");
+    ja.insert("backup_running_status", "{0} をバックアップ中...");
+    ja.insert("backup_run", "バックアップ実行");
+    ja.insert("backup_pg_dump_running", "pg_dump 実行中");
+    ja.insert("backup_tar_archive", "Tarアーカイブ");
+    ja.insert("backup_recent", "最近の FerrumGrid バックアップ");
+    ja.insert("backup_no_session", "このセッションにバックアップはありません");
+    ja.insert("backup_files_title_count", "バックアップファイル ({0})");
+    ja.insert("backup_files_title", "バックアップファイル");
+    ja.insert("backup_files_refresh", "更新");
+    ja.insert(
+        "backup_files_set_folder",
+        "ファイルを閲覧するにはバックアップフォルダーを設定してください",
+    );
+    ja.insert("backup_files_empty", "バックアップファイルが見つかりません");
+    ja.insert("backup_files_col_name", "名前");
+    ja.insert("backup_files_col_size", "サイズ");
+    ja.insert("backup_files_col_created", "作成日時");
+    ja.insert("backup_files_col_modified", "更新日時");
+    ja.insert("backup_files_col_actions", "操作");
+    ja.insert("backup_files_show", "表示");
+    ja.insert("backup_files_delete_confirm", "削除しますか?");
+    ja.insert("backup_files_yes", "はい");
+    ja.insert("backup_files_no", "いいえ");
+    ja.insert("backup_files_delete", "削除");
+
+    ja.insert("schema_visualizer_title", "スキーマビジュアライザー");
+    ja.insert(
+        "schema_visualizer_desc",
+        "テーブル、カラム、外部キーの関係を視覚的に探索します。",
+    );
+    ja.insert("schema_visualizer_open", "ビジュアライザーを開く");
+    ja.insert("visualizer_schema", "スキーマ");
+    ja.insert("visualizer_search_hint", "テーブルまたはカラムを検索");
+    ja.insert("visualizer_reload", "再読み込み");
+    ja.insert("visualizer_auto_layout", "自動レイアウト");
+    ja.insert("visualizer_fit", "フィット");
+    ja.insert("visualizer_zoom", "ズーム");
+    ja.insert("visualizer_close_tooltip", "スキーマビジュアライザーを閉じる");
+    ja.insert("visualizer_loading_columns", "カラムを読み込み中...");
+    ja.insert(
+        "visualizer_loading_title",
+        "スキーマビジュアライザーを読み込み中...",
+    );
+    ja.insert(
+        "visualizer_loading_subtitle",
+        "テーブル、カラム、リレーションがここに自動的に表示されます。",
+    );
+    ja.insert("visualizer_no_matching_tables", "一致するテーブルなし");
+    ja.insert(
+        "visualizer_clear_search_hint",
+        "スキーマ全体を表示するには検索をクリアしてください。",
+    );
+    ja.insert("visualizer_no_tables_title", "このスキーマにテーブルはありません");
+    ja.insert(
+        "visualizer_no_tables_subtitle",
+        "別のスキーマを選択するか更新してください。",
+    );
+    ja.insert("visualizer_more_columns", "+{0} 件のカラム");
+    ja.insert("visualizer_count", "{0} テーブル  |  {1} リレーション");
+
+    ja.insert("workspace_close_tab", "タブを閉じる");
+    ja.insert("workspace_new_query", "新規クエリ");
+    ja.insert("grid_revert", "元に戻す");
+    ja.insert("grid_edits", "{0} 件の編集");
+    ja.insert("grid_pk_required", "行を更新するには主キーが必要です");
+    ja.insert("grid_invalid_values", "無効な値が {0} 件あります");
+    ja.insert("grid_toggle_null", "NULLを切り替え");
+    ja.insert("grid_null_value", "NULL値");
+    ja.insert("grid_copy_value", "値をコピー");
+    ja.insert("grid_copy_sql", "SQLをコピー");
+    ja.insert("grid_no_active_data_source", "アクティブなデータソースなし");
+    ja.insert("grid_no_result_set", "結果セットなし");
+    ja.insert("grid_column_missing", "編集したカラムが見つかりません");
+    ja.insert("grid_pk_missing", "主キーカラム {0} が結果セットにありません");
+    ja.insert("grid_pk_value_missing", "主キーの値が取得できません");
+    ja.insert("grid_not_null", "このカラムはNULLを許可しません");
+    ja.insert("grid_bool_error", "trueまたはfalseを入力してください");
+    ja.insert("grid_number_error", "有効な数値を入力してください");
+    ja.insert("grid_json_error", "有効なJSONを入力してください");
+    ja.insert("grid_uuid_error", "有効なUUIDを入力してください");
+    ja.insert(
+        "grid_bytes_error",
+        "16進バイトを入力してください（例: \\xDEADBEEF）",
+    );
+    ja.insert("grid_date_error", "日付をYYYY-MM-DD形式で入力してください");
+    ja.insert(
+        "grid_datetime_error",
+        "日時をYYYY-MM-DD HH:MM:SS形式で入力してください",
+    );
+    ja.insert("grid_now", "現在");
+    ja.insert("grid_pick_date", "日付を選択");
+    ja.insert("grid_pick_time", "時刻を選択");
+    ja.insert("grid_prev_month", "前の月");
+    ja.insert("grid_next_month", "次の月");
+    ja.insert("grid_hour", "時");
+    ja.insert("grid_minute", "分");
+    ja.insert("grid_second", "秒");
+    ja.insert("grid_weekday_mon", "月");
+    ja.insert("grid_weekday_tue", "火");
+    ja.insert("grid_weekday_wed", "水");
+    ja.insert("grid_weekday_thu", "木");
+    ja.insert("grid_weekday_fri", "金");
+    ja.insert("grid_weekday_sat", "土");
+    ja.insert("grid_weekday_sun", "日");
+    ja.insert("grid_sort_asc", "昇順で並べ替え");
+    ja.insert("grid_sort_desc", "降順で並べ替え");
+    ja.insert("grid_sort_remove", "並べ替えを解除");
+    ja.insert("grid_sort_clear_all", "すべての並べ替えをクリア");
+    ja.insert(
+        "grid_sort_unsaved",
+        "並べ替える前に編集を適用または元に戻してください",
+    );
+    ja.insert(
+        "grid_page_unsaved",
+        "ページを変更する前に編集を適用または元に戻してください",
+    );
+    ja.insert("grid_first_page", "最初のページ");
+    ja.insert("grid_prev_page", "前のページ");
+    ja.insert("grid_next_page", "次のページ");
+    ja.insert("grid_page", "ページ");
+    ja.insert("grid_page_n", "{0} ページ");
+    ja.insert("grid_limit", "制限");
+    ja.insert("grid_limit_n", "制限 {0}");
+    ja.insert("grid_limit_error", "有効な行制限数を入力してください");
+    ja.insert("grid_enum_select", "値を選択");
+    ja.insert("grid_enum_error", "許可された値のいずれかを選択してください");
+    ja.insert("grid_visible_range", "{0}-{1}");
+    ja.insert("data_info_no_selection", "情報なし");
+    ja.insert("data_info_select_cell", "行を選択してください");
+    ja.insert("data_info_cell", "選択したセル");
+    ja.insert("data_info_row", "選択した行");
+    ja.insert("data_info_table", "選択したテーブル");
+    ja.insert("data_info_row_n", "{0} 行目");
+    ja.insert("data_info_col_n", "{0} 列目");
+    ja.insert("data_info_columns", "カラム");
+    ja.insert("data_info_columns_n", "{0} カラム");
+    ja.insert("data_info_indexes_n", "{0} インデックス");
+    ja.insert("data_info_relations_n", "{0} リレーション");
+    ja.insert("data_info_rules_n", "{0} ルール");
+    ja.insert("data_info_triggers_n", "{0} トリガー");
+    ja.insert("data_info_active_filter", "適用中のフィルター");
+    ja.insert("data_info_relation_out", "出力");
+    ja.insert("data_info_relation_in", "入力");
+    ja.insert("data_info_selected", "選択済み");
+    ja.insert("data_info_nullable", "NULL許可");
+    ja.insert("data_info_value", "値");
+    ja.insert("data_info_original", "元の値");
+    ja.insert("data_info_revert_cell", "セルを元に戻す");
+    ja.insert("data_info_dirty", "このセルには未保存の変更があります");
+    ja.insert("data_info_yes", "はい");
+    ja.insert("data_info_no", "いいえ");
+    ja.insert("data_info_read_only", "ここでは読み取り専用の値です。");
+    ja.insert("data_relation_open", "関連する行を開く");
+    ja.insert("data_info_read_only_pk", "主キーの値はここでは読み取り専用です。");
+    ja.insert(
+        "data_info_no_metadata",
+        "カラムのメタデータを読み込み中のため、編集が無効になっています。",
+    );
+}
+
+fn insert_recent_ui_zh(zh: &mut Translation) {
+    zh.insert("ctx_close_connection", "关闭连接");
+    zh.insert("ctx_open_connection", "打开连接");
+    zh.insert("ctx_switch_connection_profile", "切换连接配置文件");
+    zh.insert("ctx_no_saved_profiles", "无已保存的配置文件");
+    zh.insert("ctx_edit_connection", "编辑连接...");
+    zh.insert("ctx_new_connection", "新建连接");
+    zh.insert("ctx_delete_connection", "删除连接");
+    zh.insert("ctx_duplicate_connection", "复制连接...");
+    zh.insert("ctx_new_database", "新建数据库...");
+    zh.insert("ctx_new_table", "新建表");
+    zh.insert("ctx_new_query", "新建查询");
+    zh.insert("ctx_console", "控制台");
+    zh.insert("ctx_execute_sql_file", "执行SQL文件...");
+    zh.insert("ctx_open_schema", "打开模式");
+    zh.insert("ctx_backup_schema", "备份 {0}");
+    zh.insert("ctx_edit_schema", "编辑模式...");
+    zh.insert("ctx_new_schema", "新建模式...");
+    zh.insert("ctx_delete_schema", "删除模式");
+    zh.insert("ctx_dump_sql_file", "导出SQL文件");
+    zh.insert("ctx_data_dictionary", "数据字典...");
+    zh.insert("ctx_reverse_database_to_model", "将数据库逆向为模型...");
+    zh.insert("ctx_find_in_database", "在数据库中查找...");
+    zh.insert("ctx_add_star", "添加收藏");
+    zh.insert("ctx_color", "颜色:");
+    zh.insert("ctx_manage_group", "管理分组");
+    zh.insert("ctx_create_group", "创建分组...");
+    zh.insert("ctx_move_to_group", "移动到分组...");
+    zh.insert("ctx_share", "共享...");
+    zh.insert("ctx_refresh", "刷新");
+    zh.insert("ctx_close_all_connections", "关闭所有连接");
+    zh.insert("ctx_manage_connections", "管理连接...");
+    zh.insert("ctx_new_group", "新建分组");
+
+    zh.insert("tree_no_connections", "无连接");
+    zh.insert("tree_create_connection", "创建连接以浏览模式");
+    zh.insert("tree_empty", "（空）");
+    zh.insert("tree_tables", "表");
+    zh.insert("tree_views", "视图");
+    zh.insert("tree_materialized_views", "物化视图");
+    zh.insert("tree_functions", "函数");
+    zh.insert("tree_queries", "查询");
+    zh.insert("tree_backups", "备份");
+    zh.insert("tree_schema_backup", "模式备份");
+    zh.insert("tree_full_database_backup", "全库备份");
+    zh.insert("tree_fields", "字段");
+    zh.insert("tree_indexes", "索引");
+    zh.insert("tree_foreign_keys", "外键");
+    zh.insert("tree_unique", "唯一");
+    zh.insert("tree_rules", "规则");
+    zh.insert("tree_triggers", "触发器");
+    zh.insert("tree_edit_table", "编辑表");
+    zh.insert("tree_view_data_top_100", "查看数据（前100条）");
+    zh.insert("tree_copy_select", "复制 SELECT *");
+    zh.insert("tree_refresh_metadata", "刷新元数据");
+    zh.insert("tree_copy_signature", "复制签名");
+    zh.insert("tree_copy_rule_ddl", "复制规则DDL");
+    zh.insert("tree_copy_trigger_ddl", "复制触发器DDL");
+    zh.insert("tree_show_functions", "显示函数");
+    zh.insert("tree_show_group", "显示 {0}");
+    zh.insert("tree_showing_group", "正在显示 {1} 中的 {0}");
+    zh.insert("tree_showing_functions", "正在显示 {0} 中的函数");
+    zh.insert("tree_backup_schema_title", "备份: {0}");
+    zh.insert("tree_backup_full_title", "备份: 全库");
+    zh.insert("tree_backup_scope_schema", "备份范围: {0} 模式");
+    zh.insert("tree_backup_scope_full", "备份范围: 全库");
+    zh.insert("tree_refreshing_connections", "正在刷新 {0} 个连接...");
+    zh.insert("tree_explorer_refreshed", "资源管理器已刷新");
+    zh.insert("tree_closing_all_connections", "正在关闭所有连接...");
+
+    zh.insert("objects_all_schemas", "所有模式");
+    zh.insert("objects_schema", "模式");
+    zh.insert("objects_name", "名称");
+    zh.insert("objects_type", "类型");
+    zh.insert("objects_columns", "列");
+    zh.insert("objects_indexes", "索引");
+    zh.insert("objects_actions", "操作");
+    zh.insert("objects_search", "搜索");
+    zh.insert("objects_new_table", "新建表");
+    zh.insert("objects_open_model", "打开ER图");
+    zh.insert("objects_signature", "签名");
+    zh.insert("objects_returns", "返回值");
+    zh.insert("objects_lang", "语言");
+    zh.insert("objects_role", "角色");
+    zh.insert("objects_login", "登录");
+    zh.insert("objects_privileges", "权限");
+    zh.insert("objects_valid_until", "有效期至");
+    zh.insert("objects_column", "列");
+    zh.insert("objects_non_null", "非空");
+    zh.insert("objects_min", "最小值");
+    zh.insert("objects_max", "最大值");
+    zh.insert("objects_average", "平均值");
+    zh.insert("objects_no_active_connection", "无活跃连接");
+    zh.insert(
+        "objects_no_active_connection_help",
+        "连接到PostgreSQL以浏览和操作数据库对象。",
+    );
+    zh.insert("objects_tables_title", "表");
+    zh.insert("objects_tables_subtitle", "基础表和可编辑关系");
+    zh.insert("objects_views_title", "视图");
+    zh.insert("objects_views_subtitle", "基于查询的虚拟对象");
+    zh.insert("objects_materialized_title", "物化视图");
+    zh.insert("objects_materialized_subtitle", "存储的查询快照");
+    zh.insert("objects_functions_title", "函数");
+    zh.insert("objects_functions_subtitle", "按模式划分的PostgreSQL例程");
+    zh.insert("objects_users_title", "用户");
+    zh.insert("objects_users_subtitle", "角色和登录权限");
+    zh.insert("objects_backup_title", "备份");
+    zh.insert("objects_backup_subtitle", "pg_dump和恢复命令生成器");
+    zh.insert("objects_automation_title", "自动化");
+    zh.insert("objects_automation_subtitle", "维护查询预设");
+    zh.insert("objects_model_title", "模型");
+    zh.insert("objects_model_subtitle", "ER图和模式建模");
+    zh.insert("objects_bi_title", "BI");
+    zh.insert("objects_bi_subtitle", "快速结果集分析");
+    zh.insert("objects_connections_title", "连接");
+    zh.insert("objects_connections_subtitle", "数据库连接配置");
+    zh.insert("objects_query_title", "查询");
+    zh.insert("objects_query_subtitle", "SQL编辑器");
+    zh.insert("objects_data_title", "数据");
+    zh.insert("objects_data_subtitle", "浏览表数据行");
+
+    zh.insert("backup_schema", "模式备份");
+    zh.insert("backup_full_database", "全库备份");
+    zh.insert("backup_no_folder_selected", "未选择备份文件夹");
+    zh.insert("backup_folder_title", "FerrumGrid 备份文件夹");
+    zh.insert("backup_choose_folder", "选择文件夹");
+    zh.insert("backup_open_folder", "打开文件夹");
+    zh.insert("backup_folder_updated", "备份文件夹已更新");
+    zh.insert("backup_format", "格式");
+    zh.insert("backup_custom_archive", "自定义归档 (.dump)");
+    zh.insert("backup_plain_sql", "纯SQL (.sql)");
+    zh.insert("backup_running_label", "备份中...");
+    zh.insert("backup_running_status", "正在备份 {0}...");
+    zh.insert("backup_run", "运行备份");
+    zh.insert("backup_pg_dump_running", "pg_dump 运行中");
+    zh.insert("backup_tar_archive", "Tar归档");
+    zh.insert("backup_recent", "最近的 FerrumGrid 备份");
+    zh.insert("backup_no_session", "本次会话中无备份");
+    zh.insert("backup_files_title_count", "备份文件 ({0})");
+    zh.insert("backup_files_title", "备份文件");
+    zh.insert("backup_files_refresh", "刷新");
+    zh.insert("backup_files_set_folder", "请设置备份文件夹以浏览文件");
+    zh.insert("backup_files_empty", "未找到备份文件");
+    zh.insert("backup_files_col_name", "名称");
+    zh.insert("backup_files_col_size", "大小");
+    zh.insert("backup_files_col_created", "创建时间");
+    zh.insert("backup_files_col_modified", "修改时间");
+    zh.insert("backup_files_col_actions", "操作");
+    zh.insert("backup_files_show", "显示");
+    zh.insert("backup_files_delete_confirm", "确认删除?");
+    zh.insert("backup_files_yes", "是");
+    zh.insert("backup_files_no", "否");
+    zh.insert("backup_files_delete", "删除");
+
+    zh.insert("schema_visualizer_title", "模式可视化器");
+    zh.insert("schema_visualizer_desc", "可视化探索表、列和外键关系。");
+    zh.insert("schema_visualizer_open", "打开可视化器");
+    zh.insert("visualizer_schema", "模式");
+    zh.insert("visualizer_search_hint", "搜索表或列");
+    zh.insert("visualizer_reload", "重新加载");
+    zh.insert("visualizer_auto_layout", "自动布局");
+    zh.insert("visualizer_fit", "适配");
+    zh.insert("visualizer_zoom", "缩放");
+    zh.insert("visualizer_close_tooltip", "关闭模式可视化器");
+    zh.insert("visualizer_loading_columns", "正在加载列...");
+    zh.insert("visualizer_loading_title", "正在加载模式可视化器...");
+    zh.insert(
+        "visualizer_loading_subtitle",
+        "表、列和关系将自动显示在这里。",
+    );
+    zh.insert("visualizer_no_matching_tables", "无匹配的表");
+    zh.insert("visualizer_clear_search_hint", "清除搜索框以显示完整模式。");
+    zh.insert("visualizer_no_tables_title", "此模式中没有表");
+    zh.insert("visualizer_no_tables_subtitle", "请选择其他模式或刷新。");
+    zh.insert("visualizer_more_columns", "+{0} 列");
+    zh.insert("visualizer_count", "{0} 个表  |  {1} 个关系");
+
+    zh.insert("workspace_close_tab", "关闭标签页");
+    zh.insert("workspace_new_query", "新建查询");
+    zh.insert("grid_revert", "还原");
+    zh.insert("grid_edits", "{0} 处编辑");
+    zh.insert("grid_pk_required", "更新行需要主键");
+    zh.insert("grid_invalid_values", "{0} 个无效值");
+    zh.insert("grid_toggle_null", "切换NULL");
+    zh.insert("grid_null_value", "NULL值");
+    zh.insert("grid_copy_value", "复制值");
+    zh.insert("grid_copy_sql", "复制SQL");
+    zh.insert("grid_no_active_data_source", "无活跃数据源");
+    zh.insert("grid_no_result_set", "无结果集");
+    zh.insert("grid_column_missing", "已编辑的列不再可用");
+    zh.insert("grid_pk_missing", "主键列 {0} 不在结果集中");
+    zh.insert("grid_pk_value_missing", "主键值不可用");
+    zh.insert("grid_not_null", "此列不允许NULL");
+    zh.insert("grid_bool_error", "请输入 true 或 false");
+    zh.insert("grid_number_error", "请输入有效的数字");
+    zh.insert("grid_json_error", "请输入有效的JSON");
+    zh.insert("grid_uuid_error", "请输入有效的UUID");
+    zh.insert(
+        "grid_bytes_error",
+        "请输入十六进制字节，例如 \\xDEADBEEF",
+    );
+    zh.insert("grid_date_error", "请以YYYY-MM-DD格式输入日期");
+    zh.insert(
+        "grid_datetime_error",
+        "请以YYYY-MM-DD HH:MM:SS格式输入日期和时间",
+    );
+    zh.insert("grid_now", "现在");
+    zh.insert("grid_pick_date", "选择日期");
+    zh.insert("grid_pick_time", "选择时间");
+    zh.insert("grid_prev_month", "上个月");
+    zh.insert("grid_next_month", "下个月");
+    zh.insert("grid_hour", "时");
+    zh.insert("grid_minute", "分");
+    zh.insert("grid_second", "秒");
+    zh.insert("grid_weekday_mon", "一");
+    zh.insert("grid_weekday_tue", "二");
+    zh.insert("grid_weekday_wed", "三");
+    zh.insert("grid_weekday_thu", "四");
+    zh.insert("grid_weekday_fri", "五");
+    zh.insert("grid_weekday_sat", "六");
+    zh.insert("grid_weekday_sun", "日");
+    zh.insert("grid_sort_asc", "升序排列");
+    zh.insert("grid_sort_desc", "降序排列");
+    zh.insert("grid_sort_remove", "取消排序");
+    zh.insert("grid_sort_clear_all", "清除所有排序");
+    zh.insert("grid_sort_unsaved", "排序前请先应用或还原编辑");
+    zh.insert("grid_page_unsaved", "翻页前请先应用或还原编辑");
+    zh.insert("grid_first_page", "第一页");
+    zh.insert("grid_prev_page", "上一页");
+    zh.insert("grid_next_page", "下一页");
+    zh.insert("grid_page", "页");
+    zh.insert("grid_page_n", "第 {0} 页");
+    zh.insert("grid_limit", "限制");
+    zh.insert("grid_limit_n", "限制 {0}");
+    zh.insert("grid_limit_error", "请输入有效的行数限制");
+    zh.insert("grid_enum_select", "选择值");
+    zh.insert("grid_enum_error", "请选择允许的值之一");
+    zh.insert("grid_visible_range", "{0}-{1}");
+    zh.insert("data_info_no_selection", "无信息");
+    zh.insert("data_info_select_cell", "请选择一行");
+    zh.insert("data_info_cell", "选中的单元格");
+    zh.insert("data_info_row", "选中的行");
+    zh.insert("data_info_table", "选中的表");
+    zh.insert("data_info_row_n", "第 {0} 行");
+    zh.insert("data_info_col_n", "第 {0} 列");
+    zh.insert("data_info_columns", "列");
+    zh.insert("data_info_columns_n", "{0} 列");
+    zh.insert("data_info_indexes_n", "{0} 个索引");
+    zh.insert("data_info_relations_n", "{0} 个关系");
+    zh.insert("data_info_rules_n", "{0} 个规则");
+    zh.insert("data_info_triggers_n", "{0} 个触发器");
+    zh.insert("data_info_active_filter", "活跃筛选器");
+    zh.insert("data_info_relation_out", "出");
+    zh.insert("data_info_relation_in", "入");
+    zh.insert("data_info_selected", "已选中");
+    zh.insert("data_info_nullable", "可为空");
+    zh.insert("data_info_value", "值");
+    zh.insert("data_info_original", "原始值");
+    zh.insert("data_info_revert_cell", "还原单元格");
+    zh.insert("data_info_dirty", "此单元格有未保存的更改");
+    zh.insert("data_info_yes", "是");
+    zh.insert("data_info_no", "否");
+    zh.insert("data_info_read_only", "此值在这里是只读的。");
+    zh.insert("data_relation_open", "打开关联行");
+    zh.insert("data_info_read_only_pk", "主键值在这里是只读的。");
+    zh.insert(
+        "data_info_no_metadata",
+        "列元数据仍在加载中，因此编辑已禁用。",
+    );
+}
+
+fn insert_recent_ui_es(es: &mut Translation) {
+    es.insert("ctx_close_connection", "Cerrar conexión");
+    es.insert("ctx_open_connection", "Abrir conexión");
+    es.insert("ctx_switch_connection_profile", "Cambiar perfil de conexión");
+    es.insert("ctx_no_saved_profiles", "Sin perfiles guardados");
+    es.insert("ctx_edit_connection", "Editar conexión...");
+    es.insert("ctx_new_connection", "Nueva conexión");
+    es.insert("ctx_delete_connection", "Eliminar conexión");
+    es.insert("ctx_duplicate_connection", "Duplicar conexión...");
+    es.insert("ctx_new_database", "Nueva base de datos...");
+    es.insert("ctx_new_table", "Nueva tabla");
+    es.insert("ctx_new_query", "Nueva consulta");
+    es.insert("ctx_console", "Consola");
+    es.insert("ctx_execute_sql_file", "Ejecutar archivo SQL...");
+    es.insert("ctx_open_schema", "Abrir esquema");
+    es.insert("ctx_backup_schema", "Hacer copia de seguridad de {0}");
+    es.insert("ctx_edit_schema", "Editar esquema...");
+    es.insert("ctx_new_schema", "Nuevo esquema...");
+    es.insert("ctx_delete_schema", "Eliminar esquema");
+    es.insert("ctx_dump_sql_file", "Exportar archivo SQL");
+    es.insert("ctx_data_dictionary", "Diccionario de datos...");
+    es.insert(
+        "ctx_reverse_database_to_model",
+        "Revertir base de datos a modelo...",
+    );
+    es.insert("ctx_find_in_database", "Buscar en la base de datos...");
+    es.insert("ctx_add_star", "Agregar favorito");
+    es.insert("ctx_color", "Color:");
+    es.insert("ctx_manage_group", "Administrar grupo");
+    es.insert("ctx_create_group", "Crear grupo...");
+    es.insert("ctx_move_to_group", "Mover a grupo...");
+    es.insert("ctx_share", "Compartir...");
+    es.insert("ctx_refresh", "Actualizar");
+    es.insert("ctx_close_all_connections", "Cerrar todas las conexiones");
+    es.insert("ctx_manage_connections", "Administrar conexiones...");
+    es.insert("ctx_new_group", "Nuevo grupo");
+
+    es.insert("tree_no_connections", "Sin conexiones");
+    es.insert(
+        "tree_create_connection",
+        "Cree una conexión para explorar esquemas",
+    );
+    es.insert("tree_empty", "(vacío)");
+    es.insert("tree_tables", "Tablas");
+    es.insert("tree_views", "Vistas");
+    es.insert("tree_materialized_views", "Vistas materializadas");
+    es.insert("tree_functions", "Funciones");
+    es.insert("tree_queries", "Consultas");
+    es.insert("tree_backups", "Copias de seguridad");
+    es.insert("tree_schema_backup", "Copia de seguridad del esquema");
+    es.insert(
+        "tree_full_database_backup",
+        "Copia de seguridad completa de la base de datos",
+    );
+    es.insert("tree_fields", "Campos");
+    es.insert("tree_indexes", "Índices");
+    es.insert("tree_foreign_keys", "Claves foráneas");
+    es.insert("tree_unique", "Único");
+    es.insert("tree_rules", "Reglas");
+    es.insert("tree_triggers", "Disparadores");
+    es.insert("tree_edit_table", "Editar tabla");
+    es.insert("tree_view_data_top_100", "Ver datos (top 100)");
+    es.insert("tree_copy_select", "Copiar SELECT *");
+    es.insert("tree_refresh_metadata", "Actualizar metadatos");
+    es.insert("tree_copy_signature", "Copiar firma");
+    es.insert("tree_copy_rule_ddl", "Copiar DDL de regla");
+    es.insert("tree_copy_trigger_ddl", "Copiar DDL de disparador");
+    es.insert("tree_show_functions", "Mostrar funciones");
+    es.insert("tree_show_group", "Mostrar {0}");
+    es.insert("tree_showing_group", "Mostrando {0} en {1}");
+    es.insert("tree_showing_functions", "Mostrando funciones en {0}");
+    es.insert("tree_backup_schema_title", "Copia de seguridad: {0}");
+    es.insert("tree_backup_full_title", "Copia de seguridad: completa");
+    es.insert(
+        "tree_backup_scope_schema",
+        "Alcance de la copia de seguridad: esquema {0}",
+    );
+    es.insert(
+        "tree_backup_scope_full",
+        "Alcance de la copia de seguridad: base de datos completa",
+    );
+    es.insert("tree_refreshing_connections", "Actualizando {0} conexión(es)...");
+    es.insert("tree_explorer_refreshed", "Explorador actualizado");
+    es.insert("tree_closing_all_connections", "Cerrando todas las conexiones...");
+
+    es.insert("objects_all_schemas", "Todos los esquemas");
+    es.insert("objects_schema", "Esquema");
+    es.insert("objects_name", "Nombre");
+    es.insert("objects_type", "Tipo");
+    es.insert("objects_columns", "Columnas");
+    es.insert("objects_indexes", "Índices");
+    es.insert("objects_actions", "Acciones");
+    es.insert("objects_search", "Buscar");
+    es.insert("objects_new_table", "Nueva tabla");
+    es.insert("objects_open_model", "Abrir diagrama ER");
+    es.insert("objects_signature", "Firma");
+    es.insert("objects_returns", "Devuelve");
+    es.insert("objects_lang", "Idioma");
+    es.insert("objects_role", "Rol");
+    es.insert("objects_login", "Inicio de sesión");
+    es.insert("objects_privileges", "Privilegios");
+    es.insert("objects_valid_until", "Válido hasta");
+    es.insert("objects_column", "Columna");
+    es.insert("objects_non_null", "No nulo");
+    es.insert("objects_min", "Mínimo");
+    es.insert("objects_max", "Máximo");
+    es.insert("objects_average", "Promedio");
+    es.insert("objects_no_active_connection", "Sin conexión activa");
+    es.insert(
+        "objects_no_active_connection_help",
+        "Conéctese a PostgreSQL para explorar y operar objetos de base de datos.",
+    );
+    es.insert("objects_tables_title", "Tablas");
+    es.insert("objects_tables_subtitle", "Tablas base y relaciones editables");
+    es.insert("objects_views_title", "Vistas");
+    es.insert("objects_views_subtitle", "Objetos virtuales basados en consultas");
+    es.insert("objects_materialized_title", "Vistas materializadas");
+    es.insert(
+        "objects_materialized_subtitle",
+        "Instantáneas de consultas almacenadas",
+    );
+    es.insert("objects_functions_title", "Funciones");
+    es.insert(
+        "objects_functions_subtitle",
+        "Rutinas de PostgreSQL por esquema",
+    );
+    es.insert("objects_users_title", "Usuarios");
+    es.insert(
+        "objects_users_subtitle",
+        "Roles y permisos de inicio de sesión",
+    );
+    es.insert("objects_backup_title", "Copia de seguridad");
+    es.insert(
+        "objects_backup_subtitle",
+        "Constructor de comandos pg_dump y restauración",
+    );
+    es.insert("objects_automation_title", "Automatización");
+    es.insert(
+        "objects_automation_subtitle",
+        "Presets de consultas de mantenimiento",
+    );
+    es.insert("objects_model_title", "Modelo");
+    es.insert(
+        "objects_model_subtitle",
+        "Diagrama ER y modelado de esquemas",
+    );
+    es.insert("objects_bi_title", "BI");
+    es.insert(
+        "objects_bi_subtitle",
+        "Perfilado rápido de conjuntos de resultados",
+    );
+    es.insert("objects_connections_title", "Conexiones");
+    es.insert(
+        "objects_connections_subtitle",
+        "Configuración de conexión de base de datos",
+    );
+    es.insert("objects_query_title", "Consulta");
+    es.insert("objects_query_subtitle", "Editor SQL");
+    es.insert("objects_data_title", "Datos");
+    es.insert("objects_data_subtitle", "Explorar filas de tabla");
+
+    es.insert("backup_schema", "Copia de seguridad del esquema");
+    es.insert(
+        "backup_full_database",
+        "Copia de seguridad completa de la base de datos",
+    );
+    es.insert(
+        "backup_no_folder_selected",
+        "No se ha seleccionado carpeta de copia de seguridad",
+    );
+    es.insert(
+        "backup_folder_title",
+        "Carpeta de copia de seguridad de FerrumGrid",
+    );
+    es.insert("backup_choose_folder", "Elegir carpeta");
+    es.insert("backup_open_folder", "Abrir carpeta");
+    es.insert("backup_folder_updated", "Carpeta de copia de seguridad actualizada");
+    es.insert("backup_format", "Formato");
+    es.insert("backup_custom_archive", "Archivo personalizado (.dump)");
+    es.insert("backup_plain_sql", "SQL plano (.sql)");
+    es.insert("backup_running_label", "Realizando copia de seguridad...");
+    es.insert(
+        "backup_running_status",
+        "Realizando copia de seguridad de {0}...",
+    );
+    es.insert("backup_run", "Ejecutar copia de seguridad");
+    es.insert("backup_pg_dump_running", "pg_dump en ejecución");
+    es.insert("backup_tar_archive", "Archivo Tar");
+    es.insert(
+        "backup_recent",
+        "Copias de seguridad recientes de FerrumGrid",
+    );
+    es.insert("backup_no_session", "Sin copias de seguridad en esta sesión");
+    es.insert("backup_files_title_count", "Archivos de copia de seguridad ({0})");
+    es.insert("backup_files_title", "Archivos de copia de seguridad");
+    es.insert("backup_files_refresh", "Actualizar");
+    es.insert(
+        "backup_files_set_folder",
+        "Establezca la carpeta de copia de seguridad para explorar archivos",
+    );
+    es.insert(
+        "backup_files_empty",
+        "No se encontraron archivos de copia de seguridad",
+    );
+    es.insert("backup_files_col_name", "Nombre");
+    es.insert("backup_files_col_size", "Tamaño");
+    es.insert("backup_files_col_created", "Creado");
+    es.insert("backup_files_col_modified", "Modificado");
+    es.insert("backup_files_col_actions", "Acciones");
+    es.insert("backup_files_show", "Mostrar");
+    es.insert("backup_files_delete_confirm", "¿Eliminar?");
+    es.insert("backup_files_yes", "Sí");
+    es.insert("backup_files_no", "No");
+    es.insert("backup_files_delete", "Eliminar");
+
+    es.insert("schema_visualizer_title", "Visualizador de esquemas");
+    es.insert(
+        "schema_visualizer_desc",
+        "Explore tablas, columnas y relaciones de clave foránea.",
+    );
+    es.insert("schema_visualizer_open", "Abrir visualizador");
+    es.insert("visualizer_schema", "Esquema");
+    es.insert("visualizer_search_hint", "Buscar tablas o columnas");
+    es.insert("visualizer_reload", "Recargar");
+    es.insert("visualizer_auto_layout", "Diseño automático");
+    es.insert("visualizer_fit", "Ajustar");
+    es.insert("visualizer_zoom", "Zoom");
+    es.insert("visualizer_close_tooltip", "Cerrar visualizador de esquemas");
+    es.insert("visualizer_loading_columns", "Cargando columnas...");
+    es.insert(
+        "visualizer_loading_title",
+        "Cargando visualizador de esquemas...",
+    );
+    es.insert(
+        "visualizer_loading_subtitle",
+        "Las tablas, columnas y relaciones aparecerán aquí automáticamente.",
+    );
+    es.insert("visualizer_no_matching_tables", "Sin tablas coincidentes");
+    es.insert(
+        "visualizer_clear_search_hint",
+        "Limpie el cuadro de búsqueda para mostrar el esquema completo.",
+    );
+    es.insert("visualizer_no_tables_title", "No hay tablas en este esquema");
+    es.insert(
+        "visualizer_no_tables_subtitle",
+        "Seleccione otro esquema o actualice.",
+    );
+    es.insert("visualizer_more_columns", "+{0} columnas más");
+    es.insert("visualizer_count", "{0} tablas  |  {1} relaciones");
+
+    es.insert("workspace_close_tab", "Cerrar pestaña");
+    es.insert("workspace_new_query", "Nueva consulta");
+    es.insert("grid_revert", "Revertir");
+    es.insert("grid_edits", "{0} ediciones");
+    es.insert(
+        "grid_pk_required",
+        "Se requiere clave primaria para actualizar filas",
+    );
+    es.insert("grid_invalid_values", "{0} valor(es) inválido(s)");
+    es.insert("grid_toggle_null", "Alternar NULL");
+    es.insert("grid_null_value", "Valor NULL");
+    es.insert("grid_copy_value", "Copiar valor");
+    es.insert("grid_copy_sql", "Copiar SQL");
+    es.insert("grid_no_active_data_source", "Sin fuente de datos activa");
+    es.insert("grid_no_result_set", "Sin conjunto de resultados");
+    es.insert("grid_column_missing", "La columna editada ya no está disponible");
+    es.insert(
+        "grid_pk_missing",
+        "La columna de clave primaria {0} no está en el conjunto de resultados",
+    );
+    es.insert(
+        "grid_pk_value_missing",
+        "El valor de clave primaria no está disponible",
+    );
+    es.insert("grid_not_null", "Esta columna no permite NULL");
+    es.insert("grid_bool_error", "Use true o false");
+    es.insert("grid_number_error", "Ingrese un número válido");
+    es.insert("grid_json_error", "Ingrese JSON válido");
+    es.insert("grid_uuid_error", "Ingrese un UUID válido");
+    es.insert(
+        "grid_bytes_error",
+        "Ingrese bytes hexadecimales, por ejemplo \\xDEADBEEF",
+    );
+    es.insert("grid_date_error", "Ingrese una fecha como YYYY-MM-DD");
+    es.insert(
+        "grid_datetime_error",
+        "Ingrese fecha y hora como YYYY-MM-DD HH:MM:SS",
+    );
+    es.insert("grid_now", "Ahora");
+    es.insert("grid_pick_date", "Elegir fecha");
+    es.insert("grid_pick_time", "Elegir hora");
+    es.insert("grid_prev_month", "Mes anterior");
+    es.insert("grid_next_month", "Mes siguiente");
+    es.insert("grid_hour", "Hora");
+    es.insert("grid_minute", "Min");
+    es.insert("grid_second", "Seg");
+    es.insert("grid_weekday_mon", "L");
+    es.insert("grid_weekday_tue", "M");
+    es.insert("grid_weekday_wed", "X");
+    es.insert("grid_weekday_thu", "J");
+    es.insert("grid_weekday_fri", "V");
+    es.insert("grid_weekday_sat", "S");
+    es.insert("grid_weekday_sun", "D");
+    es.insert("grid_sort_asc", "Ordenar ascendente");
+    es.insert("grid_sort_desc", "Ordenar descendente");
+    es.insert("grid_sort_remove", "Quitar ordenación");
+    es.insert("grid_sort_clear_all", "Limpiar todas las ordenaciones");
+    es.insert(
+        "grid_sort_unsaved",
+        "Aplique o revierta las ediciones antes de ordenar",
+    );
+    es.insert(
+        "grid_page_unsaved",
+        "Aplique o revierta las ediciones antes de cambiar de página",
+    );
+    es.insert("grid_first_page", "Primera página");
+    es.insert("grid_prev_page", "Página anterior");
+    es.insert("grid_next_page", "Página siguiente");
+    es.insert("grid_page", "Página");
+    es.insert("grid_page_n", "Página {0}");
+    es.insert("grid_limit", "Límite");
+    es.insert("grid_limit_n", "Límite {0}");
+    es.insert("grid_limit_error", "Ingrese un límite de filas válido");
+    es.insert("grid_enum_select", "Seleccionar valor");
+    es.insert("grid_enum_error", "Seleccione uno de los valores permitidos");
+    es.insert("grid_visible_range", "{0}-{1}");
+    es.insert("data_info_no_selection", "Sin información");
+    es.insert("data_info_select_cell", "Seleccione una fila");
+    es.insert("data_info_cell", "Celda seleccionada");
+    es.insert("data_info_row", "Fila seleccionada");
+    es.insert("data_info_table", "Tabla seleccionada");
+    es.insert("data_info_row_n", "Fila {0}");
+    es.insert("data_info_col_n", "Col {0}");
+    es.insert("data_info_columns", "Columnas");
+    es.insert("data_info_columns_n", "{0} columnas");
+    es.insert("data_info_indexes_n", "{0} índices");
+    es.insert("data_info_relations_n", "{0} relaciones");
+    es.insert("data_info_rules_n", "{0} reglas");
+    es.insert("data_info_triggers_n", "{0} disparadores");
+    es.insert("data_info_active_filter", "Filtro activo");
+    es.insert("data_info_relation_out", "saliente");
+    es.insert("data_info_relation_in", "entrante");
+    es.insert("data_info_selected", "Seleccionado");
+    es.insert("data_info_nullable", "Nullable");
+    es.insert("data_info_value", "Valor");
+    es.insert("data_info_original", "Original");
+    es.insert("data_info_revert_cell", "Revertir celda");
+    es.insert("data_info_dirty", "Esta celda tiene cambios sin guardar");
+    es.insert("data_info_yes", "Sí");
+    es.insert("data_info_no", "No");
+    es.insert("data_info_read_only", "Este valor es de solo lectura aquí.");
+    es.insert("data_relation_open", "Abrir fila relacionada");
+    es.insert(
+        "data_info_read_only_pk",
+        "Los valores de clave primaria son de solo lectura aquí.",
+    );
+    es.insert(
+        "data_info_no_metadata",
+        "Los metadatos de columna aún se están cargando, por lo que la edición está deshabilitada.",
+    );
+}
+
+fn insert_recent_ui_fr(fr: &mut Translation) {
+    fr.insert("ctx_close_connection", "Fermer la connexion");
+    fr.insert("ctx_open_connection", "Ouvrir la connexion");
+    fr.insert(
+        "ctx_switch_connection_profile",
+        "Changer de profil de connexion",
+    );
+    fr.insert("ctx_no_saved_profiles", "Aucun profil enregistré");
+    fr.insert("ctx_edit_connection", "Modifier la connexion...");
+    fr.insert("ctx_new_connection", "Nouvelle connexion");
+    fr.insert("ctx_delete_connection", "Supprimer la connexion");
+    fr.insert("ctx_duplicate_connection", "Dupliquer la connexion...");
+    fr.insert("ctx_new_database", "Nouvelle base de données...");
+    fr.insert("ctx_new_table", "Nouvelle table");
+    fr.insert("ctx_new_query", "Nouvelle requête");
+    fr.insert("ctx_console", "Console");
+    fr.insert("ctx_execute_sql_file", "Exécuter un fichier SQL...");
+    fr.insert("ctx_open_schema", "Ouvrir le schéma");
+    fr.insert("ctx_backup_schema", "Sauvegarder {0}");
+    fr.insert("ctx_edit_schema", "Modifier le schéma...");
+    fr.insert("ctx_new_schema", "Nouveau schéma...");
+    fr.insert("ctx_delete_schema", "Supprimer le schéma");
+    fr.insert("ctx_dump_sql_file", "Exporter le fichier SQL");
+    fr.insert("ctx_data_dictionary", "Dictionnaire de données...");
+    fr.insert(
+        "ctx_reverse_database_to_model",
+        "Rétro-ingénierie de la base de données vers le modèle...",
+    );
+    fr.insert(
+        "ctx_find_in_database",
+        "Rechercher dans la base de données...",
+    );
+    fr.insert("ctx_add_star", "Ajouter aux favoris");
+    fr.insert("ctx_color", "Couleur :");
+    fr.insert("ctx_manage_group", "Gérer le groupe");
+    fr.insert("ctx_create_group", "Créer un groupe...");
+    fr.insert("ctx_move_to_group", "Déplacer vers le groupe...");
+    fr.insert("ctx_share", "Partager...");
+    fr.insert("ctx_refresh", "Actualiser");
+    fr.insert("ctx_close_all_connections", "Fermer toutes les connexions");
+    fr.insert("ctx_manage_connections", "Gérer les connexions...");
+    fr.insert("ctx_new_group", "Nouveau groupe");
+
+    fr.insert("tree_no_connections", "Aucune connexion");
+    fr.insert(
+        "tree_create_connection",
+        "Créez une connexion pour parcourir les schémas",
+    );
+    fr.insert("tree_empty", "(vide)");
+    fr.insert("tree_tables", "Tables");
+    fr.insert("tree_views", "Vues");
+    fr.insert("tree_materialized_views", "Vues matérialisées");
+    fr.insert("tree_functions", "Fonctions");
+    fr.insert("tree_queries", "Requêtes");
+    fr.insert("tree_backups", "Sauvegardes");
+    fr.insert("tree_schema_backup", "Sauvegarde du schéma");
+    fr.insert(
+        "tree_full_database_backup",
+        "Sauvegarde complète de la base de données",
+    );
+    fr.insert("tree_fields", "Champs");
+    fr.insert("tree_indexes", "Index");
+    fr.insert("tree_foreign_keys", "Clés étrangères");
+    fr.insert("tree_unique", "Unique");
+    fr.insert("tree_rules", "Règles");
+    fr.insert("tree_triggers", "Déclencheurs");
+    fr.insert("tree_edit_table", "Modifier la table");
+    fr.insert("tree_view_data_top_100", "Voir les données (100 premières)");
+    fr.insert("tree_copy_select", "Copier SELECT *");
+    fr.insert("tree_refresh_metadata", "Actualiser les métadonnées");
+    fr.insert("tree_copy_signature", "Copier la signature");
+    fr.insert("tree_copy_rule_ddl", "Copier le DDL de règle");
+    fr.insert("tree_copy_trigger_ddl", "Copier le DDL de déclencheur");
+    fr.insert("tree_show_functions", "Afficher les fonctions");
+    fr.insert("tree_show_group", "Afficher {0}");
+    fr.insert("tree_showing_group", "Affichage de {0} dans {1}");
+    fr.insert("tree_showing_functions", "Affichage des fonctions dans {0}");
+    fr.insert("tree_backup_schema_title", "Sauvegarde : {0}");
+    fr.insert("tree_backup_full_title", "Sauvegarde : complète");
+    fr.insert(
+        "tree_backup_scope_schema",
+        "Portée de la sauvegarde : schéma {0}",
+    );
+    fr.insert(
+        "tree_backup_scope_full",
+        "Portée de la sauvegarde : base de données complète",
+    );
+    fr.insert(
+        "tree_refreshing_connections",
+        "Actualisation de {0} connexion(s)...",
+    );
+    fr.insert("tree_explorer_refreshed", "Explorateur actualisé");
+    fr.insert(
+        "tree_closing_all_connections",
+        "Fermeture de toutes les connexions...",
+    );
+
+    fr.insert("objects_all_schemas", "Tous les schémas");
+    fr.insert("objects_schema", "Schéma");
+    fr.insert("objects_name", "Nom");
+    fr.insert("objects_type", "Type");
+    fr.insert("objects_columns", "Colonnes");
+    fr.insert("objects_indexes", "Index");
+    fr.insert("objects_actions", "Actions");
+    fr.insert("objects_search", "Rechercher");
+    fr.insert("objects_new_table", "Nouvelle table");
+    fr.insert("objects_open_model", "Ouvrir le diagramme ER");
+    fr.insert("objects_signature", "Signature");
+    fr.insert("objects_returns", "Retourne");
+    fr.insert("objects_lang", "Langage");
+    fr.insert("objects_role", "Rôle");
+    fr.insert("objects_login", "Connexion");
+    fr.insert("objects_privileges", "Privilèges");
+    fr.insert("objects_valid_until", "Valide jusqu'au");
+    fr.insert("objects_column", "Colonne");
+    fr.insert("objects_non_null", "Non nul");
+    fr.insert("objects_min", "Minimum");
+    fr.insert("objects_max", "Maximum");
+    fr.insert("objects_average", "Moyenne");
+    fr.insert("objects_no_active_connection", "Aucune connexion active");
+    fr.insert(
+        "objects_no_active_connection_help",
+        "Connectez-vous à PostgreSQL pour parcourir et gérer les objets de base de données.",
+    );
+    fr.insert("objects_tables_title", "Tables");
+    fr.insert(
+        "objects_tables_subtitle",
+        "Tables de base et relations modifiables",
+    );
+    fr.insert("objects_views_title", "Vues");
+    fr.insert(
+        "objects_views_subtitle",
+        "Objets virtuels basés sur des requêtes",
+    );
+    fr.insert("objects_materialized_title", "Vues matérialisées");
+    fr.insert(
+        "objects_materialized_subtitle",
+        "Instantanés de requêtes stockés",
+    );
+    fr.insert("objects_functions_title", "Fonctions");
+    fr.insert(
+        "objects_functions_subtitle",
+        "Routines PostgreSQL par schéma",
+    );
+    fr.insert("objects_users_title", "Utilisateurs");
+    fr.insert(
+        "objects_users_subtitle",
+        "Rôles et permissions de connexion",
+    );
+    fr.insert("objects_backup_title", "Sauvegarde");
+    fr.insert(
+        "objects_backup_subtitle",
+        "Générateur de commandes pg_dump et restauration",
+    );
+    fr.insert("objects_automation_title", "Automatisation");
+    fr.insert(
+        "objects_automation_subtitle",
+        "Préréglages de requêtes de maintenance",
+    );
+    fr.insert("objects_model_title", "Modèle");
+    fr.insert(
+        "objects_model_subtitle",
+        "Diagramme ER et modélisation de schéma",
+    );
+    fr.insert("objects_bi_title", "BI");
+    fr.insert(
+        "objects_bi_subtitle",
+        "Profilage rapide des jeux de résultats",
+    );
+    fr.insert("objects_connections_title", "Connexions");
+    fr.insert(
+        "objects_connections_subtitle",
+        "Configuration de la connexion à la base de données",
+    );
+    fr.insert("objects_query_title", "Requête");
+    fr.insert("objects_query_subtitle", "Éditeur SQL");
+    fr.insert("objects_data_title", "Données");
+    fr.insert("objects_data_subtitle", "Parcourir les lignes de la table");
+
+    fr.insert("backup_schema", "Sauvegarde du schéma");
+    fr.insert(
+        "backup_full_database",
+        "Sauvegarde complète de la base de données",
+    );
+    fr.insert(
+        "backup_no_folder_selected",
+        "Aucun dossier de sauvegarde sélectionné",
+    );
+    fr.insert("backup_folder_title", "Dossier de sauvegarde FerrumGrid");
+    fr.insert("backup_choose_folder", "Choisir un dossier");
+    fr.insert("backup_open_folder", "Ouvrir le dossier");
+    fr.insert("backup_folder_updated", "Dossier de sauvegarde mis à jour");
+    fr.insert("backup_format", "Format");
+    fr.insert("backup_custom_archive", "Archive personnalisée (.dump)");
+    fr.insert("backup_plain_sql", "SQL simple (.sql)");
+    fr.insert("backup_running_label", "Sauvegarde en cours...");
+    fr.insert("backup_running_status", "Sauvegarde de {0} en cours...");
+    fr.insert("backup_run", "Lancer la sauvegarde");
+    fr.insert("backup_pg_dump_running", "pg_dump en cours d'exécution");
+    fr.insert("backup_tar_archive", "Archive Tar");
+    fr.insert("backup_recent", "Sauvegardes récentes de FerrumGrid");
+    fr.insert("backup_no_session", "Aucune sauvegarde dans cette session");
+    fr.insert("backup_files_title_count", "Fichiers de sauvegarde ({0})");
+    fr.insert("backup_files_title", "Fichiers de sauvegarde");
+    fr.insert("backup_files_refresh", "Actualiser");
+    fr.insert(
+        "backup_files_set_folder",
+        "Définissez le dossier de sauvegarde pour parcourir les fichiers",
+    );
+    fr.insert("backup_files_empty", "Aucun fichier de sauvegarde trouvé");
+    fr.insert("backup_files_col_name", "Nom");
+    fr.insert("backup_files_col_size", "Taille");
+    fr.insert("backup_files_col_created", "Créé");
+    fr.insert("backup_files_col_modified", "Modifié");
+    fr.insert("backup_files_col_actions", "Actions");
+    fr.insert("backup_files_show", "Afficher");
+    fr.insert("backup_files_delete_confirm", "Supprimer ?");
+    fr.insert("backup_files_yes", "Oui");
+    fr.insert("backup_files_no", "Non");
+    fr.insert("backup_files_delete", "Supprimer");
+
+    fr.insert("schema_visualizer_title", "Visualiseur de schéma");
+    fr.insert(
+        "schema_visualizer_desc",
+        "Explorez les tables, colonnes et relations de clés étrangères.",
+    );
+    fr.insert("schema_visualizer_open", "Ouvrir le visualiseur");
+    fr.insert("visualizer_schema", "Schéma");
+    fr.insert("visualizer_search_hint", "Rechercher des tables ou des colonnes");
+    fr.insert("visualizer_reload", "Recharger");
+    fr.insert("visualizer_auto_layout", "Disposition automatique");
+    fr.insert("visualizer_fit", "Ajuster");
+    fr.insert("visualizer_zoom", "Zoom");
+    fr.insert("visualizer_close_tooltip", "Fermer le visualiseur de schéma");
+    fr.insert("visualizer_loading_columns", "Chargement des colonnes...");
+    fr.insert(
+        "visualizer_loading_title",
+        "Chargement du visualiseur de schéma...",
+    );
+    fr.insert(
+        "visualizer_loading_subtitle",
+        "Les tables, colonnes et relations apparaîtront ici automatiquement.",
+    );
+    fr.insert("visualizer_no_matching_tables", "Aucune table correspondante");
+    fr.insert(
+        "visualizer_clear_search_hint",
+        "Effacez la recherche pour afficher le schéma complet.",
+    );
+    fr.insert("visualizer_no_tables_title", "Aucune table dans ce schéma");
+    fr.insert(
+        "visualizer_no_tables_subtitle",
+        "Sélectionnez un autre schéma ou actualisez.",
+    );
+    fr.insert("visualizer_more_columns", "+{0} colonnes supplémentaires");
+    fr.insert("visualizer_count", "{0} tables  |  {1} relations");
+
+    fr.insert("workspace_close_tab", "Fermer l'onglet");
+    fr.insert("workspace_new_query", "Nouvelle requête");
+    fr.insert("grid_revert", "Rétablir");
+    fr.insert("grid_edits", "{0} modification(s)");
+    fr.insert(
+        "grid_pk_required",
+        "Clé primaire requise pour mettre à jour les lignes",
+    );
+    fr.insert("grid_invalid_values", "{0} valeur(s) invalide(s)");
+    fr.insert("grid_toggle_null", "Basculer NULL");
+    fr.insert("grid_null_value", "Valeur NULL");
+    fr.insert("grid_copy_value", "Copier la valeur");
+    fr.insert("grid_copy_sql", "Copier SQL");
+    fr.insert("grid_no_active_data_source", "Aucune source de données active");
+    fr.insert("grid_no_result_set", "Aucun jeu de résultats");
+    fr.insert(
+        "grid_column_missing",
+        "La colonne modifiée n'est plus disponible",
+    );
+    fr.insert(
+        "grid_pk_missing",
+        "La colonne de clé primaire {0} n'est pas dans le jeu de résultats",
+    );
+    fr.insert(
+        "grid_pk_value_missing",
+        "La valeur de clé primaire n'est pas disponible",
+    );
+    fr.insert("grid_not_null", "Cette colonne n'autorise pas NULL");
+    fr.insert("grid_bool_error", "Utilisez true ou false");
+    fr.insert("grid_number_error", "Entrez un nombre valide");
+    fr.insert("grid_json_error", "Entrez du JSON valide");
+    fr.insert("grid_uuid_error", "Entrez un UUID valide");
+    fr.insert(
+        "grid_bytes_error",
+        "Entrez des octets hexadécimaux, par exemple \\xDEADBEEF",
+    );
+    fr.insert("grid_date_error", "Entrez une date au format YYYY-MM-DD");
+    fr.insert(
+        "grid_datetime_error",
+        "Entrez la date et l'heure au format YYYY-MM-DD HH:MM:SS",
+    );
+    fr.insert("grid_now", "Maintenant");
+    fr.insert("grid_pick_date", "Choisir une date");
+    fr.insert("grid_pick_time", "Choisir une heure");
+    fr.insert("grid_prev_month", "Mois précédent");
+    fr.insert("grid_next_month", "Mois suivant");
+    fr.insert("grid_hour", "Heure");
+    fr.insert("grid_minute", "Min");
+    fr.insert("grid_second", "Sec");
+    fr.insert("grid_weekday_mon", "L");
+    fr.insert("grid_weekday_tue", "M");
+    fr.insert("grid_weekday_wed", "M");
+    fr.insert("grid_weekday_thu", "J");
+    fr.insert("grid_weekday_fri", "V");
+    fr.insert("grid_weekday_sat", "S");
+    fr.insert("grid_weekday_sun", "D");
+    fr.insert("grid_sort_asc", "Trier par ordre croissant");
+    fr.insert("grid_sort_desc", "Trier par ordre décroissant");
+    fr.insert("grid_sort_remove", "Supprimer le tri");
+    fr.insert("grid_sort_clear_all", "Effacer tous les tris");
+    fr.insert(
+        "grid_sort_unsaved",
+        "Appliquez ou rétablissez les modifications avant de trier",
+    );
+    fr.insert(
+        "grid_page_unsaved",
+        "Appliquez ou rétablissez les modifications avant de changer de page",
+    );
+    fr.insert("grid_first_page", "Première page");
+    fr.insert("grid_prev_page", "Page précédente");
+    fr.insert("grid_next_page", "Page suivante");
+    fr.insert("grid_page", "Page");
+    fr.insert("grid_page_n", "Page {0}");
+    fr.insert("grid_limit", "Limite");
+    fr.insert("grid_limit_n", "Limite {0}");
+    fr.insert("grid_limit_error", "Entrez une limite de lignes valide");
+    fr.insert("grid_enum_select", "Sélectionner une valeur");
+    fr.insert("grid_enum_error", "Sélectionnez l'une des valeurs autorisées");
+    fr.insert("grid_visible_range", "{0}-{1}");
+    fr.insert("data_info_no_selection", "Aucune information");
+    fr.insert("data_info_select_cell", "Sélectionnez une ligne");
+    fr.insert("data_info_cell", "Cellule sélectionnée");
+    fr.insert("data_info_row", "Ligne sélectionnée");
+    fr.insert("data_info_table", "Table sélectionnée");
+    fr.insert("data_info_row_n", "Ligne {0}");
+    fr.insert("data_info_col_n", "Col {0}");
+    fr.insert("data_info_columns", "Colonnes");
+    fr.insert("data_info_columns_n", "{0} colonnes");
+    fr.insert("data_info_indexes_n", "{0} index");
+    fr.insert("data_info_relations_n", "{0} relations");
+    fr.insert("data_info_rules_n", "{0} règles");
+    fr.insert("data_info_triggers_n", "{0} déclencheurs");
+    fr.insert("data_info_active_filter", "Filtre actif");
+    fr.insert("data_info_relation_out", "sortante");
+    fr.insert("data_info_relation_in", "entrante");
+    fr.insert("data_info_selected", "Sélectionné");
+    fr.insert("data_info_nullable", "Nullable");
+    fr.insert("data_info_value", "Valeur");
+    fr.insert("data_info_original", "Original");
+    fr.insert("data_info_revert_cell", "Rétablir la cellule");
+    fr.insert("data_info_dirty", "Cette cellule a des modifications non enregistrées");
+    fr.insert("data_info_yes", "Oui");
+    fr.insert("data_info_no", "Non");
+    fr.insert("data_info_read_only", "Cette valeur est en lecture seule ici.");
+    fr.insert("data_relation_open", "Ouvrir la ligne liée");
+    fr.insert(
+        "data_info_read_only_pk",
+        "Les valeurs de clé primaire sont en lecture seule ici.",
+    );
+    fr.insert(
+        "data_info_no_metadata",
+        "Les métadonnées de colonne sont encore en cours de chargement, la modification est donc désactivée.",
+    );
+}
+
+fn insert_recent_ui_de(de: &mut Translation) {
+    de.insert("ctx_close_connection", "Verbindung schließen");
+    de.insert("ctx_open_connection", "Verbindung öffnen");
+    de.insert("ctx_switch_connection_profile", "Verbindungsprofil wechseln");
+    de.insert("ctx_no_saved_profiles", "Keine gespeicherten Profile");
+    de.insert("ctx_edit_connection", "Verbindung bearbeiten...");
+    de.insert("ctx_new_connection", "Neue Verbindung");
+    de.insert("ctx_delete_connection", "Verbindung löschen");
+    de.insert("ctx_duplicate_connection", "Verbindung duplizieren...");
+    de.insert("ctx_new_database", "Neue Datenbank...");
+    de.insert("ctx_new_table", "Neue Tabelle");
+    de.insert("ctx_new_query", "Neue Abfrage");
+    de.insert("ctx_console", "Konsole");
+    de.insert("ctx_execute_sql_file", "SQL-Datei ausführen...");
+    de.insert("ctx_open_schema", "Schema öffnen");
+    de.insert("ctx_backup_schema", "{0} sichern");
+    de.insert("ctx_edit_schema", "Schema bearbeiten...");
+    de.insert("ctx_new_schema", "Neues Schema...");
+    de.insert("ctx_delete_schema", "Schema löschen");
+    de.insert("ctx_dump_sql_file", "SQL-Datei exportieren");
+    de.insert("ctx_data_dictionary", "Datenwörterbuch...");
+    de.insert(
+        "ctx_reverse_database_to_model",
+        "Datenbank in Modell umkehren...",
+    );
+    de.insert("ctx_find_in_database", "In Datenbank suchen...");
+    de.insert("ctx_add_star", "Favorit hinzufügen");
+    de.insert("ctx_color", "Farbe:");
+    de.insert("ctx_manage_group", "Gruppe verwalten");
+    de.insert("ctx_create_group", "Gruppe erstellen...");
+    de.insert("ctx_move_to_group", "In Gruppe verschieben...");
+    de.insert("ctx_share", "Teilen...");
+    de.insert("ctx_refresh", "Aktualisieren");
+    de.insert("ctx_close_all_connections", "Alle Verbindungen schließen");
+    de.insert("ctx_manage_connections", "Verbindungen verwalten...");
+    de.insert("ctx_new_group", "Neue Gruppe");
+
+    de.insert("tree_no_connections", "Keine Verbindungen");
+    de.insert(
+        "tree_create_connection",
+        "Erstellen Sie eine Verbindung, um Schemata zu durchsuchen",
+    );
+    de.insert("tree_empty", "(leer)");
+    de.insert("tree_tables", "Tabellen");
+    de.insert("tree_views", "Ansichten");
+    de.insert("tree_materialized_views", "Materialisierte Ansichten");
+    de.insert("tree_functions", "Funktionen");
+    de.insert("tree_queries", "Abfragen");
+    de.insert("tree_backups", "Sicherungen");
+    de.insert("tree_schema_backup", "Schema-Sicherung");
+    de.insert("tree_full_database_backup", "Vollständige Datenbanksicherung");
+    de.insert("tree_fields", "Felder");
+    de.insert("tree_indexes", "Indizes");
+    de.insert("tree_foreign_keys", "Fremdschlüssel");
+    de.insert("tree_unique", "Eindeutig");
+    de.insert("tree_rules", "Regeln");
+    de.insert("tree_triggers", "Trigger");
+    de.insert("tree_edit_table", "Tabelle bearbeiten");
+    de.insert("tree_view_data_top_100", "Daten anzeigen (Top 100)");
+    de.insert("tree_copy_select", "SELECT * kopieren");
+    de.insert("tree_refresh_metadata", "Metadaten aktualisieren");
+    de.insert("tree_copy_signature", "Signatur kopieren");
+    de.insert("tree_copy_rule_ddl", "Regel-DDL kopieren");
+    de.insert("tree_copy_trigger_ddl", "Trigger-DDL kopieren");
+    de.insert("tree_show_functions", "Funktionen anzeigen");
+    de.insert("tree_show_group", "{0} anzeigen");
+    de.insert("tree_showing_group", "{0} in {1} wird angezeigt");
+    de.insert("tree_showing_functions", "Funktionen in {0} werden angezeigt");
+    de.insert("tree_backup_schema_title", "Sicherung: {0}");
+    de.insert("tree_backup_full_title", "Sicherung: vollständig");
+    de.insert("tree_backup_scope_schema", "Sicherungsbereich: {0}-Schema");
+    de.insert(
+        "tree_backup_scope_full",
+        "Sicherungsbereich: vollständige Datenbank",
+    );
+    de.insert(
+        "tree_refreshing_connections",
+        "{0} Verbindung(en) werden aktualisiert...",
+    );
+    de.insert("tree_explorer_refreshed", "Explorer aktualisiert");
+    de.insert(
+        "tree_closing_all_connections",
+        "Alle Verbindungen werden geschlossen...",
+    );
+
+    de.insert("objects_all_schemas", "Alle Schemata");
+    de.insert("objects_schema", "Schema");
+    de.insert("objects_name", "Name");
+    de.insert("objects_type", "Typ");
+    de.insert("objects_columns", "Spalten");
+    de.insert("objects_indexes", "Indizes");
+    de.insert("objects_actions", "Aktionen");
+    de.insert("objects_search", "Suchen");
+    de.insert("objects_new_table", "Neue Tabelle");
+    de.insert("objects_open_model", "ER-Diagramm öffnen");
+    de.insert("objects_signature", "Signatur");
+    de.insert("objects_returns", "Rückgabe");
+    de.insert("objects_lang", "Sprache");
+    de.insert("objects_role", "Rolle");
+    de.insert("objects_login", "Anmeldung");
+    de.insert("objects_privileges", "Berechtigungen");
+    de.insert("objects_valid_until", "Gültig bis");
+    de.insert("objects_column", "Spalte");
+    de.insert("objects_non_null", "Nicht null");
+    de.insert("objects_min", "Minimum");
+    de.insert("objects_max", "Maximum");
+    de.insert("objects_average", "Durchschnitt");
+    de.insert("objects_no_active_connection", "Keine aktive Verbindung");
+    de.insert(
+        "objects_no_active_connection_help",
+        "Verbinden Sie sich mit PostgreSQL, um Datenbankobjekte zu durchsuchen und zu verwalten.",
+    );
+    de.insert("objects_tables_title", "Tabellen");
+    de.insert(
+        "objects_tables_subtitle",
+        "Basistabellen und bearbeitbare Relationen",
+    );
+    de.insert("objects_views_title", "Ansichten");
+    de.insert(
+        "objects_views_subtitle",
+        "Abfragebasierte virtuelle Objekte",
+    );
+    de.insert("objects_materialized_title", "Materialisierte Ansichten");
+    de.insert(
+        "objects_materialized_subtitle",
+        "Gespeicherte Abfrage-Snapshots",
+    );
+    de.insert("objects_functions_title", "Funktionen");
+    de.insert(
+        "objects_functions_subtitle",
+        "PostgreSQL-Routinen nach Schema",
+    );
+    de.insert("objects_users_title", "Benutzer");
+    de.insert(
+        "objects_users_subtitle",
+        "Rollen und Anmeldeberechtigungen",
+    );
+    de.insert("objects_backup_title", "Sicherung");
+    de.insert(
+        "objects_backup_subtitle",
+        "pg_dump- und Wiederherstellungsbefehl-Generator",
+    );
+    de.insert("objects_automation_title", "Automatisierung");
+    de.insert(
+        "objects_automation_subtitle",
+        "Wartungsabfrage-Voreinstellungen",
+    );
+    de.insert("objects_model_title", "Modell");
+    de.insert(
+        "objects_model_subtitle",
+        "ER-Diagramm und Schema-Modellierung",
+    );
+    de.insert("objects_bi_title", "BI");
+    de.insert(
+        "objects_bi_subtitle",
+        "Schnelles Ergebnismenge-Profiling",
+    );
+    de.insert("objects_connections_title", "Verbindungen");
+    de.insert(
+        "objects_connections_subtitle",
+        "Datenbankverbindungs-Einrichtung",
+    );
+    de.insert("objects_query_title", "Abfrage");
+    de.insert("objects_query_subtitle", "SQL-Editor");
+    de.insert("objects_data_title", "Daten");
+    de.insert("objects_data_subtitle", "Tabellenzeilen durchsuchen");
+
+    de.insert("backup_schema", "Schema-Sicherung");
+    de.insert("backup_full_database", "Vollständige Datenbanksicherung");
+    de.insert("backup_no_folder_selected", "Kein Sicherungsordner ausgewählt");
+    de.insert("backup_folder_title", "FerrumGrid-Sicherungsordner");
+    de.insert("backup_choose_folder", "Ordner wählen");
+    de.insert("backup_open_folder", "Ordner öffnen");
+    de.insert("backup_folder_updated", "Sicherungsordner aktualisiert");
+    de.insert("backup_format", "Format");
+    de.insert("backup_custom_archive", "Benutzerdefiniertes Archiv (.dump)");
+    de.insert("backup_plain_sql", "Einfaches SQL (.sql)");
+    de.insert("backup_running_label", "Sicherung läuft...");
+    de.insert("backup_running_status", "{0} wird gesichert...");
+    de.insert("backup_run", "Sicherung starten");
+    de.insert("backup_pg_dump_running", "pg_dump wird ausgeführt");
+    de.insert("backup_tar_archive", "Tar-Archiv");
+    de.insert("backup_recent", "Aktuelle FerrumGrid-Sicherungen");
+    de.insert("backup_no_session", "Keine Sicherungen in dieser Sitzung");
+    de.insert("backup_files_title_count", "Sicherungsdateien ({0})");
+    de.insert("backup_files_title", "Sicherungsdateien");
+    de.insert("backup_files_refresh", "Aktualisieren");
+    de.insert(
+        "backup_files_set_folder",
+        "Legen Sie den Sicherungsordner fest, um Dateien zu durchsuchen",
+    );
+    de.insert("backup_files_empty", "Keine Sicherungsdateien gefunden");
+    de.insert("backup_files_col_name", "Name");
+    de.insert("backup_files_col_size", "Größe");
+    de.insert("backup_files_col_created", "Erstellt");
+    de.insert("backup_files_col_modified", "Geändert");
+    de.insert("backup_files_col_actions", "Aktionen");
+    de.insert("backup_files_show", "Anzeigen");
+    de.insert("backup_files_delete_confirm", "Löschen?");
+    de.insert("backup_files_yes", "Ja");
+    de.insert("backup_files_no", "Nein");
+    de.insert("backup_files_delete", "Löschen");
+
+    de.insert("schema_visualizer_title", "Schema-Visualisierer");
+    de.insert(
+        "schema_visualizer_desc",
+        "Erkunden Sie Tabellen, Spalten und Fremdschlüssel-Beziehungen.",
+    );
+    de.insert("schema_visualizer_open", "Visualisierer öffnen");
+    de.insert("visualizer_schema", "Schema");
+    de.insert("visualizer_search_hint", "Tabellen oder Spalten suchen");
+    de.insert("visualizer_reload", "Neu laden");
+    de.insert("visualizer_auto_layout", "Automatisches Layout");
+    de.insert("visualizer_fit", "Anpassen");
+    de.insert("visualizer_zoom", "Zoom");
+    de.insert("visualizer_close_tooltip", "Schema-Visualisierer schließen");
+    de.insert("visualizer_loading_columns", "Spalten werden geladen...");
+    de.insert(
+        "visualizer_loading_title",
+        "Schema-Visualisierer wird geladen...",
+    );
+    de.insert(
+        "visualizer_loading_subtitle",
+        "Tabellen, Spalten und Beziehungen werden hier automatisch angezeigt.",
+    );
+    de.insert("visualizer_no_matching_tables", "Keine passenden Tabellen");
+    de.insert(
+        "visualizer_clear_search_hint",
+        "Löschen Sie das Suchfeld, um das vollständige Schema anzuzeigen.",
+    );
+    de.insert("visualizer_no_tables_title", "Keine Tabellen in diesem Schema");
+    de.insert(
+        "visualizer_no_tables_subtitle",
+        "Wählen Sie ein anderes Schema oder aktualisieren Sie.",
+    );
+    de.insert("visualizer_more_columns", "+{0} weitere Spalten");
+    de.insert("visualizer_count", "{0} Tabellen  |  {1} Relationen");
+
+    de.insert("workspace_close_tab", "Tab schließen");
+    de.insert("workspace_new_query", "Neue Abfrage");
+    de.insert("grid_revert", "Zurücksetzen");
+    de.insert("grid_edits", "{0} Änderung(en)");
+    de.insert(
+        "grid_pk_required",
+        "Primärschlüssel erforderlich, um Zeilen zu aktualisieren",
+    );
+    de.insert("grid_invalid_values", "{0} ungültiger Wert(e)");
+    de.insert("grid_toggle_null", "NULL umschalten");
+    de.insert("grid_null_value", "NULL-Wert");
+    de.insert("grid_copy_value", "Wert kopieren");
+    de.insert("grid_copy_sql", "SQL kopieren");
+    de.insert("grid_no_active_data_source", "Keine aktive Datenquelle");
+    de.insert("grid_no_result_set", "Kein Ergebnissatz");
+    de.insert(
+        "grid_column_missing",
+        "Bearbeitete Spalte ist nicht mehr verfügbar",
+    );
+    de.insert(
+        "grid_pk_missing",
+        "Primärschlüsselspalte {0} ist nicht im Ergebnissatz",
+    );
+    de.insert(
+        "grid_pk_value_missing",
+        "Primärschlüsselwert ist nicht verfügbar",
+    );
+    de.insert("grid_not_null", "Diese Spalte erlaubt kein NULL");
+    de.insert("grid_bool_error", "Verwenden Sie true oder false");
+    de.insert("grid_number_error", "Geben Sie eine gültige Zahl ein");
+    de.insert("grid_json_error", "Geben Sie gültiges JSON ein");
+    de.insert("grid_uuid_error", "Geben Sie eine gültige UUID ein");
+    de.insert(
+        "grid_bytes_error",
+        "Geben Sie Hex-Bytes ein, z.B. \\xDEADBEEF",
+    );
+    de.insert("grid_date_error", "Geben Sie ein Datum als YYYY-MM-DD ein");
+    de.insert(
+        "grid_datetime_error",
+        "Geben Sie Datum und Uhrzeit als YYYY-MM-DD HH:MM:SS ein",
+    );
+    de.insert("grid_now", "Jetzt");
+    de.insert("grid_pick_date", "Datum wählen");
+    de.insert("grid_pick_time", "Uhrzeit wählen");
+    de.insert("grid_prev_month", "Vorheriger Monat");
+    de.insert("grid_next_month", "Nächster Monat");
+    de.insert("grid_hour", "Std");
+    de.insert("grid_minute", "Min");
+    de.insert("grid_second", "Sek");
+    de.insert("grid_weekday_mon", "M");
+    de.insert("grid_weekday_tue", "D");
+    de.insert("grid_weekday_wed", "M");
+    de.insert("grid_weekday_thu", "D");
+    de.insert("grid_weekday_fri", "F");
+    de.insert("grid_weekday_sat", "S");
+    de.insert("grid_weekday_sun", "S");
+    de.insert("grid_sort_asc", "Aufsteigend sortieren");
+    de.insert("grid_sort_desc", "Absteigend sortieren");
+    de.insert("grid_sort_remove", "Sortierung entfernen");
+    de.insert("grid_sort_clear_all", "Alle Sortierungen löschen");
+    de.insert(
+        "grid_sort_unsaved",
+        "Wenden Sie Änderungen an oder setzen Sie sie zurück, bevor Sie sortieren",
+    );
+    de.insert(
+        "grid_page_unsaved",
+        "Wenden Sie Änderungen an oder setzen Sie sie zurück, bevor Sie die Seite wechseln",
+    );
+    de.insert("grid_first_page", "Erste Seite");
+    de.insert("grid_prev_page", "Vorherige Seite");
+    de.insert("grid_next_page", "Nächste Seite");
+    de.insert("grid_page", "Seite");
+    de.insert("grid_page_n", "Seite {0}");
+    de.insert("grid_limit", "Limit");
+    de.insert("grid_limit_n", "Limit {0}");
+    de.insert("grid_limit_error", "Geben Sie ein gültiges Zeilenlimit ein");
+    de.insert("grid_enum_select", "Wert auswählen");
+    de.insert("grid_enum_error", "Wählen Sie einen der zulässigen Werte aus");
+    de.insert("grid_visible_range", "{0}-{1}");
+    de.insert("data_info_no_selection", "Keine Information");
+    de.insert("data_info_select_cell", "Wählen Sie eine Zeile aus");
+    de.insert("data_info_cell", "Ausgewählte Zelle");
+    de.insert("data_info_row", "Ausgewählte Zeile");
+    de.insert("data_info_table", "Ausgewählte Tabelle");
+    de.insert("data_info_row_n", "Zeile {0}");
+    de.insert("data_info_col_n", "Sp. {0}");
+    de.insert("data_info_columns", "Spalten");
+    de.insert("data_info_columns_n", "{0} Spalten");
+    de.insert("data_info_indexes_n", "{0} Indizes");
+    de.insert("data_info_relations_n", "{0} Relationen");
+    de.insert("data_info_rules_n", "{0} Regeln");
+    de.insert("data_info_triggers_n", "{0} Trigger");
+    de.insert("data_info_active_filter", "Aktiver Filter");
+    de.insert("data_info_relation_out", "ausgehend");
+    de.insert("data_info_relation_in", "eingehend");
+    de.insert("data_info_selected", "Ausgewählt");
+    de.insert("data_info_nullable", "Nullable");
+    de.insert("data_info_value", "Wert");
+    de.insert("data_info_original", "Original");
+    de.insert("data_info_revert_cell", "Zelle zurücksetzen");
+    de.insert(
+        "data_info_dirty",
+        "Diese Zelle hat nicht gespeicherte Änderungen",
+    );
+    de.insert("data_info_yes", "Ja");
+    de.insert("data_info_no", "Nein");
+    de.insert("data_info_read_only", "Dieser Wert ist hier schreibgeschützt.");
+    de.insert("data_relation_open", "Verknüpfte Zeile öffnen");
+    de.insert(
+        "data_info_read_only_pk",
+        "Primärschlüsselwerte sind hier schreibgeschützt.",
+    );
+    de.insert(
+        "data_info_no_metadata",
+        "Spaltenmetadaten werden noch geladen, daher ist die Bearbeitung deaktiviert.",
+    );
+}
+
 pub fn init() {
     let mut translations = TRANSLATIONS.write().unwrap();
 
@@ -1286,36 +2949,7 @@ pub fn init() {
     ja.insert("no_data", "データなし");
     ja.insert("no_connection", "接続なし");
     ja.insert("select_connection", "接続を選択してください");
-    ja.insert("backup_schema", "スキーマバックアップ");
-    ja.insert("backup_full_database", "データベース全体のバックアップ");
-    ja.insert("backup_no_folder_selected", "バックアップフォルダが選択されていません");
-    ja.insert("backup_folder_title", "FerrumGrid バックアップフォルダ");
-    ja.insert("backup_choose_folder", "フォルダを選択");
-    ja.insert("backup_open_folder", "フォルダを開く");
-    ja.insert("backup_folder_updated", "バックアップフォルダが更新されました");
-    ja.insert("backup_format", "形式");
-    ja.insert("backup_custom_archive", "カスタムアーカイブ (.dump)");
-    ja.insert("backup_plain_sql", "プレーンSQL (.sql)");
-    ja.insert("backup_running_label", "バックアップ中...");
-    ja.insert("backup_running_status", "{0} をバックアップ中...");
-    ja.insert("backup_run", "バックアップ実行");
-    ja.insert("backup_pg_dump_running", "pg_dump 実行中");
-    ja.insert("backup_tar_archive", "Tarアーカイブ");
-    ja.insert("backup_recent", "最近のバックアップ");
-    ja.insert("backup_no_session", "このセッションにバックアップはありません");
-    ja.insert("backup_files_title_count", "バックアップファイル ({0})");
-    ja.insert("backup_files_title", "バックアップファイル");
-    ja.insert("backup_files_refresh", "更新");
-    ja.insert("backup_files_set_folder", "バックアップフォルダを設定してファイルを参照");
-    ja.insert("backup_files_empty", "バックアップファイルが見つかりません");
-    ja.insert("backup_files_col_name", "名前");
-    ja.insert("backup_files_col_size", "サイズ");
-    ja.insert("backup_files_col_created", "作成日");
-    ja.insert("backup_files_col_modified", "更新日");
-    ja.insert("backup_files_col_actions", "操作");
-    ja.insert("backup_files_show", "表示");
-    ja.insert("backup_files_delete_confirm", "削除しますか？");
-    ja.insert("backup_files_yes", "はい");
+    insert_recent_ui_ja(&mut ja);
     translations.insert(Language::Japanese, ja);
 
     // Chinese (Simplified)
@@ -1414,36 +3048,7 @@ pub fn init() {
     zh.insert("no_data", "无数据");
     zh.insert("no_connection", "无连接");
     zh.insert("select_connection", "请选择连接");
-    zh.insert("backup_schema", "模式备份");
-    zh.insert("backup_full_database", "完整数据库备份");
-    zh.insert("backup_no_folder_selected", "未选择备份文件夹");
-    zh.insert("backup_folder_title", "FerrumGrid 备份文件夹");
-    zh.insert("backup_choose_folder", "选择文件夹");
-    zh.insert("backup_open_folder", "打开文件夹");
-    zh.insert("backup_folder_updated", "备份文件夹已更新");
-    zh.insert("backup_format", "格式");
-    zh.insert("backup_custom_archive", "自定义归档 (.dump)");
-    zh.insert("backup_plain_sql", "纯SQL (.sql)");
-    zh.insert("backup_running_label", "正在备份...");
-    zh.insert("backup_running_status", "正在备份 {0}...");
-    zh.insert("backup_run", "运行备份");
-    zh.insert("backup_pg_dump_running", "pg_dump 运行中");
-    zh.insert("backup_tar_archive", "Tar归档");
-    zh.insert("backup_recent", "最近的备份");
-    zh.insert("backup_no_session", "本次会话无备份");
-    zh.insert("backup_files_title_count", "备份文件 ({0})");
-    zh.insert("backup_files_title", "备份文件");
-    zh.insert("backup_files_refresh", "刷新");
-    zh.insert("backup_files_set_folder", "设置备份文件夹以浏览文件");
-    zh.insert("backup_files_empty", "未找到备份文件");
-    zh.insert("backup_files_col_name", "名称");
-    zh.insert("backup_files_col_size", "大小");
-    zh.insert("backup_files_col_created", "创建时间");
-    zh.insert("backup_files_col_modified", "修改时间");
-    zh.insert("backup_files_col_actions", "操作");
-    zh.insert("backup_files_show", "显示");
-    zh.insert("backup_files_delete_confirm", "确认删除？");
-    zh.insert("backup_files_yes", "是");
+    insert_recent_ui_zh(&mut zh);
     translations.insert(Language::ChineseSimplified, zh);
 
     // Spanish
@@ -1469,36 +3074,7 @@ pub fn init() {
     es.insert("status_connected", "Conectado");
     es.insert("status_disconnected", "Desconectado");
     es.insert("status_connecting", "Conectando...");
-    es.insert("backup_schema", "Respaldo de Esquema");
-    es.insert("backup_full_database", "Respaldo Completo");
-    es.insert("backup_no_folder_selected", "No se seleccionó carpeta de respaldo");
-    es.insert("backup_folder_title", "Carpeta de Respaldo FerrumGrid");
-    es.insert("backup_choose_folder", "Elegir Carpeta");
-    es.insert("backup_open_folder", "Abrir Carpeta");
-    es.insert("backup_folder_updated", "Carpeta de respaldo actualizada");
-    es.insert("backup_format", "Formato");
-    es.insert("backup_custom_archive", "Archivo personalizado (.dump)");
-    es.insert("backup_plain_sql", "SQL plano (.sql)");
-    es.insert("backup_running_label", "Respaldando...");
-    es.insert("backup_running_status", "Respaldando {0}...");
-    es.insert("backup_run", "Ejecutar Respaldo");
-    es.insert("backup_pg_dump_running", "pg_dump en ejecución");
-    es.insert("backup_tar_archive", "Archivo Tar");
-    es.insert("backup_recent", "Respaldos Recientes");
-    es.insert("backup_no_session", "Sin respaldos en esta sesión");
-    es.insert("backup_files_title_count", "Archivos de Respaldo ({0})");
-    es.insert("backup_files_title", "Archivos de Respaldo");
-    es.insert("backup_files_refresh", "Actualizar");
-    es.insert("backup_files_set_folder", "Configure la carpeta de respaldo para explorar archivos");
-    es.insert("backup_files_empty", "No se encontraron archivos de respaldo");
-    es.insert("backup_files_col_name", "Nombre");
-    es.insert("backup_files_col_size", "Tamaño");
-    es.insert("backup_files_col_created", "Creado");
-    es.insert("backup_files_col_modified", "Modificado");
-    es.insert("backup_files_col_actions", "Acciones");
-    es.insert("backup_files_show", "Mostrar");
-    es.insert("backup_files_delete_confirm", "¿Eliminar?");
-    es.insert("backup_files_yes", "Sí");
+    insert_recent_ui_es(&mut es);
     translations.insert(Language::Spanish, es);
 
     // French
@@ -1524,36 +3100,7 @@ pub fn init() {
     fr.insert("status_connected", "Connecté");
     fr.insert("status_disconnected", "Déconnecté");
     fr.insert("status_connecting", "Connexion en cours...");
-    fr.insert("backup_schema", "Sauvegarde du Schéma");
-    fr.insert("backup_full_database", "Sauvegarde Complète");
-    fr.insert("backup_no_folder_selected", "Aucun dossier de sauvegarde sélectionné");
-    fr.insert("backup_folder_title", "Dossier de Sauvegarde FerrumGrid");
-    fr.insert("backup_choose_folder", "Choisir un Dossier");
-    fr.insert("backup_open_folder", "Ouvrir le Dossier");
-    fr.insert("backup_folder_updated", "Dossier de sauvegarde mis à jour");
-    fr.insert("backup_format", "Format");
-    fr.insert("backup_custom_archive", "Archive personnalisée (.dump)");
-    fr.insert("backup_plain_sql", "SQL brut (.sql)");
-    fr.insert("backup_running_label", "Sauvegarde en cours...");
-    fr.insert("backup_running_status", "Sauvegarde de {0}...");
-    fr.insert("backup_run", "Lancer la Sauvegarde");
-    fr.insert("backup_pg_dump_running", "pg_dump en cours");
-    fr.insert("backup_tar_archive", "Archive Tar");
-    fr.insert("backup_recent", "Sauvegardes Récentes");
-    fr.insert("backup_no_session", "Aucune sauvegarde dans cette session");
-    fr.insert("backup_files_title_count", "Fichiers de Sauvegarde ({0})");
-    fr.insert("backup_files_title", "Fichiers de Sauvegarde");
-    fr.insert("backup_files_refresh", "Actualiser");
-    fr.insert("backup_files_set_folder", "Définir le dossier de sauvegarde pour parcourir les fichiers");
-    fr.insert("backup_files_empty", "Aucun fichier de sauvegarde trouvé");
-    fr.insert("backup_files_col_name", "Nom");
-    fr.insert("backup_files_col_size", "Taille");
-    fr.insert("backup_files_col_created", "Créé");
-    fr.insert("backup_files_col_modified", "Modifié");
-    fr.insert("backup_files_col_actions", "Actions");
-    fr.insert("backup_files_show", "Afficher");
-    fr.insert("backup_files_delete_confirm", "Supprimer ?");
-    fr.insert("backup_files_yes", "Oui");
+    insert_recent_ui_fr(&mut fr);
     translations.insert(Language::French, fr);
 
     // German
@@ -1579,36 +3126,7 @@ pub fn init() {
     de.insert("status_connected", "Verbunden");
     de.insert("status_disconnected", "Getrennt");
     de.insert("status_connecting", "Verbinden...");
-    de.insert("backup_schema", "Schema-Sicherung");
-    de.insert("backup_full_database", "Vollständige Datenbanksicherung");
-    de.insert("backup_no_folder_selected", "Kein Sicherungsordner ausgewählt");
-    de.insert("backup_folder_title", "FerrumGrid Sicherungsordner");
-    de.insert("backup_choose_folder", "Ordner wählen");
-    de.insert("backup_open_folder", "Ordner öffnen");
-    de.insert("backup_folder_updated", "Sicherungsordner aktualisiert");
-    de.insert("backup_format", "Format");
-    de.insert("backup_custom_archive", "Benutzerdefiniertes Archiv (.dump)");
-    de.insert("backup_plain_sql", "Reines SQL (.sql)");
-    de.insert("backup_running_label", "Sicherung läuft...");
-    de.insert("backup_running_status", "Sicherung von {0}...");
-    de.insert("backup_run", "Sicherung starten");
-    de.insert("backup_pg_dump_running", "pg_dump wird ausgeführt");
-    de.insert("backup_tar_archive", "Tar-Archiv");
-    de.insert("backup_recent", "Letzte Sicherungen");
-    de.insert("backup_no_session", "Keine Sicherungen in dieser Sitzung");
-    de.insert("backup_files_title_count", "Sicherungsdateien ({0})");
-    de.insert("backup_files_title", "Sicherungsdateien");
-    de.insert("backup_files_refresh", "Aktualisieren");
-    de.insert("backup_files_set_folder", "Sicherungsordner festlegen, um Dateien zu durchsuchen");
-    de.insert("backup_files_empty", "Keine Sicherungsdateien gefunden");
-    de.insert("backup_files_col_name", "Name");
-    de.insert("backup_files_col_size", "Größe");
-    de.insert("backup_files_col_created", "Erstellt");
-    de.insert("backup_files_col_modified", "Geändert");
-    de.insert("backup_files_col_actions", "Aktionen");
-    de.insert("backup_files_show", "Anzeigen");
-    de.insert("backup_files_delete_confirm", "Löschen?");
-    de.insert("backup_files_yes", "Ja");
+    insert_recent_ui_de(&mut de);
     translations.insert(Language::German, de);
 }
 
