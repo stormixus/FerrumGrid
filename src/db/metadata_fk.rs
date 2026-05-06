@@ -2,7 +2,7 @@ use tokio_postgres::Client;
 
 use crate::db::error::DbError;
 use crate::types::ConnectionId;
-use crate::ui::er_diagram::ForeignKey;
+use crate::types::ForeignKey;
 
 pub async fn list_foreign_keys(
     client: &Client,

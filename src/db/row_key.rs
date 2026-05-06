@@ -31,12 +31,30 @@ impl RowKey {
     ///
     /// PK canonical concat 은 각 PK 컬럼의 `CellValue::canonical_string()` 결과를
     /// `\x1f` (Unit Separator) 로 join — 정규화된 wire-form 비교 가능.
-    pub fn from_pk(table_oid: u32, pk_values: &[CellValue]) -> Self {
+    ///
+    /// `pk_col_types` 는 `pk_values` 와 동일 길이의 슬라이스로, 각 컬럼의
+    /// PostgreSQL 타입명 (소문자 권장, 대소문자 무관) 을 담는다. 슬라이스가
+    /// 짧거나 비어 있으면 해당 인덱스는 타입 미지정으로 처리된다.
+    ///
+    /// **citext 정규화**: `citext` 타입 컬럼의 `Text` 값은 lowercase 로 변환한
+    /// 뒤 hash 에 투입한다. PostgreSQL citext 는 DB 레벨 case-insensitive 비교를
+    /// 사용하므로 `'Hello'` 와 `'hello'` 는 같은 행 — RowKey 도 동일해야 한다.
+    pub fn from_pk(table_oid: u32, pk_values: &[CellValue], pk_col_types: &[&str]) -> Self {
         let mut hasher = blake3::Hasher::new();
         hasher.update(&table_oid.to_le_bytes());
         for (idx, value) in pk_values.iter().enumerate() {
             if idx > 0 {
                 hasher.update(&[0x1f]);
+            }
+            let is_citext = pk_col_types
+                .get(idx)
+                .map(|t| t.eq_ignore_ascii_case("citext"))
+                .unwrap_or(false);
+            if is_citext {
+                if let CellValue::Text(s) = value {
+                    hasher.update(s.to_lowercase().as_bytes());
+                    continue;
+                }
             }
             hasher.update(value.canonical_string().as_bytes());
         }
@@ -77,10 +95,9 @@ pub enum RowKeyKind {
 ///   (단위 테스트 `row_key_uses_canonical_string_for_nan_safety`,
 ///   `row_key_collapses_signed_zero` 검증)
 /// - `uuid`
-/// - `text / varchar / char / citext` — *주의*: citext 는 DB 레벨 case-insensitive
-///   비교지만 wire 에는 원본 케이스로 저장되므로 `'Alice'` 와 `'alice'` 가 동일
-///   행이어도 RowKey 가 다르다. Phase 1.95 의 NEW INSERT round-trip 시 mismatch
-///   가능 — TODO(Phase 1.95): citext PK 의 hash 정규화 (lowercase) 또는 사용 자제
+/// - `text / varchar / char / citext` — citext 는 DB 레벨 case-insensitive 비교.
+///   `from_pk` 에 `pk_col_types` 를 전달하면 citext 컬럼 값을 lowercase 로 정규화한
+///   뒤 hash 에 투입하므로 `'Alice'` 와 `'alice'` 는 동일 RowKey 를 생성한다.
 /// - `date / timestamp / timestamptz / time / timetz`
 /// - `bytea`
 /// - `bool / boolean` — Plan §10 비명시 확장. PK 로 실용성 낮으나 hash 결정성은
@@ -144,43 +161,43 @@ mod tests {
 
     #[test]
     fn row_key_is_deterministic_for_same_inputs() {
-        let a = RowKey::from_pk(16384, &[CellValue::Int(7)]);
-        let b = RowKey::from_pk(16384, &[CellValue::Int(7)]);
+        let a = RowKey::from_pk(16384, &[CellValue::Int(7)], &[]);
+        let b = RowKey::from_pk(16384, &[CellValue::Int(7)], &[]);
         assert_eq!(a, b);
     }
 
     #[test]
     fn row_key_differs_when_table_oid_differs() {
-        let a = RowKey::from_pk(16384, &[CellValue::Int(7)]);
-        let b = RowKey::from_pk(16385, &[CellValue::Int(7)]);
+        let a = RowKey::from_pk(16384, &[CellValue::Int(7)], &[]);
+        let b = RowKey::from_pk(16385, &[CellValue::Int(7)], &[]);
         assert_ne!(a, b);
     }
 
     #[test]
     fn row_key_differs_when_pk_value_differs() {
-        let a = RowKey::from_pk(1, &[CellValue::Int(1)]);
-        let b = RowKey::from_pk(1, &[CellValue::Int(2)]);
+        let a = RowKey::from_pk(1, &[CellValue::Int(1)], &[]);
+        let b = RowKey::from_pk(1, &[CellValue::Int(2)], &[]);
         assert_ne!(a, b);
     }
 
     #[test]
     fn row_key_composite_pk_order_matters() {
-        let a = RowKey::from_pk(1, &[CellValue::Int(1), CellValue::Int(2)]);
-        let b = RowKey::from_pk(1, &[CellValue::Int(2), CellValue::Int(1)]);
+        let a = RowKey::from_pk(1, &[CellValue::Int(1), CellValue::Int(2)], &[]);
+        let b = RowKey::from_pk(1, &[CellValue::Int(2), CellValue::Int(1)], &[]);
         assert_ne!(a, b);
     }
 
     #[test]
     fn row_key_uses_canonical_string_for_nan_safety() {
-        let a = RowKey::from_pk(1, &[CellValue::Float(f64::NAN)]);
-        let b = RowKey::from_pk(1, &[CellValue::Float(f64::NAN)]);
+        let a = RowKey::from_pk(1, &[CellValue::Float(f64::NAN)], &[]);
+        let b = RowKey::from_pk(1, &[CellValue::Float(f64::NAN)], &[]);
         assert_eq!(a, b, "NaN/NaN 은 canonical_string 경유로 동일 RowKey");
     }
 
     #[test]
     fn row_key_collapses_signed_zero() {
-        let a = RowKey::from_pk(1, &[CellValue::Float(0.0)]);
-        let b = RowKey::from_pk(1, &[CellValue::Float(-0.0)]);
+        let a = RowKey::from_pk(1, &[CellValue::Float(0.0)], &[]);
+        let b = RowKey::from_pk(1, &[CellValue::Float(-0.0)], &[]);
         assert_eq!(a, b, "+0/-0 은 canonical_string 으로 동일 표현");
     }
 
@@ -193,6 +210,7 @@ mod tests {
                 CellValue::Text("ab".to_string()),
                 CellValue::Text("c".to_string()),
             ],
+            &[],
         );
         let b = RowKey::from_pk(
             1,
@@ -200,8 +218,58 @@ mod tests {
                 CellValue::Text("a".to_string()),
                 CellValue::Text("bc".to_string()),
             ],
+            &[],
         );
         assert_ne!(a, b, "0x1F separator 가 collision 방지");
+    }
+
+    #[test]
+    fn row_key_citext_pk_is_case_insensitive() {
+        // citext 타입에서 'Hello' 와 'hello' 는 DB 레벨에서 동일 행.
+        // RowKey 도 lowercase 정규화로 동일해야 한다.
+        let upper = RowKey::from_pk(
+            1,
+            &[CellValue::Text("Hello".to_string())],
+            &["citext"],
+        );
+        let lower = RowKey::from_pk(
+            1,
+            &[CellValue::Text("hello".to_string())],
+            &["citext"],
+        );
+        assert_eq!(upper, lower, "citext PK 는 case 무관하게 동일 RowKey");
+    }
+
+    #[test]
+    fn row_key_citext_type_name_is_case_insensitive() {
+        // 타입명 자체도 대소문자 무관하게 citext 로 인식.
+        let a = RowKey::from_pk(
+            1,
+            &[CellValue::Text("Alice".to_string())],
+            &["CITEXT"],
+        );
+        let b = RowKey::from_pk(
+            1,
+            &[CellValue::Text("alice".to_string())],
+            &["citext"],
+        );
+        assert_eq!(a, b, "타입명 CITEXT/citext 모두 동일 정규화");
+    }
+
+    #[test]
+    fn row_key_regular_text_pk_is_case_sensitive() {
+        // 일반 text PK 는 case-sensitive — 'A' 와 'a' 는 다른 행.
+        let upper = RowKey::from_pk(
+            1,
+            &[CellValue::Text("A".to_string())],
+            &["text"],
+        );
+        let lower = RowKey::from_pk(
+            1,
+            &[CellValue::Text("a".to_string())],
+            &["text"],
+        );
+        assert_ne!(upper, lower, "text PK 는 case-sensitive");
     }
 
     // ---------- is_pk_type_allowed ----------

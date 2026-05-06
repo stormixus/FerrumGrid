@@ -483,6 +483,17 @@ fn json_canonical(value: &serde_json::Value) -> String {
 }
 
 #[derive(Debug, Clone)]
+pub struct ForeignKey {
+    pub name: String,
+    pub source_schema: String,
+    pub source_table: String,
+    pub source_column: String,
+    pub target_schema: String,
+    pub target_table: String,
+    pub target_column: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct TableInfo {
     pub name: String,
     pub table_type: String,

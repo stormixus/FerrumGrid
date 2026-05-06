@@ -51,16 +51,7 @@ impl TableCard {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ForeignKey {
-    pub name: String,
-    pub source_schema: String,
-    pub source_table: String,
-    pub source_column: String,
-    pub target_schema: String,
-    pub target_table: String,
-    pub target_column: String,
-}
+pub use crate::types::ForeignKey;
 
 #[derive(Debug, Clone, Default)]
 pub struct ERDiagramState {
