@@ -1,8 +1,13 @@
 name: macOS DMG
 
 on:
-  release:
-    types: [published]
+  # GitHub does not fire `release: published` for releases created by the
+  # default GITHUB_TOKEN (anti-recursion guard), and dist publishes via
+  # exactly that token. Hook into release.yml's completion via
+  # `workflow_run` and extract the tag from the upstream run.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
@@ -15,6 +20,12 @@ env:
 jobs:
   build-dmg:
     name: build-dmg (${{ matrix.target }})
+    # Skip workflow_run firings that aren't a successful tag-triggered Release.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
     strategy:
       fail-fast: false
       matrix:
@@ -24,12 +35,16 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Resolve tag
         id: tag
         run: |
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             TAG="${{ github.event.inputs.tag }}"
+          elif [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            TAG="${{ github.event.workflow_run.head_branch }}"
           else
             TAG="${{ github.event.release.tag_name }}"
           fi
