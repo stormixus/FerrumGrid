@@ -31,7 +31,7 @@ pub(super) fn render_roles(
     render_count_strip(ui, rows.len(), "roles");
 
     let mut action = None;
-    ScrollArea::vertical()
+    ScrollArea::both()
         .id_salt("objects_role_rows")
         .show(ui, |ui| {
             table_header(
@@ -46,17 +46,17 @@ pub(super) fn render_roles(
                 ],
             );
             for role in rows {
-                if let Some(sql) = render_role_row(ui, &role) {
-                    action = Some(ObjectAction::CopySql(sql));
+                if let Some(row_action) = render_role_row(ui, &role) {
+                    action = Some(row_action);
                 }
             }
         });
     action
 }
 
-fn render_role_row(ui: &mut egui::Ui, role: &RoleInfo) -> Option<String> {
-    let mut copied = None;
-    data_row(ui, &ROLE_COLUMNS, |cells| {
+fn render_role_row(ui: &mut egui::Ui, role: &RoleInfo) -> Option<ObjectAction> {
+    let mut action: Option<ObjectAction> = None;
+    let response = data_row(ui, &ROLE_COLUMNS, |cells| {
         cells.col(|ui| cell_label(ui, &role.name, theme::text_primary(), 12.0, true));
         cells.col(|ui| {
             type_chip(
@@ -99,11 +99,19 @@ fn render_role_row(ui: &mut egui::Ui, role: &RoleInfo) -> Option<String> {
         });
         cells.col(|ui| {
             if ui.small_button("SQL").clicked() {
-                copied = Some(format!("ALTER ROLE {};", quote_ident(&role.name)));
+                action = Some(ObjectAction::CopySql(format!(
+                    "ALTER ROLE {};",
+                    quote_ident(&role.name)
+                )));
             }
         });
     });
-    copied
+    if action.is_none() && response.clicked() {
+        action = Some(ObjectAction::SelectRole {
+            name: role.name.clone(),
+        });
+    }
+    action
 }
 
 fn collect_roles(state: &AppState, conn_id: ConnectionId) -> Vec<RoleInfo> {

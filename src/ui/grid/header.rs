@@ -207,8 +207,64 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     ui.ctx().copy_text(tsv);
                 }
             }
+
+            ui.add_space(theme::SPACE_SM);
+
+            let close_btn = result_toolbar_close_button(ui);
+            if close_btn.clicked() {
+                state.show_result_panel = false;
+            }
         },
     );
+}
+
+fn result_toolbar_close_button(ui: &mut egui::Ui) -> egui::Response {
+    let (rect, response) =
+        ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
+    let hovered = response.hovered();
+    let bg = if hovered {
+        theme::with_alpha(theme::ACCENT_RED, 38)
+    } else {
+        theme::bg_medium()
+    };
+    let stroke_color = if hovered {
+        theme::with_alpha(theme::ACCENT_RED, 160)
+    } else {
+        theme::border_default()
+    };
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), bg);
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(theme::RADIUS_MD),
+        Stroke::new(1.0, stroke_color),
+        egui::StrokeKind::Inside,
+    );
+    let icon_color = if hovered {
+        theme::ACCENT_RED
+    } else {
+        theme::text_secondary()
+    };
+    let cx = rect.center();
+    let arm = 5.0;
+    ui.painter().line_segment(
+        [
+            cx + egui::vec2(-arm, -arm),
+            cx + egui::vec2(arm, arm),
+        ],
+        Stroke::new(1.6, icon_color),
+    );
+    ui.painter().line_segment(
+        [
+            cx + egui::vec2(arm, -arm),
+            cx + egui::vec2(-arm, arm),
+        ],
+        Stroke::new(1.6, icon_color),
+    );
+    if hovered {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response.on_hover_text("Close result panel")
 }
 
 fn result_meta_group_width(

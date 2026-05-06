@@ -10,7 +10,7 @@ use crate::types::{
     ColumnInfo, ConnectionConfig, ConnectionId, FunctionInfo, IndexInfo, RuleInfo, TableInfo,
     TriggerInfo,
 };
-use crate::ui::{icon_image, icon_img, icon_img_tinted, icons_svg, theme};
+use crate::ui::{icon_image, icon_img, icon_img_tinted, icons_svg, theme, TableDragPayload};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -1822,10 +1822,19 @@ fn render_table_node(
         state.active_connection = Some(conn_id);
         state.objects_schema_filter = schema.to_string();
         state.objects_search = table_name.to_string();
+        state.objects_selected_table = Some((schema.to_string(), table_name.to_string()));
+        request_table_metadata(state, bridge, conn_id, schema, table_name);
     }
     if resp.header_response.double_clicked() {
         open_table_data(state, bridge, conn_id, schema, table_name);
     }
+
+    // 에디터로 드래그 시 삽입할 정규화 식별자 페이로드.
+    let drag_payload = format!("{}.{}", quote_ident(schema), quote_ident(table_name));
+    resp.header_response
+        .dnd_set_drag_payload::<TableDragPayload>(TableDragPayload {
+            text: drag_payload,
+        });
 
     resp.header_response.context_menu(|ui| {
         if !matches!(table_type, "VIEW" | "MATERIALIZED VIEW") {

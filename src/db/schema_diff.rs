@@ -265,7 +265,7 @@ fn quote_ident(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::introspect::{ColumnDef, IndexDef, PrimaryKeyDef, TableDef};
+    use crate::db::introspect::{ColumnDef, TableDef};
 
     fn make_table(name: &str, columns: Vec<ColumnDef>) -> TableDef {
         TableDef {

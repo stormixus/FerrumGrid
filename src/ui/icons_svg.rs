@@ -243,3 +243,25 @@ pub const SORT_DESC: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" 
 
 pub const CANCEL: &str = CLOSE;
 pub const EXECUTE: &str = QUERY;
+
+pub const EDIT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M44 8L56 20L24 52L8 56L12 40L44 8Z" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M40 12L52 24" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+</svg>"##;
+
+pub const TRASH: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 18H50" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 18V12C24 10.8954 24.8954 10 26 10H38C39.1046 10 40 10.8954 40 12V18" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M18 18V52C18 53.1046 18.8954 54 20 54H44C45.1046 54 46 53.1046 46 52V18" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M28 28V44M36 28V44" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+</svg>"##;
+
+pub const CODE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22 18L8 32L22 46" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M42 18L56 32L42 46" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 12L28 52" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+</svg>"##;
+
+pub const PLAY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 12L52 32L16 52V12Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+</svg>"##;

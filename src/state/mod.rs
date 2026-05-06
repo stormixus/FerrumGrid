@@ -125,6 +125,8 @@ pub enum MainView {
 
 #[derive(Debug, Clone)]
 pub struct WorkspaceTab {
+    #[allow(dead_code)]
+    pub id: uuid::Uuid,
     pub title: String,
     pub view: MainView,
     pub schema_filter: String,
@@ -145,6 +147,7 @@ impl WorkspaceTab {
         search: impl Into<String>,
     ) -> Self {
         Self {
+            id: uuid::Uuid::new_v4(),
             title: title.into(),
             view,
             schema_filter: schema_filter.into(),
@@ -177,6 +180,11 @@ pub struct AppState {
     pub settings_draft: Option<AppSettings>,
     pub objects_schema_filter: String,
     pub objects_search: String,
+    /// 객체 리스트(Tables/Views/MaterializedViews/Functions/Roles)에서 단일 클릭으로
+    /// 선택된 항목 — info 패널이 이 선택을 사용해 컬럼/메타를 표시.
+    pub objects_selected_table: Option<(String, String)>,
+    pub objects_selected_function: Option<(String, String)>,
+    pub objects_selected_role: Option<String>,
     pub connection_dialog: ConnectionDialogState,
     pub saved_connections: Vec<ConnectionConfig>,
     pub vault: VaultUiState,
@@ -339,6 +347,9 @@ impl Default for AppState {
             settings_draft: None,
             objects_schema_filter: String::new(),
             objects_search: String::new(),
+            objects_selected_table: None,
+            objects_selected_function: None,
+            objects_selected_role: None,
             connection_dialog: ConnectionDialogState::default(),
             saved_connections: Vec::new(),
             vault: VaultUiState::setup_required(Vec::new()),
@@ -591,11 +602,23 @@ impl AppState {
             return;
         };
 
-        self.active_main_view = tab.view;
-        self.objects_schema_filter = tab.schema_filter.clone();
-        self.objects_search = tab.search.clone();
-        if tab.view == MainView::Model && !tab.schema_filter.is_empty() {
-            self.er_diagram.selected_schema = tab.schema_filter.clone();
+        let view = tab.view;
+        let schema_filter = tab.schema_filter.clone();
+        let search = tab.search.clone();
+
+        // 다른 탭에서 남은 결과/에러가 새 탭의 결과 패널에 노출되지 않도록 정리.
+        // Data 탭은 grid::restore_active_data_tab가 다시 채워준다.
+        if view != MainView::Data {
+            self.current_result = None;
+            self.current_result_truncated = false;
+            self.last_error = None;
+        }
+
+        self.active_main_view = view;
+        self.objects_schema_filter = schema_filter.clone();
+        self.objects_search = search;
+        if view == MainView::Model && !schema_filter.is_empty() {
+            self.er_diagram.selected_schema = schema_filter;
             self.er_diagram.show_diagram = true;
         }
     }

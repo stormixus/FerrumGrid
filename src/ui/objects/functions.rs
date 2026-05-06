@@ -31,7 +31,7 @@ pub(super) fn render_functions(
     render_count_strip(ui, rows.len(), "functions");
 
     let mut action = None;
-    ScrollArea::vertical()
+    ScrollArea::both()
         .id_salt("objects_function_rows")
         .show(ui, |ui| {
             table_header(
@@ -47,18 +47,17 @@ pub(super) fn render_functions(
                 ],
             );
             for func in rows {
-                let copied = render_function_row(ui, &func);
-                if let Some(sql) = copied {
-                    action = Some(ObjectAction::CopySql(sql));
+                if let Some(row_action) = render_function_row(ui, &func) {
+                    action = Some(row_action);
                 }
             }
         });
     action
 }
 
-fn render_function_row(ui: &mut egui::Ui, func: &FunctionInfo) -> Option<String> {
-    let mut copied = None;
-    data_row(ui, &FUNCTION_COLUMNS, |cells| {
+fn render_function_row(ui: &mut egui::Ui, func: &FunctionInfo) -> Option<ObjectAction> {
+    let mut action: Option<ObjectAction> = None;
+    let response = data_row(ui, &FUNCTION_COLUMNS, |cells| {
         cells.col(|ui| cell_label(ui, &func.schema, theme::text_muted(), 12.0, false));
         cells.col(|ui| cell_label(ui, &func.name, theme::text_primary(), 12.0, true));
         cells.col(|ui| {
@@ -77,17 +76,23 @@ fn render_function_row(ui: &mut egui::Ui, func: &FunctionInfo) -> Option<String>
                 ui.spacing_mut().item_spacing.x = theme::SPACE_MD;
                 type_chip(ui, &func.kind, theme::ACCENT_COPPER);
                 if ui.small_button("SQL").clicked() {
-                    copied = Some(format!(
+                    action = Some(ObjectAction::CopySql(format!(
                         "SELECT * FROM {}.{}({});",
                         quote_ident(&func.schema),
                         quote_ident(&func.name),
                         argument_placeholders(&func.arguments)
-                    ));
+                    )));
                 }
             });
         });
     });
-    copied
+    if action.is_none() && response.clicked() {
+        action = Some(ObjectAction::SelectFunction {
+            schema: func.schema.clone(),
+            name: func.name.clone(),
+        });
+    }
+    action
 }
 
 fn collect_functions(state: &AppState, conn_id: ConnectionId) -> Vec<FunctionInfo> {

@@ -106,6 +106,17 @@ pub(super) enum ObjectAction {
     AutomationCancel {
         id: uuid::Uuid,
     },
+    SelectTable {
+        schema: String,
+        name: String,
+    },
+    SelectFunction {
+        schema: String,
+        name: String,
+    },
+    SelectRole {
+        name: String,
+    },
 }
 
 pub fn render_objects_view(
@@ -517,6 +528,49 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                 .expect("automation lock poisoned")
                 .remove(id);
         }
+        ObjectAction::SelectTable { schema, name } => {
+            state.objects_selected_table = Some((schema.clone(), name.clone()));
+            if let Some(conn_id) = state.active_connection {
+                let key = (schema.clone(), name.clone());
+                if let Some(conn) = state.connections.get_mut(&conn_id) {
+                    if !conn.columns.contains_key(&key)
+                        && !conn.loading_columns.contains(&key)
+                    {
+                        conn.loading_columns.insert(key.clone());
+                        bridge.send(crate::db::bridge::DbCommand::ListColumns {
+                            conn_id,
+                            schema: schema.clone(),
+                            table: name.clone(),
+                        });
+                    }
+                    if !conn.indexes.contains_key(&key)
+                        && !conn.loading_indexes.contains(&key)
+                    {
+                        conn.loading_indexes.insert(key.clone());
+                        bridge.send(crate::db::bridge::DbCommand::ListIndexes {
+                            conn_id,
+                            schema: schema.clone(),
+                            table: name.clone(),
+                        });
+                    }
+                    if !conn.foreign_keys.contains_key(&schema)
+                        && !conn.loading_foreign_keys.contains(&schema)
+                    {
+                        conn.loading_foreign_keys.insert(schema.clone());
+                        bridge.send(crate::db::bridge::DbCommand::ListForeignKeys {
+                            conn_id,
+                            schema: schema.clone(),
+                        });
+                    }
+                }
+            }
+        }
+        ObjectAction::SelectFunction { schema, name } => {
+            state.objects_selected_function = Some((schema, name));
+        }
+        ObjectAction::SelectRole { name } => {
+            state.objects_selected_role = Some(name);
+        }
     }
 }
 
@@ -598,7 +652,11 @@ fn object_row_frame(
     sense: Sense,
     content: impl FnOnce(&mut RowCells<'_>),
 ) -> egui::Response {
-    let full_width = ui.available_width().max(320.0);
+    let natural_inner_width = natural_total_width(specs);
+    let side_padding = theme::SPACE_LG * 2.0;
+    let natural_width = natural_inner_width + side_padding;
+    let available = ui.available_width().max(320.0);
+    let full_width = available.max(natural_width);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(full_width, height), sense);
     let clip_rect = ui.clip_rect();
     let paint_rect = rect.intersect(clip_rect);
@@ -671,6 +729,23 @@ impl RowCells<'_> {
         self.cursor_x += width + theme::SPACE_MD;
         self.index += 1;
     }
+}
+
+fn natural_total_width(specs: &[ColumnSpec]) -> f32 {
+    let gap = theme::SPACE_MD * specs.len().saturating_sub(1) as f32;
+    let fixed_sum: f32 = specs
+        .iter()
+        .map(|spec| match spec {
+            ColumnSpec::Fixed(width) => *width,
+            ColumnSpec::Flex(_) => 0.0,
+        })
+        .sum();
+    let flex_min = 120.0;
+    let flex_count = specs
+        .iter()
+        .filter(|spec| matches!(spec, ColumnSpec::Flex(_)))
+        .count() as f32;
+    fixed_sum + flex_count * flex_min + gap
 }
 
 fn resolve_column_widths(specs: &[ColumnSpec], available_width: f32) -> Vec<f32> {

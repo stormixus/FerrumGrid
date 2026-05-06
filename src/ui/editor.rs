@@ -559,6 +559,7 @@ fn render_editor_body(
                 ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
         }
 
+        let mut dropped_payload: Option<String> = None;
         {
             let tab = &mut state.editor_tabs[active_tab];
             let editor_font_size = settings.font_size;
@@ -567,10 +568,12 @@ fn render_editor_body(
                 ui.fonts(|f| f.layout_job(layout_job))
             };
 
-            egui::Frame::new()
+            let frame = egui::Frame::new()
                 .fill(theme::bg_editor())
-                .inner_margin(Margin::same(theme::SPACE_LG as i8))
-                .show(ui, |ui| {
+                .inner_margin(Margin::same(theme::SPACE_LG as i8));
+            let (_inner, dropped) = ui.dnd_drop_zone::<crate::ui::TableDragPayload, ()>(
+                frame,
+                |ui| {
                     egui::ScrollArea::vertical()
                         .id_salt(("editor_scroll", tab.id))
                         .auto_shrink([false, false])
@@ -591,7 +594,31 @@ fn render_editor_body(
                                 output.cursor_range.map(|range| range.primary.ccursor.index);
                             content_snapshot = tab.content.clone();
                         });
-                });
+                },
+            );
+            if let Some(payload) = dropped {
+                dropped_payload = Some(payload.text.clone());
+            }
+        }
+
+        if let Some(insert) = dropped_payload {
+            if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
+                let pos = cursor_index
+                    .map(|idx| byte_index_for_char(&tab.content, idx))
+                    .unwrap_or_else(|| tab.content.len());
+                tab.content.insert_str(pos, &insert);
+                let new_char_pos = cursor_index.unwrap_or(tab.content.chars().count())
+                    + insert.chars().count();
+                let te_id = egui::Id::new(("sql_editor", tab.id));
+                if let Some(mut te_state) = egui::TextEdit::load_state(ui.ctx(), te_id) {
+                    use egui::text::{CCursor, CCursorRange};
+                    te_state
+                        .cursor
+                        .set_char_range(Some(CCursorRange::one(CCursor::new(new_char_pos))));
+                    te_state.store(ui.ctx(), te_id);
+                }
+                content_snapshot = tab.content.clone();
+            }
         }
 
         if settings.enable_code_completion && settings.code_completion_popup {
@@ -630,6 +657,13 @@ fn render_editor_body(
             }
         }
     });
+}
+
+fn byte_index_for_char(s: &str, char_index: usize) -> usize {
+    s.char_indices()
+        .nth(char_index)
+        .map(|(byte, _)| byte)
+        .unwrap_or_else(|| s.len())
 }
 
 fn render_editor_meta(ui: &mut egui::Ui, title: &str, line_count: usize, char_count: usize) {

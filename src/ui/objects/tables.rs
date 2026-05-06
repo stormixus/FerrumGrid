@@ -44,7 +44,7 @@ pub(super) fn render_table_like_objects(
     render_count_strip(ui, rows.len(), "objects");
 
     let mut action = None;
-    ScrollArea::vertical()
+    ScrollArea::both()
         .id_salt("objects_table_rows")
         .show(ui, |ui| {
             table_header(
@@ -112,28 +112,61 @@ fn render_table_row(
         });
         cells.col(|ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 4.0;
-                if action_chip(ui, "Data", theme::ACCENT_TEAL).clicked() {
+                ui.spacing_mut().item_spacing.x = 8.0;
+                if icon_action_chip(
+                    ui,
+                    crate::ui::icons_svg::PLAY,
+                    "tbl_data",
+                    &t("button_data"),
+                    theme::ACCENT_TEAL,
+                )
+                .clicked()
+                {
                     action = Some(ObjectAction::ViewData {
                         conn_id,
                         schema: row.schema.clone(),
                         name: row.name.clone(),
                     });
                 }
-                if row.table_type != "VIEW" && action_chip(ui, "Design", theme::ACCENT_COPPER).clicked() {
+                if row.table_type != "VIEW"
+                    && icon_action_chip(
+                        ui,
+                        crate::ui::icons_svg::EDIT,
+                        "tbl_design",
+                        &t("button_design"),
+                        theme::ACCENT_COPPER,
+                    )
+                    .clicked()
+                {
                     action = Some(ObjectAction::DesignTable {
                         schema: row.schema.clone(),
                         name: row.name.clone(),
                     });
                 }
-                if action_chip(ui, "SQL", theme::ACCENT_BLUE).clicked() {
+                if icon_action_chip(
+                    ui,
+                    crate::ui::icons_svg::CODE,
+                    "tbl_sql",
+                    &t("button_sql"),
+                    theme::ACCENT_BLUE,
+                )
+                .clicked()
+                {
                     action = Some(ObjectAction::CopySql(format!(
                         "SELECT * FROM {}.{};",
                         quote_ident(&row.schema),
                         quote_ident(&row.name)
                     )));
                 }
-                if action_chip(ui, "Drop", theme::ACCENT_RED).clicked() {
+                if icon_action_chip(
+                    ui,
+                    crate::ui::icons_svg::TRASH,
+                    "tbl_drop",
+                    &t("button_drop"),
+                    theme::ACCENT_RED,
+                )
+                .clicked()
+                {
                     action = Some(ObjectAction::DropTable {
                         conn_id,
                         schema: row.schema.clone(),
@@ -151,19 +184,59 @@ fn render_table_row(
             schema: row.schema.clone(),
             name: row.name.clone(),
         });
+    } else if response.clicked() {
+        action = Some(ObjectAction::SelectTable {
+            schema: row.schema.clone(),
+            name: row.name.clone(),
+        });
     }
 
     action
 }
 
-fn action_chip(ui: &mut egui::Ui, label: &str, color: egui::Color32) -> egui::Response {
-    let btn = egui::Button::new(
-        egui::RichText::new(label).color(color).size(11.0),
-    )
-    .fill(theme::with_alpha(color, 16))
-    .stroke(egui::Stroke::new(1.0, theme::with_alpha(color, 80)))
-    .corner_radius(egui::CornerRadius::same(theme::RADIUS_SM));
-    ui.add(btn)
+fn icon_action_chip(
+    ui: &mut egui::Ui,
+    svg: &str,
+    name: &str,
+    tooltip: &str,
+    color: egui::Color32,
+) -> egui::Response {
+    let size = egui::vec2(24.0, 24.0);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let hovered = response.hovered();
+    let fill = if hovered {
+        theme::with_alpha(color, 32)
+    } else {
+        theme::with_alpha(color, 14)
+    };
+    let stroke = egui::Stroke::new(
+        1.0,
+        theme::with_alpha(color, if hovered { 160 } else { 70 }),
+    );
+    ui.painter()
+        .rect_filled(rect, egui::CornerRadius::same(theme::RADIUS_SM), fill);
+    ui.painter().rect_stroke(
+        rect,
+        egui::CornerRadius::same(theme::RADIUS_SM),
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+    let icon_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(13.0, 13.0));
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(icon_rect)
+            .layout(egui::Layout::centered_and_justified(
+                egui::Direction::LeftToRight,
+            )),
+        |ui| {
+            ui.set_clip_rect(icon_rect);
+            ui.add(crate::ui::icon_image_tinted(ui, svg, name, 13.0, color));
+        },
+    );
+    if hovered {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    response.on_hover_text(tooltip)
 }
 
 fn collect_table_rows(state: &AppState, conn_id: ConnectionId) -> Vec<TableRow> {
@@ -202,6 +275,20 @@ fn collect_table_rows(state: &AppState, conn_id: ConnectionId) -> Vec<TableRow> 
     }
 
     rows.sort_by(|a, b| (&a.schema, &a.name).cmp(&(&b.schema, &b.name)));
+
+    // 검색어와 정확히 같은 이름이 존재하면 그것만 보여준다 — "TaxBill" 검색 시
+    // "TaxBillItem" 까지 같이 나오는 substring 매칭을 좁힌다.
+    if !search.is_empty() {
+        let exact_matches: Vec<TableRow> = rows
+            .iter()
+            .filter(|row| row.name.to_lowercase() == search)
+            .cloned()
+            .collect();
+        if !exact_matches.is_empty() {
+            return exact_matches;
+        }
+    }
+
     rows
 }
 

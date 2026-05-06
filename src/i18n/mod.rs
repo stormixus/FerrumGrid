@@ -405,6 +405,78 @@ fn insert_recent_ui_en(en: &mut Translation) {
         "data_info_no_metadata",
         "Column metadata is still loading, so editing is disabled.",
     );
+    en.insert("info_view_connection_title", "Connection");
+    en.insert("info_view_connection_none", "Not connected");
+    en.insert(
+        "info_view_connection_select",
+        "Select or open a connection from the tree",
+    );
+    en.insert("info_view_status", "Status");
+    en.insert("info_view_status_connected", "Connected");
+    en.insert("info_view_status_disconnected", "Disconnected");
+    en.insert("info_view_status_error", "Error");
+    en.insert("info_view_host", "Host");
+    en.insert("info_view_port", "Port");
+    en.insert("info_view_database", "Database");
+    en.insert("info_view_user", "User");
+    en.insert("info_view_ssl", "SSL");
+    en.insert("info_view_schemas_n", "{0} schemas");
+    en.insert("info_view_tables_n", "{0} tables");
+    en.insert("info_view_views_n", "{0} views");
+    en.insert("info_view_matviews_n", "{0} materialized views");
+    en.insert("info_view_functions_n", "{0} functions");
+    en.insert("info_view_roles_n", "{0} roles");
+    en.insert("info_view_objects_title", "Objects");
+    en.insert("info_view_schema", "Schema");
+    en.insert("info_view_loading", "Loading…");
+    en.insert("info_view_no_schema_filter", "All schemas");
+    en.insert("info_view_query_title", "Query");
+    en.insert("info_view_query_active_tab", "Active tab");
+    en.insert("info_view_query_running", "Running…");
+    en.insert("info_view_query_idle", "Idle");
+    en.insert("info_view_query_last_rows", "Last result rows");
+    en.insert("info_view_query_last_cols", "Last result columns");
+    en.insert("info_view_query_explicit_tx", "Explicit transaction active");
+    en.insert("info_view_query_no_tx", "No active transaction");
+    en.insert("info_view_query_chars", "Editor chars");
+    en.insert("info_view_query_truncated", "Result truncated");
+    en.insert("info_view_query_error", "Last error");
+    en.insert("info_view_backup_title", "Backup");
+    en.insert("info_view_backup_format", "Format");
+    en.insert("info_view_backup_running", "Running");
+    en.insert("info_view_backup_idle", "Idle");
+    en.insert("info_view_backup_last_error", "Last error");
+    en.insert("info_view_backup_history_n", "{0} entries");
+    en.insert("info_view_backup_last", "Last backup");
+    en.insert("info_view_backup_no_history", "No backup history");
+    en.insert("info_view_automation_title", "Automation");
+    en.insert("info_view_automation_total", "Registered tasks");
+    en.insert("info_view_automation_running", "Active runs");
+    en.insert("info_view_automation_draft_ready", "Draft ready: {0}");
+    en.insert("info_view_automation_draft_empty", "No draft");
+    en.insert("info_view_automation_draft_untitled", "(untitled)");
+    en.insert("info_view_model_title", "Model");
+    en.insert("info_view_model_no_card", "Click a table card to inspect it");
+    en.insert("info_view_model_cards_n", "{0} tables");
+    en.insert("info_view_model_visible_n", "{0} visible");
+    en.insert("info_view_bi_title", "Business Insights");
+    en.insert("info_view_bi_no_result", "Run a Query first to drive BI");
+    en.insert("info_view_bi_numeric_cols", "Numeric columns");
+    en.insert("info_view_bi_text_cols", "Text columns");
+    en.insert("info_view_bi_total_rows", "Total rows");
+    en.insert("info_view_function_title", "Functions");
+    en.insert("info_view_role_title", "Roles");
+    en.insert("info_view_view_title", "Views");
+    en.insert("info_view_matview_title", "Materialized Views");
+    en.insert("info_view_table_title", "Tables");
+    en.insert("info_view_count_in_schema", "{0} in {1}");
+    en.insert(
+        "info_view_open_data_hint",
+        "Open a table to see column-level details",
+    );
+    en.insert("info_view_diagnostics_title", "Diagnostics");
+    en.insert("info_view_diagnostics_pending", "Pending invalidations");
+    en.insert("info_view_diagnostics_warned", "Echo timeouts");
     en.insert("transfer_title", "Transfer Tables");
     en.insert("transfer_source", "Source:");
     en.insert("transfer_target", "Target:");
@@ -748,6 +820,78 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
         "data_info_no_metadata",
         "컬럼 메타데이터를 불러오는 중이라 편집이 비활성화됩니다.",
     );
+    ko.insert("info_view_connection_title", "연결");
+    ko.insert("info_view_connection_none", "연결되지 않음");
+    ko.insert(
+        "info_view_connection_select",
+        "트리에서 연결을 선택하거나 열어주세요",
+    );
+    ko.insert("info_view_status", "상태");
+    ko.insert("info_view_status_connected", "연결됨");
+    ko.insert("info_view_status_disconnected", "연결 끊김");
+    ko.insert("info_view_status_error", "오류");
+    ko.insert("info_view_host", "호스트");
+    ko.insert("info_view_port", "포트");
+    ko.insert("info_view_database", "데이터베이스");
+    ko.insert("info_view_user", "사용자");
+    ko.insert("info_view_ssl", "SSL");
+    ko.insert("info_view_schemas_n", "스키마 {0}개");
+    ko.insert("info_view_tables_n", "테이블 {0}개");
+    ko.insert("info_view_views_n", "뷰 {0}개");
+    ko.insert("info_view_matviews_n", "구체화 뷰 {0}개");
+    ko.insert("info_view_functions_n", "함수 {0}개");
+    ko.insert("info_view_roles_n", "역할 {0}개");
+    ko.insert("info_view_objects_title", "객체");
+    ko.insert("info_view_schema", "스키마");
+    ko.insert("info_view_loading", "로딩 중…");
+    ko.insert("info_view_no_schema_filter", "모든 스키마");
+    ko.insert("info_view_query_title", "쿼리");
+    ko.insert("info_view_query_active_tab", "활성 탭");
+    ko.insert("info_view_query_running", "실행 중…");
+    ko.insert("info_view_query_idle", "대기");
+    ko.insert("info_view_query_last_rows", "마지막 결과 행");
+    ko.insert("info_view_query_last_cols", "마지막 결과 열");
+    ko.insert("info_view_query_explicit_tx", "명시적 트랜잭션 활성");
+    ko.insert("info_view_query_no_tx", "활성 트랜잭션 없음");
+    ko.insert("info_view_query_chars", "에디터 글자수");
+    ko.insert("info_view_query_truncated", "결과 잘림");
+    ko.insert("info_view_query_error", "마지막 오류");
+    ko.insert("info_view_backup_title", "백업");
+    ko.insert("info_view_backup_format", "포맷");
+    ko.insert("info_view_backup_running", "실행 중");
+    ko.insert("info_view_backup_idle", "대기");
+    ko.insert("info_view_backup_last_error", "마지막 오류");
+    ko.insert("info_view_backup_history_n", "{0}개 항목");
+    ko.insert("info_view_backup_last", "마지막 백업");
+    ko.insert("info_view_backup_no_history", "백업 이력 없음");
+    ko.insert("info_view_automation_title", "자동화");
+    ko.insert("info_view_automation_total", "등록된 작업");
+    ko.insert("info_view_automation_running", "실행 중인 작업");
+    ko.insert("info_view_automation_draft_ready", "초안 준비됨: {0}");
+    ko.insert("info_view_automation_draft_empty", "초안 없음");
+    ko.insert("info_view_automation_draft_untitled", "(제목 없음)");
+    ko.insert("info_view_model_title", "모델");
+    ko.insert("info_view_model_no_card", "테이블 카드를 클릭해 상세 보기");
+    ko.insert("info_view_model_cards_n", "테이블 {0}개");
+    ko.insert("info_view_model_visible_n", "보이는 항목 {0}개");
+    ko.insert("info_view_bi_title", "비즈니스 인사이트");
+    ko.insert("info_view_bi_no_result", "BI를 보려면 먼저 쿼리를 실행하세요");
+    ko.insert("info_view_bi_numeric_cols", "숫자 컬럼");
+    ko.insert("info_view_bi_text_cols", "텍스트 컬럼");
+    ko.insert("info_view_bi_total_rows", "전체 행");
+    ko.insert("info_view_function_title", "함수");
+    ko.insert("info_view_role_title", "역할");
+    ko.insert("info_view_view_title", "뷰");
+    ko.insert("info_view_matview_title", "구체화 뷰");
+    ko.insert("info_view_table_title", "테이블");
+    ko.insert("info_view_count_in_schema", "{1}에 {0}개");
+    ko.insert(
+        "info_view_open_data_hint",
+        "테이블을 열면 컬럼 단위 정보를 볼 수 있어요",
+    );
+    ko.insert("info_view_diagnostics_title", "진단");
+    ko.insert("info_view_diagnostics_pending", "대기 중인 무효화");
+    ko.insert("info_view_diagnostics_warned", "에코 타임아웃");
     ko.insert("transfer_title", "테이블 전송");
     ko.insert("transfer_source", "소스:");
     ko.insert("transfer_target", "대상:");
@@ -2735,6 +2879,10 @@ pub fn init() {
     en.insert("button_close", "Close");
     en.insert("button_apply", "Apply");
     en.insert("button_generate", "Generate");
+    en.insert("button_data", "View Data");
+    en.insert("button_design", "Design");
+    en.insert("button_sql", "Copy SQL");
+    en.insert("button_drop", "Drop");
     en.insert("er_diagram_title", "ER Diagram");
     en.insert("er_schema_select", "Select Schema");
     en.insert("er_load_schema", "Load Schema");
@@ -2981,6 +3129,10 @@ pub fn init() {
     ko.insert("button_close", "닫기");
     ko.insert("button_apply", "적용");
     ko.insert("button_generate", "생성");
+    ko.insert("button_data", "데이터 보기");
+    ko.insert("button_design", "디자인");
+    ko.insert("button_sql", "SQL 복사");
+    ko.insert("button_drop", "삭제");
     ko.insert("er_diagram_title", "ER 다이어그램");
     ko.insert("er_schema_select", "스키마 선택");
     ko.insert("er_load_schema", "스키마 로드");

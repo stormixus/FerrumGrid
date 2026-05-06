@@ -327,7 +327,7 @@ fn draw_card(
         }
     }
 
-    let painter = ui.painter();
+    let painter = ui.painter().with_clip_rect(params.canvas_rect);
     let hovered = response.hovered();
     let border_color = if params.selected {
         theme::ACCENT_TEAL
@@ -432,7 +432,7 @@ fn draw_card(
         let mut text_x = row_rect.left() + 4.0 * zoom;
         if col.is_primary_key {
             paint_pill(
-                painter,
+                &painter,
                 Pos2::new(text_x, row_rect.center().y),
                 "PK",
                 theme::ACCENT_YELLOW,
@@ -442,7 +442,7 @@ fn draw_card(
         }
         if is_fk {
             paint_pill(
-                painter,
+                &painter,
                 Pos2::new(text_x, row_rect.center().y),
                 "FK",
                 theme::ACCENT_BLUE,

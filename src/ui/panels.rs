@@ -66,22 +66,48 @@ pub fn render_panels(
             });
     }
 
-    // Bottom panel: result grid
-    if state.show_result_panel && state.active_main_view != MainView::Data {
-        egui::TopBottomPanel::bottom("result_panel")
-            .default_height(282.0)
-            .min_height(108.0)
-            .resizable(true)
-            .show_separator_line(false)
-            .frame(
-                egui::Frame::new()
-                    .fill(theme::bg_dark())
-                    .inner_margin(Margin::ZERO)
-                    .stroke(Stroke::new(1.0, theme::border_subtle())),
-            )
-            .show(ctx, |ui| {
-                grid::render_grid(ui, state, bridge);
-            });
+    // Bottom panel: result grid — animate slide in/out using exact_height.
+    let want_result_visible = state.show_result_panel && state.active_main_view != MainView::Data;
+    let result_t = ctx.animate_bool_with_time(
+        egui::Id::new("result_panel_slide"),
+        want_result_visible,
+        0.22,
+    );
+    if result_t > 0.001 {
+        let target_height = 282.0_f32;
+        if (result_t - 1.0).abs() < 0.001 {
+            egui::TopBottomPanel::bottom("result_panel")
+                .default_height(target_height)
+                .min_height(108.0)
+                .resizable(true)
+                .show_separator_line(false)
+                .frame(
+                    egui::Frame::new()
+                        .fill(theme::bg_dark())
+                        .inner_margin(Margin::ZERO)
+                        .stroke(Stroke::new(1.0, theme::border_subtle())),
+                )
+                .show(ctx, |ui| {
+                    grid::render_grid(ui, state, bridge);
+                });
+        } else {
+            let height = (target_height * result_t).max(2.0);
+            egui::TopBottomPanel::bottom("result_panel_anim")
+                .exact_height(height)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(
+                    egui::Frame::new()
+                        .fill(theme::bg_dark())
+                        .inner_margin(Margin::ZERO)
+                        .stroke(Stroke::new(1.0, theme::border_subtle())),
+                )
+                .show(ctx, |ui| {
+                    ui.set_clip_rect(ui.max_rect());
+                    grid::render_grid(ui, state, bridge);
+                });
+            ctx.request_repaint();
+        }
     }
 
     // Right panel: Info / Properties

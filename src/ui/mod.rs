@@ -20,6 +20,13 @@ pub mod transfer_dialog;
 pub mod tree_browser;
 pub mod vault;
 
+/// 트리 → 에디터 드래그 시 전달되는 페이로드. 사용자가 SQL 에디터에 drop 하면
+/// `text` (이미 정규화된 `schema.table` 식별자)가 커서 위치에 삽입된다.
+#[derive(Clone, Debug)]
+pub struct TableDragPayload {
+    pub text: String,
+}
+
 /// Helper to render an SVG icon as a small image inline.
 pub fn icon_img(ui: &mut egui::Ui, svg_content: &str, name: &str, size: f32) {
     ui.add(icon_image(ui, svg_content, name, size));
