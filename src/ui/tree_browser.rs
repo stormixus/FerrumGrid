@@ -792,6 +792,12 @@ fn render_schema_node(
         .connections
         .get(&conn_id)
         .is_some_and(|c| c.opened_schemas.contains(schema));
+    egui::containers::collapsing_header::CollapsingState::load_with_default_open(
+        ui.ctx(),
+        node_id,
+        false,
+    )
+    .set_open(schema_opened);
     let schema_selected = state.objects_schema_filter == schema
         && state.active_connection == Some(conn_id);
 
@@ -814,11 +820,11 @@ fn render_schema_node(
             is_root: false,
             depth: 2,
             default_open: false,
-            force_open: false,
+            force_open: schema_opened,
             selected: schema_selected,
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
-            double_click_to_expand: false,
+            double_click_to_expand: true,
             icon_tint: if schema_opened {
                 Some(theme::ACCENT_GREEN)
             } else {

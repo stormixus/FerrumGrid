@@ -518,15 +518,54 @@ enum PaneToggle {
 }
 
 fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 2.0;
-        pane_toggle_button(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
-        pane_toggle_button(ui, PaneToggle::Results, &mut state.show_result_panel);
-        pane_toggle_button(ui, PaneToggle::Info, &mut state.show_info_panel);
+    let popup_id = ui.make_persistent_id("pane_toggle_popup");
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
+
+    let hovered = response.hovered();
+    let open = ui.memory(|m| m.is_popup_open(popup_id));
+    let bg = if open || hovered {
+        theme::with_alpha(theme::ACCENT_BLUE, 30)
+    } else {
+        Color32::TRANSPARENT
+    };
+    let border = if open {
+        theme::with_alpha(theme::ACCENT_BLUE, 160)
+    } else {
+        theme::border_default()
+    };
+
+    ui.painter()
+        .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_MD), bg);
+    ui.painter().rect_stroke(
+        rect.shrink(1.0),
+        CornerRadius::same(theme::RADIUS_MD),
+        Stroke::new(1.0, border),
+        StrokeKind::Inside,
+    );
+    paint_pane_icon(
+        ui.painter(),
+        rect.shrink(5.0),
+        PaneToggle::Results,
+        if open { theme::ACCENT_BLUE } else { theme::text_muted() },
+        open,
+    );
+
+    if response.clicked() {
+        ui.memory_mut(|m| m.toggle_popup(popup_id));
+    }
+
+    egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+        ui.set_min_width(86.0);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            pane_toggle_icon(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
+            pane_toggle_icon(ui, PaneToggle::Results, &mut state.show_result_panel);
+            pane_toggle_icon(ui, PaneToggle::Info, &mut state.show_info_panel);
+        });
     });
 }
 
-fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
+fn pane_toggle_icon(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
     let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
     let hovered = response.hovered();
     let color = if *active {
@@ -534,23 +573,15 @@ fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
     } else {
         theme::text_muted()
     };
-    let bg = if *active && hovered {
-        theme::with_alpha(theme::ACCENT_BLUE, 40)
-    } else if hovered {
-        theme::with_alpha(theme::ACCENT_BLUE, 20)
+    let bg = if hovered {
+        theme::with_alpha(theme::ACCENT_BLUE, 30)
     } else if *active {
-        theme::with_alpha(theme::ACCENT_BLUE, 24)
+        theme::with_alpha(theme::ACCENT_BLUE, 20)
     } else {
         Color32::TRANSPARENT
     };
     ui.painter()
-        .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_MD), bg);
-    ui.painter().rect_stroke(
-        rect.shrink(1.0),
-        CornerRadius::same(theme::RADIUS_MD),
-        Stroke::new(1.0, if *active { theme::with_alpha(theme::ACCENT_BLUE, 120) } else { theme::border_default() }),
-        StrokeKind::Inside,
-    );
+        .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_SM), bg);
     paint_pane_icon(ui.painter(), rect.shrink(5.0), pane, color, *active);
     if response.clicked() {
         *active = !*active;
@@ -1142,8 +1173,10 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
                 .inner_margin(Margin::symmetric(theme::SPACE_LG as i8, 0))
                 .stroke(Stroke::NONE),
         )
-        .show_separator_line(true)
+        .show_separator_line(false)
         .show(ctx, |ui| {
+            let top_line = ui.max_rect().x_range();
+            ui.painter().hline(top_line, ui.max_rect().top(), Stroke::new(1.0, theme::border_subtle()));
             ui.set_min_height(24.0);
             ui.horizontal(|ui| {
                 // Connection status dot + name
