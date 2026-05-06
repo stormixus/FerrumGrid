@@ -601,7 +601,7 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
                         ui.add_space(4.0);
                         ui.label(
                             RichText::new(msg)
-                                .color(theme::ACCENT_RED_SOFT)
+                                .color(theme::accent_red_soft())
                                 .size(12.0),
                         );
                     });

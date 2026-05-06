@@ -81,7 +81,7 @@ fn render_error_bar(ui: &mut egui::Ui, error: &str) {
             ui.add_space(theme::SPACE_MD);
             ui.label(
                 RichText::new(error)
-                    .color(theme::ACCENT_RED_SOFT)
+                    .color(theme::accent_red_soft())
                     .size(12.0),
             );
         });

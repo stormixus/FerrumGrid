@@ -494,7 +494,7 @@ fn draw_card(
         painter.text(
             Pos2::new(screen_rect.center().x, footer_y),
             egui::Align2::CENTER_CENTER,
-            format!("+{hidden} more columns"),
+            crate::i18n::tf("visualizer_more_columns", &[&hidden.to_string()]),
             egui::FontId::proportional((10.5 * zoom).clamp(8.0, 11.5)),
             theme::text_muted(),
         );
@@ -690,6 +690,37 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         state.er_diagram.selected_table = Some(card_id);
     } else if response.clicked() {
         state.er_diagram.selected_table = None;
+    }
+
+    // Keyboard navigation: Tab/Shift+Tab cycles cards, Escape deselects
+    if !visible_ids.is_empty() {
+        let mut sorted_visible: Vec<&String> = visible_ids.iter().collect();
+        sorted_visible.sort();
+
+        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            state.er_diagram.selected_table = None;
+        }
+
+        let tab_forward = ui.input(|i| i.key_pressed(egui::Key::Tab) && !i.modifiers.shift);
+        let tab_backward = ui.input(|i| i.key_pressed(egui::Key::Tab) && i.modifiers.shift);
+        if tab_forward || tab_backward {
+            let current_idx = state
+                .er_diagram
+                .selected_table
+                .as_ref()
+                .and_then(|sel| sorted_visible.iter().position(|id| *id == sel));
+            let next_idx = match current_idx {
+                Some(idx) => {
+                    if tab_forward {
+                        (idx + 1) % sorted_visible.len()
+                    } else {
+                        (idx + sorted_visible.len() - 1) % sorted_visible.len()
+                    }
+                }
+                None => 0,
+            };
+            state.er_diagram.selected_table = Some(sorted_visible[next_idx].clone());
+        }
     }
 
     if state.er_diagram.cards.is_empty() {

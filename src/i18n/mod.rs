@@ -242,8 +242,24 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("backup_running_status", "Backing up {0}...");
     en.insert("backup_run", "Run Backup");
     en.insert("backup_pg_dump_running", "pg_dump is running");
+    en.insert("backup_tar_archive", "Tar archive");
     en.insert("backup_recent", "Recent FerrumGrid Backups");
     en.insert("backup_no_session", "No backups in this session");
+    en.insert("backup_files_title_count", "Backup Files ({0})");
+    en.insert("backup_files_title", "Backup Files");
+    en.insert("backup_files_refresh", "Refresh");
+    en.insert("backup_files_set_folder", "Set backup folder to browse files");
+    en.insert("backup_files_empty", "No backup files found");
+    en.insert("backup_files_col_name", "Name");
+    en.insert("backup_files_col_size", "Size");
+    en.insert("backup_files_col_created", "Created");
+    en.insert("backup_files_col_modified", "Modified");
+    en.insert("backup_files_col_actions", "Actions");
+    en.insert("backup_files_show", "Show");
+    en.insert("backup_files_delete_confirm", "Delete?");
+    en.insert("backup_files_yes", "Yes");
+    en.insert("backup_files_no", "No");
+    en.insert("backup_files_delete", "Delete");
 
     en.insert("schema_visualizer_title", "Schema Visualizer");
     en.insert(
@@ -274,6 +290,7 @@ fn insert_recent_ui_en(en: &mut Translation) {
         "visualizer_no_tables_subtitle",
         "Select another schema or refresh.",
     );
+    en.insert("visualizer_more_columns", "+{0} more columns");
     en.insert("visualizer_count", "{0} tables  |  {1} relations");
 
     en.insert("workspace_close_tab", "Close Tab");
@@ -527,8 +544,24 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("backup_running_status", "{0} 백업 중...");
     ko.insert("backup_run", "백업 실행");
     ko.insert("backup_pg_dump_running", "pg_dump 실행 중");
+    ko.insert("backup_tar_archive", "Tar 아카이브");
     ko.insert("backup_recent", "최근 FerrumGrid 백업");
     ko.insert("backup_no_session", "이번 세션에 백업 없음");
+    ko.insert("backup_files_title_count", "백업 파일 ({0})");
+    ko.insert("backup_files_title", "백업 파일");
+    ko.insert("backup_files_refresh", "새로고침");
+    ko.insert("backup_files_set_folder", "파일을 보려면 백업 폴더를 설정하세요");
+    ko.insert("backup_files_empty", "백업 파일이 없습니다");
+    ko.insert("backup_files_col_name", "이름");
+    ko.insert("backup_files_col_size", "크기");
+    ko.insert("backup_files_col_created", "생성일");
+    ko.insert("backup_files_col_modified", "수정일");
+    ko.insert("backup_files_col_actions", "작업");
+    ko.insert("backup_files_show", "보기");
+    ko.insert("backup_files_delete_confirm", "삭제?");
+    ko.insert("backup_files_yes", "예");
+    ko.insert("backup_files_no", "아니오");
+    ko.insert("backup_files_delete", "삭제");
 
     ko.insert("schema_visualizer_title", "스키마 비주얼라이저");
     ko.insert(
@@ -562,6 +595,7 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
         "visualizer_no_tables_subtitle",
         "다른 스키마를 선택하거나 새로고침하세요.",
     );
+    ko.insert("visualizer_more_columns", "+{0}개 컬럼 더");
     ko.insert("visualizer_count", "{0}개 테이블  |  {1}개 관계");
 
     ko.insert("workspace_close_tab", "탭 닫기");

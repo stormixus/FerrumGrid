@@ -131,7 +131,7 @@ fn render_connection_node(
                     if let Some(err) = &connection_error {
                         ui.label(
                             RichText::new(err)
-                                .color(theme::ACCENT_RED_SOFT)
+                                .color(theme::accent_red_soft())
                                 .size(11.0),
                         );
                     } else {

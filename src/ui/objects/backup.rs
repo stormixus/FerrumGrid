@@ -296,7 +296,7 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
     let label = match format {
         BackupFormat::Custom => t("backup_custom_archive"),
         BackupFormat::Plain => t("backup_plain_sql"),
-        BackupFormat::Tar => "Tar archive".to_string(),
+        BackupFormat::Tar => t("backup_tar_archive"),
     };
     let button = egui::Button::new(RichText::new(label).color(if selected {
         theme::text_primary()
@@ -388,9 +388,9 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
             // Header row
             ui.horizontal(|ui| {
                 let header = if folder_set {
-                    format!("Backup Files ({})", entries.len())
+                    tf("backup_files_title_count", &[&entries.len().to_string()])
                 } else {
-                    "Backup Files".to_string()
+                    t("backup_files_title")
                 };
                 ui.label(
                     RichText::new(header)
@@ -402,7 +402,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if folder_set
                         && ui
-                            .add(theme::ghost_button("Refresh"))
+                            .add(theme::ghost_button(&t("backup_files_refresh")))
                             .clicked()
                     {
                         ui.data_mut(|d| d.insert_temp(refresh_id, true));
@@ -414,7 +414,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
 
             if !folder_set {
                 ui.label(
-                    RichText::new("Set backup folder to browse files")
+                    RichText::new(t("backup_files_set_folder"))
                         .color(theme::text_muted())
                         .size(11.0),
                 );
@@ -423,7 +423,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
 
             if entries.is_empty() {
                 ui.label(
-                    RichText::new("No backup files found")
+                    RichText::new(t("backup_files_empty"))
                         .color(theme::text_muted())
                         .size(11.0),
                 );
@@ -443,7 +443,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                         ui.add_sized(
                             [w_name, 16.0],
                             egui::Label::new(
-                                RichText::new("Name")
+                                RichText::new(t("backup_files_col_name"))
                                     .color(header_color)
                                     .size(10.5)
                                     .strong(),
@@ -452,7 +452,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                         ui.add_sized(
                             [w_size, 16.0],
                             egui::Label::new(
-                                RichText::new("Size")
+                                RichText::new(t("backup_files_col_size"))
                                     .color(header_color)
                                     .size(10.5)
                                     .strong(),
@@ -461,7 +461,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                         ui.add_sized(
                             [w_date, 16.0],
                             egui::Label::new(
-                                RichText::new("Created")
+                                RichText::new(t("backup_files_col_created"))
                                     .color(header_color)
                                     .size(10.5)
                                     .strong(),
@@ -470,14 +470,14 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                         ui.add_sized(
                             [w_date, 16.0],
                             egui::Label::new(
-                                RichText::new("Modified")
+                                RichText::new(t("backup_files_col_modified"))
                                     .color(header_color)
                                     .size(10.5)
                                     .strong(),
                             ),
                         );
                         ui.label(
-                            RichText::new("Actions")
+                            RichText::new(t("backup_files_col_actions"))
                                 .color(header_color)
                                 .size(10.5)
                                 .strong(),
@@ -570,7 +570,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
 
                                     // Actions
                                     if ui
-                                        .add(theme::ghost_button("Show"))
+                                        .add(theme::ghost_button(&t("backup_files_show")))
                                         .clicked()
                                     {
                                         reveal_in_finder(&entry.path);
@@ -586,12 +586,12 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
 
                                     if confirming {
                                         ui.label(
-                                            RichText::new("Delete?")
+                                            RichText::new(t("backup_files_delete_confirm"))
                                                 .color(theme::ACCENT_RED)
                                                 .size(10.5),
                                         );
                                         let yes_btn = egui::Button::new(
-                                            RichText::new("Yes")
+                                            RichText::new(t("backup_files_yes"))
                                                 .color(theme::text_primary())
                                                 .size(10.5),
                                         )
@@ -611,7 +611,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                                             });
                                         }
                                         let no_btn = egui::Button::new(
-                                            RichText::new("No")
+                                            RichText::new(t("backup_files_no"))
                                                 .color(theme::text_secondary())
                                                 .size(10.5),
                                         )
@@ -629,7 +629,7 @@ fn render_backup_files(ui: &mut egui::Ui, settings: &AppSettings, history_len: u
                                         }
                                     } else {
                                         let del_btn = egui::Button::new(
-                                            RichText::new("Delete")
+                                            RichText::new(t("backup_files_delete"))
                                                 .color(theme::ACCENT_RED)
                                                 .size(10.5),
                                         )

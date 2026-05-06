@@ -43,6 +43,7 @@ pub const ACCENT_BLUE: Color32 = Color32::from_rgb(118, 156, 255);
 pub const ACCENT_GREEN: Color32 = Color32::from_rgb(62, 207, 142);
 pub const ACCENT_RED: Color32 = Color32::from_rgb(229, 72, 77);
 pub const ACCENT_RED_SOFT: Color32 = Color32::from_rgb(220, 150, 150);
+const LIGHT_ACCENT_RED_SOFT: Color32 = Color32::from_rgb(180, 82, 82);
 pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
 
 // Borders / separators
@@ -174,6 +175,10 @@ pub fn border_glow() -> Color32 {
 
 pub fn accent_copper_dim() -> Color32 {
     pick(ACCENT_COPPER_DIM, Color32::from_rgb(220, 250, 235))
+}
+
+pub fn accent_red_soft() -> Color32 {
+    pick(ACCENT_RED_SOFT, LIGHT_ACCENT_RED_SOFT)
 }
 
 fn pick(dark: Color32, light: Color32) -> Color32 {
