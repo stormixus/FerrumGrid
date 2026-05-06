@@ -417,7 +417,7 @@ fn render_function_info(ui: &mut egui::Ui, state: &AppState) {
         .map(|(schema, funcs)| (schema.clone(), funcs.len()))
         .filter(|(_, n)| *n > 0)
         .collect();
-    entries.sort_by(|a, b| b.1.cmp(&a.1));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     if !entries.is_empty() {
         ui.add_space(theme::SPACE_LG);

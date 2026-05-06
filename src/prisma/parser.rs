@@ -466,10 +466,8 @@ fn parse_field(pair: pest::iterators::Pair<Rule>) -> Result<PrismaField, String>
 
     for inner in pair.into_inner() {
         match inner.as_rule() {
-            Rule::identifier => {
-                if field.name.is_empty() {
-                    field.name = inner.as_str().to_string();
-                }
+            Rule::identifier if field.name.is_empty() => {
+                field.name = inner.as_str().to_string();
             }
             Rule::field_type => {
                 field.field_type = parse_field_type(inner)?;

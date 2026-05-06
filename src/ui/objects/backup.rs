@@ -90,7 +90,7 @@ fn scan_backup_directory(dir: &str) -> Vec<BackupFileEntry> {
         })
         .collect();
 
-    entries.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.modified_epoch));
     entries.truncate(MAX_DISPLAY_FILES);
     entries
 }
