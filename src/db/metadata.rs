@@ -48,7 +48,8 @@ pub async fn list_tables(
     // information_schema.tables 는 oid 를 직접 노출하지 않으므로 pg_class JOIN.
     let rows = client
         .query(
-            "SELECT t.table_name, t.table_type, c.oid::int8 \
+            "SELECT t.table_name, t.table_type, c.oid::int8, \
+                    GREATEST(c.reltuples, 0)::int8 \
              FROM information_schema.tables t \
              LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = t.table_schema \
              LEFT JOIN pg_catalog.pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid \
@@ -65,13 +66,15 @@ pub async fn list_tables(
             name: r.get(0),
             table_type: r.get(1),
             oid: r.get::<_, Option<i64>>(2).map(|v| v as u32),
+            row_estimate: r.get::<_, Option<i64>>(3).map(|v| v.max(0) as u64),
         })
         .collect();
 
     // Also fetch materialized views from pg_catalog (oid included via pg_class.oid 직접 SELECT)
     let mat_rows = client
         .query(
-            "SELECT m.matviewname, c.oid::int8 \
+            "SELECT m.matviewname, c.oid::int8, \
+                    GREATEST(c.reltuples, 0)::int8 \
              FROM pg_catalog.pg_matviews m \
              LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = m.schemaname \
              LEFT JOIN pg_catalog.pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid \
@@ -87,6 +90,7 @@ pub async fn list_tables(
             name: r.get(0),
             table_type: "MATERIALIZED VIEW".to_string(),
             oid: r.get::<_, Option<i64>>(1).map(|v| v as u32),
+            row_estimate: r.get::<_, Option<i64>>(2).map(|v| v.max(0) as u64),
         });
     }
 

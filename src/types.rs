@@ -500,6 +500,7 @@ pub struct TableInfo {
     /// US-K2 — pg_class.oid (Plan v7 cache invalidation 매칭 키). None 이면 fetch
     /// 실패 또는 미지원 catalog (e.g., information_schema view).
     pub oid: Option<u32>,
+    pub row_estimate: Option<u64>,
 }
 
 #[derive(Debug, Clone)]

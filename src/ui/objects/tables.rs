@@ -13,8 +13,9 @@ use crate::types::{ConnectionId, TableInfo};
 use crate::ui::theme;
 
 use super::{
-    active_conn, cell_label, data_row, quote_ident, render_count_strip, render_no_connection,
-    selected_schemas, table_header, type_chip, views, ObjectAction, TABLE_COLUMNS,
+    active_conn, cell_label, data_row_alt, empty_state, quote_ident, render_count_strip,
+    render_no_connection, selected_schemas, table_header, type_chip, views, ObjectAction,
+    TABLE_COLUMNS,
 };
 
 #[derive(Clone)]
@@ -24,6 +25,7 @@ pub(super) struct TableRow {
     pub table_type: String,
     pub column_count: Option<usize>,
     pub index_count: Option<usize>,
+    pub row_estimate: Option<u64>,
 }
 
 pub(super) fn render_table_like_objects(
@@ -52,13 +54,21 @@ pub(super) fn render_table_like_objects(
                     t("objects_schema"),
                     t("objects_name"),
                     t("objects_type"),
+                    t("objects_rows"),
                     t("objects_columns"),
                     t("objects_indexes"),
                     t("objects_actions"),
                 ],
             );
-            for row in rows {
-                let row_action = render_table_row(ui, conn_id, &row);
+            if rows.is_empty() {
+                empty_state(
+                    ui,
+                    &t("objects_no_tables"),
+                    &t("objects_no_tables_help"),
+                );
+            }
+            for (i, row) in rows.iter().enumerate() {
+                let row_action = render_table_row(ui, conn_id, row, i);
                 if row_action.is_some() {
                     action = row_action;
                 }
@@ -72,24 +82,32 @@ fn render_table_row(
     ui: &mut egui::Ui,
     conn_id: ConnectionId,
     row: &TableRow,
+    row_index: usize,
 ) -> Option<ObjectAction> {
     let mut action = None;
-    let response = data_row(ui, &TABLE_COLUMNS, |cells| {
+    let response = data_row_alt(ui, &TABLE_COLUMNS, row_index, |cells| {
         cells.col(|ui| cell_label(ui, &row.schema, theme::text_muted(), 12.0, false));
         cells.col(|ui| cell_label(ui, &row.name, theme::text_primary(), 12.0, true));
         cells.col(|ui| type_chip(ui, &row.table_type, views::table_type_color(&row.table_type)));
         cells.col(|ui| {
+            let text = row
+                .row_estimate
+                .map(format_row_count)
+                .unwrap_or_else(|| "~".to_string());
+            cell_label(ui, &text, theme::text_secondary(), 12.0, false);
+        });
+        cells.col(|ui| {
             let count = row
                 .column_count
                 .map(|v| v.to_string())
-                .unwrap_or_else(|| "-".to_string());
+                .unwrap_or_else(|| "~".to_string());
             cell_label(ui, &count, theme::text_secondary(), 12.0, false);
         });
         cells.col(|ui| {
             let count = row
                 .index_count
                 .map(|v| v.to_string())
-                .unwrap_or_else(|| "-".to_string());
+                .unwrap_or_else(|| "~".to_string());
             cell_label(ui, &count, theme::text_secondary(), 12.0, false);
         });
         cells.col(|ui| {
@@ -177,6 +195,7 @@ fn collect_table_rows(state: &AppState, conn_id: ConnectionId) -> Vec<TableRow> 
                     table_type: table.table_type.clone(),
                     column_count: conn.columns.get(&key).map(Vec::len),
                     index_count: conn.indexes.get(&key).map(Vec::len),
+                    row_estimate: table.row_estimate,
                 });
             }
         }
@@ -285,5 +304,15 @@ fn matches_table_kind(view: MainView, table: &TableInfo) -> bool {
         MainView::MaterializedView => table.table_type == "MATERIALIZED VIEW",
         MainView::Table => table.table_type != "VIEW" && table.table_type != "MATERIALIZED VIEW",
         _ => true,
+    }
+}
+
+fn format_row_count(count: u64) -> String {
+    if count >= 1_000_000 {
+        format!("{:.1}M", count as f64 / 1_000_000.0)
+    } else if count >= 1_000 {
+        format!("{:.1}K", count as f64 / 1_000.0)
+    } else {
+        count.to_string()
     }
 }

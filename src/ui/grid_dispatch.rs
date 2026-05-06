@@ -606,12 +606,14 @@ mod tests {
             name: "users".to_string(),
             table_type: "BASE TABLE".to_string(),
             oid: Some(16384),
+            row_estimate: None,
         };
         assert_eq!(t.oid, Some(16384));
         let t2 = crate::types::TableInfo {
             name: "v".to_string(),
             table_type: "VIEW".to_string(),
             oid: None,
+            row_estimate: None,
         };
         assert!(t2.oid.is_none());
     }

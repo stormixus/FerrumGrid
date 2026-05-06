@@ -173,6 +173,9 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("objects_schema", "Schema");
     en.insert("objects_name", "Name");
     en.insert("objects_type", "Type");
+    en.insert("objects_rows", "Rows");
+    en.insert("objects_no_tables", "No tables found");
+    en.insert("objects_no_tables_help", "Try a different schema or search term");
     en.insert("objects_columns", "Columns");
     en.insert("objects_indexes", "Indexes");
     en.insert("objects_actions", "Actions");
@@ -519,6 +522,9 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("objects_schema", "스키마");
     ko.insert("objects_name", "이름");
     ko.insert("objects_type", "타입");
+    ko.insert("objects_rows", "행 수");
+    ko.insert("objects_no_tables", "테이블 없음");
+    ko.insert("objects_no_tables_help", "다른 스키마나 검색어를 시도하세요");
     ko.insert("objects_columns", "컬럼");
     ko.insert("objects_indexes", "인덱스");
     ko.insert("objects_actions", "작업");
@@ -859,6 +865,9 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
     ja.insert("objects_schema", "スキーマ");
     ja.insert("objects_name", "名前");
     ja.insert("objects_type", "タイプ");
+    ja.insert("objects_rows", "行数");
+    ja.insert("objects_no_tables", "テーブルが見つかりません");
+    ja.insert("objects_no_tables_help", "別のスキーマまたは検索語をお試しください");
     ja.insert("objects_columns", "カラム");
     ja.insert("objects_indexes", "インデックス");
     ja.insert("objects_actions", "操作");
@@ -1190,6 +1199,9 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
     zh.insert("objects_schema", "模式");
     zh.insert("objects_name", "名称");
     zh.insert("objects_type", "类型");
+    zh.insert("objects_rows", "行数");
+    zh.insert("objects_no_tables", "未找到表");
+    zh.insert("objects_no_tables_help", "尝试其他架构或搜索词");
     zh.insert("objects_columns", "列");
     zh.insert("objects_indexes", "索引");
     zh.insert("objects_actions", "操作");
@@ -1512,6 +1524,9 @@ fn insert_recent_ui_es(es: &mut Translation) {
     es.insert("objects_schema", "Esquema");
     es.insert("objects_name", "Nombre");
     es.insert("objects_type", "Tipo");
+    es.insert("objects_rows", "Filas");
+    es.insert("objects_no_tables", "No se encontraron tablas");
+    es.insert("objects_no_tables_help", "Intente otro esquema o término de búsqueda");
     es.insert("objects_columns", "Columnas");
     es.insert("objects_indexes", "Índices");
     es.insert("objects_actions", "Acciones");
@@ -1921,6 +1936,9 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
     fr.insert("objects_schema", "Schéma");
     fr.insert("objects_name", "Nom");
     fr.insert("objects_type", "Type");
+    fr.insert("objects_rows", "Lignes");
+    fr.insert("objects_no_tables", "Aucune table trouvée");
+    fr.insert("objects_no_tables_help", "Essayez un autre schéma ou terme de recherche");
     fr.insert("objects_columns", "Colonnes");
     fr.insert("objects_indexes", "Index");
     fr.insert("objects_actions", "Actions");
@@ -2315,6 +2333,9 @@ fn insert_recent_ui_de(de: &mut Translation) {
     de.insert("objects_schema", "Schema");
     de.insert("objects_name", "Name");
     de.insert("objects_type", "Typ");
+    de.insert("objects_rows", "Zeilen");
+    de.insert("objects_no_tables", "Keine Tabellen gefunden");
+    de.insert("objects_no_tables_help", "Versuchen Sie ein anderes Schema oder einen anderen Suchbegriff");
     de.insert("objects_columns", "Spalten");
     de.insert("objects_indexes", "Indizes");
     de.insert("objects_actions", "Aktionen");

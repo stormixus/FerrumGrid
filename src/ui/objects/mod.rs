@@ -37,12 +37,13 @@ pub(super) enum ColumnSpec {
     Flex(f32),
 }
 
-pub(super) const TABLE_COLUMNS: [ColumnSpec; 6] = [
+pub(super) const TABLE_COLUMNS: [ColumnSpec; 7] = [
     ColumnSpec::Fixed(86.0),
     ColumnSpec::Flex(1.5),
-    ColumnSpec::Fixed(132.0),
-    ColumnSpec::Fixed(74.0),
-    ColumnSpec::Fixed(74.0),
+    ColumnSpec::Fixed(120.0),
+    ColumnSpec::Fixed(80.0),
+    ColumnSpec::Fixed(64.0),
+    ColumnSpec::Fixed(64.0),
     ColumnSpec::Fixed(190.0),
 ];
 pub(super) const FUNCTION_COLUMNS: [ColumnSpec; 6] = [
@@ -569,6 +570,22 @@ pub(super) fn data_row(
     content: impl FnOnce(&mut RowCells<'_>),
 ) -> egui::Response {
     object_row_frame(ui, specs, 33.0, theme::bg_dark(), Sense::click(), |cells| {
+        content(cells);
+    })
+}
+
+pub(super) fn data_row_alt(
+    ui: &mut egui::Ui,
+    specs: &[ColumnSpec],
+    row_index: usize,
+    content: impl FnOnce(&mut RowCells<'_>),
+) -> egui::Response {
+    let fill = if row_index % 2 == 0 {
+        theme::bg_dark()
+    } else {
+        theme::bg_shell()
+    };
+    object_row_frame(ui, specs, 33.0, fill, Sense::click(), |cells| {
         content(cells);
     })
 }
