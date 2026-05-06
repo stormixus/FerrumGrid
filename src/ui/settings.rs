@@ -8,8 +8,8 @@ use crate::state::{data_timezone_label, data_timezone_options, AppState};
 use crate::storage;
 use crate::ui::theme;
 
-const PREF_WIDTH: f32 = 790.0;
-const PREF_HEIGHT: f32 = 580.0;
+const PREF_WIDTH: f32 = 640.0;
+const PREF_HEIGHT: f32 = 440.0;
 const HEADER_HEIGHT: f32 = 84.0;
 const FOOTER_HEIGHT: f32 = 56.0;
 const TAB_WIDTH: f32 = 84.0;
@@ -155,6 +155,7 @@ pub fn render_settings_window(
         CloseAction::None => false,
         CloseAction::Cancel => {
             settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance);
+            set_language(Language::from_code(&settings.language));
             state.settings_draft = None;
             state.show_settings_dialog = false;
             false
@@ -198,6 +199,8 @@ fn preview_draft_appearance(ctx: &egui::Context, state: &mut AppState) {
         draft.dark_mode = preview_dark_mode;
         ctx.request_repaint();
     }
+
+    set_language(Language::from_code(&draft.language));
 }
 
 fn render_header(ui: &mut egui::Ui, state: &mut AppState, close_action: &mut CloseAction) {
