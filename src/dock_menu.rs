@@ -73,8 +73,6 @@ unsafe extern "C-unwind" fn reopen_callback(
     _app: *mut objc2::runtime::AnyObject,
     has_visible: objc2::runtime::Bool,
 ) -> objc2::runtime::Bool {
-    use objc2::runtime::AnyObject;
-
     if !has_visible.as_bool() {
         restore_main_window();
     }

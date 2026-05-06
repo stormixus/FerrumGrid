@@ -559,9 +559,9 @@ fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
         ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
         ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme::with_alpha(theme::ACCENT_BLUE, 30);
 
-        if ui.checkbox(&mut state.show_tree_panel, t("view_toggle_navigator")).changed() {}
-        if ui.checkbox(&mut state.show_result_panel, t("view_toggle_results")).changed() {}
-        if ui.checkbox(&mut state.show_info_panel, t("view_toggle_info")).changed() {}
+        ui.checkbox(&mut state.show_tree_panel, t("view_toggle_navigator"));
+        ui.checkbox(&mut state.show_result_panel, t("view_toggle_results"));
+        ui.checkbox(&mut state.show_info_panel, t("view_toggle_info"));
     });
 }
 

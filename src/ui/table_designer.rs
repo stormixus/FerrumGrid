@@ -123,6 +123,21 @@ pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, bridge: 
         return;
     }
 
+    if !state.table_designer.columns.is_empty() && !state.table_designer.show_ddl_preview {
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+            let sel = state.table_designer.selected_column.map_or(
+                state.table_designer.columns.len() - 1,
+                |c| c.saturating_sub(1),
+            );
+            state.table_designer.selected_column = Some(sel);
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+            let max = state.table_designer.columns.len() - 1;
+            let sel = state.table_designer.selected_column.map_or(0, |c| (c + 1).min(max));
+            state.table_designer.selected_column = Some(sel);
+        }
+    }
+
     let mut open = state.table_designer.show;
     let mut should_close = false;
 

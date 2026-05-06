@@ -19,6 +19,7 @@ use crate::ui::theme;
 
 use super::*;
 use super::toolbar::result_toolbar_button_frame;
+use crate::ui::grid_dispatch::{apply_state_op, dispatch, Direction, EditEvent, GridInput};
 
 pub fn render_grid(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     // Plan v7 Phase 3b — warn banner when explicit tx active in Query tab.
@@ -31,6 +32,36 @@ pub fn render_grid(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 
     if let Some(ref error) = state.last_error.clone() {
         render_error_bar(ui, error);
+    }
+
+    if state.current_result.is_some() && state.data_edit.editing_cell.is_none() {
+        let mut direction = None;
+        let enter = ui.input(|i| {
+            if i.key_pressed(egui::Key::ArrowUp) { direction = Some(Direction::Up); }
+            if i.key_pressed(egui::Key::ArrowDown) { direction = Some(Direction::Down); }
+            if i.key_pressed(egui::Key::ArrowLeft) { direction = Some(Direction::Left); }
+            if i.key_pressed(egui::Key::ArrowRight) { direction = Some(Direction::Right); }
+            if i.key_pressed(egui::Key::PageUp) { direction = Some(Direction::PageUp); }
+            if i.key_pressed(egui::Key::PageDown) { direction = Some(Direction::PageDown); }
+            if i.key_pressed(egui::Key::Home) { direction = Some(Direction::Home); }
+            if i.key_pressed(egui::Key::End) { direction = Some(Direction::End); }
+            if direction.is_none() && i.key_pressed(egui::Key::Tab) {
+                direction = Some(if i.modifiers.shift { Direction::Left } else { Direction::Right });
+            }
+            i.key_pressed(egui::Key::Enter)
+        });
+        if let Some(dir) = direction {
+            if let Some(op) = dispatch(GridInput::Key(dir), state) {
+                apply_state_op(state, op);
+            }
+        } else if enter && state.data_edit.selected_cell.is_some() {
+            if let Some(op) = dispatch(GridInput::Edit(EditEvent::Begin), state) {
+                apply_state_op(state, op);
+            }
+        }
+        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            state.data_edit.selected_cell = None;
+        }
     }
 
     match &state.current_result {
