@@ -1289,25 +1289,6 @@ fn active_data_source_matches(
     table.is_none_or(|table| source.table == table)
 }
 
-fn active_table_group_matches(
-    state: &AppState,
-    conn_id: ConnectionId,
-    schema: &str,
-    group: SchemaTableGroup,
-) -> bool {
-    let Some(source) = state.active_data_source() else {
-        return false;
-    };
-    if source.conn_id != conn_id || source.schema != schema {
-        return false;
-    }
-    state
-        .connections
-        .get(&conn_id)
-        .and_then(|conn| conn.tables.get(schema))
-        .and_then(|tables| tables.iter().find(|table| table.name == source.table))
-        .is_none_or(|table| group.matches(&table.table_type))
-}
 
 fn render_table_group_node(
     ui: &mut egui::Ui,
