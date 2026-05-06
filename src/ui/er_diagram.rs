@@ -77,6 +77,10 @@ impl ERDiagramState {
     }
 
     pub fn layout_cards(&mut self) {
+        self.layout_cards_with_width(1200.0);
+    }
+
+    pub fn layout_cards_with_width(&mut self, available_width: f32) {
         let mut ids: Vec<String> = self.cards.keys().cloned().collect();
         ids.sort_by(|a, b| {
             let degree_b = relation_degree(b, &self.foreign_keys);
@@ -85,11 +89,14 @@ impl ERDiagramState {
         });
 
         let len = ids.len().max(1);
-        let rows = if len <= 4 { 1 } else { 2 };
+        let cols_that_fit = ((available_width - CARD_START_X) / (CARD_WIDTH + CARD_GAP_X))
+            .floor()
+            .max(1.0) as usize;
+        let rows = (len as f32 / cols_that_fit as f32).ceil().max(1.0) as usize;
         let mut row_heights = vec![0.0_f32; rows];
 
         for (idx, id) in ids.iter().enumerate() {
-            let (row, _) = layout_slot(idx, rows);
+            let (row, _) = layout_slot(idx, cols_that_fit);
             if let Some(card) = self.cards.get_mut(id) {
                 row_heights[row] = row_heights[row].max(card.height());
                 card.is_dragging = false;
@@ -104,7 +111,7 @@ impl ERDiagramState {
         }
 
         for (idx, id) in ids.iter().enumerate() {
-            let (row, col) = layout_slot(idx, rows);
+            let (row, col) = layout_slot(idx, cols_that_fit);
             if let Some(card) = self.cards.get_mut(id) {
                 card.pos = Pos2::new(
                     CARD_START_X + col as f32 * (CARD_WIDTH + CARD_GAP_X),
@@ -124,12 +131,8 @@ impl ERDiagramState {
     }
 }
 
-fn layout_slot(idx: usize, rows: usize) -> (usize, usize) {
-    if rows <= 1 {
-        (0, idx)
-    } else {
-        (idx % rows, idx / rows)
-    }
+fn layout_slot(idx: usize, cols: usize) -> (usize, usize) {
+    (idx / cols, idx % cols)
 }
 
 fn relation_degree(card_id: &str, foreign_keys: &[ForeignKey]) -> usize {
@@ -885,7 +888,7 @@ fn render_toolbar(
             .add(theme::secondary_button(&t("visualizer_auto_layout")))
             .clicked()
         {
-            state.er_diagram.layout_cards();
+            state.er_diagram.layout_cards_with_width(ui.available_width());
             state.er_diagram.pan_offset = Vec2::ZERO;
         }
 
