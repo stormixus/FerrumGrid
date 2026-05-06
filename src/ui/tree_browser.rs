@@ -826,9 +826,9 @@ fn render_schema_node(
             icon_name: "schema",
             double_click_to_expand: true,
             icon_tint: if schema_opened {
-                Some(theme::ACCENT_GREEN)
+                None
             } else {
-                Some(theme::text_muted())
+                Some(Color32::from_gray(55))
             },
         },
         |ui| {
