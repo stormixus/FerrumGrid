@@ -95,6 +95,9 @@ impl FerrumGridApp {
                 crate::app_icon::icon_for_dark_mode(settings.dark_mode),
             ))));
 
+        #[cfg(target_os = "macos")]
+        configure_macos_titlebar();
+
         let (saved_connections, vault) = match storage::connections::load_storage_state() {
             storage::connections::ConnectionStorageState::Empty => {
                 (Vec::new(), VaultUiState::setup_required(Vec::new()))
@@ -717,4 +720,21 @@ fn show_main_window(ctx: &egui::Context) {
     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
     ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+}
+
+#[cfg(target_os = "macos")]
+fn configure_macos_titlebar() {
+    use objc2::runtime::AnyObject;
+
+    unsafe {
+        let app: *mut AnyObject = objc2::msg_send![objc2::class!(NSApplication), sharedApplication];
+        let windows: *mut AnyObject = objc2::msg_send![app, windows];
+        let count: usize = objc2::msg_send![windows, count];
+        if count == 0 {
+            return;
+        }
+        let window: *mut AnyObject = objc2::msg_send![windows, objectAtIndex: 0usize];
+        let _: () = objc2::msg_send![window, setTitlebarAppearsTransparent: objc2::runtime::Bool::YES];
+        let _: () = objc2::msg_send![window, setTitleVisibility: 1i64]; // NSWindowTitleHidden
+    }
 }

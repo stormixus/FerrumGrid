@@ -518,51 +518,43 @@ enum PaneToggle {
 }
 
 fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
-    let popup_id = ui.make_persistent_id("pane_toggle_popup");
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        pane_toggle_button(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
+        pane_toggle_button(ui, PaneToggle::Results, &mut state.show_result_panel);
+        pane_toggle_button(ui, PaneToggle::Info, &mut state.show_info_panel);
+    });
+}
 
+fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
     let hovered = response.hovered();
-    let open = ui.memory(|m| m.is_popup_open(popup_id));
-    let bg = if open || hovered {
-        theme::with_alpha(theme::ACCENT_BLUE, 30)
+    let color = if *active {
+        theme::ACCENT_BLUE
+    } else {
+        theme::text_muted()
+    };
+    let bg = if *active && hovered {
+        theme::with_alpha(theme::ACCENT_BLUE, 40)
+    } else if hovered {
+        theme::with_alpha(theme::ACCENT_BLUE, 20)
+    } else if *active {
+        theme::with_alpha(theme::ACCENT_BLUE, 24)
     } else {
         Color32::TRANSPARENT
     };
-    let border = if open {
-        theme::with_alpha(theme::ACCENT_BLUE, 160)
-    } else {
-        theme::border_default()
-    };
-
     ui.painter()
         .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_MD), bg);
     ui.painter().rect_stroke(
         rect.shrink(1.0),
         CornerRadius::same(theme::RADIUS_MD),
-        Stroke::new(1.0, border),
+        Stroke::new(1.0, if *active { theme::with_alpha(theme::ACCENT_BLUE, 120) } else { theme::border_default() }),
         StrokeKind::Inside,
     );
-    paint_pane_icon(
-        ui.painter(),
-        rect.shrink(5.0),
-        PaneToggle::Results,
-        if open { theme::ACCENT_BLUE } else { theme::text_muted() },
-        open,
-    );
-
+    paint_pane_icon(ui.painter(), rect.shrink(5.0), pane, color, *active);
     if response.clicked() {
-        ui.memory_mut(|m| m.toggle_popup(popup_id));
+        *active = !*active;
     }
-
-    egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
-        ui.set_min_width(140.0);
-        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme::with_alpha(theme::ACCENT_BLUE, 30);
-
-        ui.checkbox(&mut state.show_tree_panel, t("view_toggle_navigator"));
-        ui.checkbox(&mut state.show_result_panel, t("view_toggle_results"));
-        ui.checkbox(&mut state.show_info_panel, t("view_toggle_info"));
-    });
 }
 
 
