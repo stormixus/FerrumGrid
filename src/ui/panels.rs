@@ -524,12 +524,12 @@ fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
     let hovered = response.hovered();
     let open = ui.memory(|m| m.is_popup_open(popup_id));
     let bg = if open || hovered {
-        toolbar_alpha(theme::ACCENT_BLUE, 30)
+        theme::with_alpha(theme::ACCENT_BLUE, 30)
     } else {
         Color32::TRANSPARENT
     };
     let border = if open {
-        toolbar_alpha(theme::ACCENT_BLUE, 160)
+        theme::with_alpha(theme::ACCENT_BLUE, 160)
     } else {
         theme::border_default()
     };
@@ -557,7 +557,7 @@ fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
     egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
         ui.set_min_width(140.0);
         ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
-        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = toolbar_alpha(theme::ACCENT_BLUE, 30);
+        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme::with_alpha(theme::ACCENT_BLUE, 30);
 
         if ui.checkbox(&mut state.show_tree_panel, t("view_toggle_navigator")).changed() {}
         if ui.checkbox(&mut state.show_result_panel, t("view_toggle_results")).changed() {}
@@ -575,7 +575,7 @@ fn paint_pane_icon(
 ) {
     let stroke = Stroke::new(1.25, color);
     let fill = if active {
-        toolbar_alpha(color, 48)
+        theme::with_alpha(color, 48)
     } else {
         Color32::TRANSPARENT
     };
@@ -751,24 +751,24 @@ fn render_toolbar_item(
         ui.painter().rect_filled(
             card_rect,
             CornerRadius::same(theme::RADIUS_LG),
-            toolbar_alpha(color, 225),
+            theme::with_alpha(color, 225),
         );
         ui.painter().rect_stroke(
             card_rect,
             CornerRadius::same(theme::RADIUS_LG),
-            Stroke::new(1.0, toolbar_alpha(Color32::WHITE, 75)),
+            Stroke::new(1.0, theme::with_alpha(Color32::WHITE, 75)),
             StrokeKind::Inside,
         );
     } else if hovered {
         ui.painter().rect_filled(
             card_rect,
             CornerRadius::same(theme::RADIUS_LG),
-            toolbar_alpha(color, 26),
+            theme::with_alpha(color, 26),
         );
         ui.painter().rect_stroke(
             card_rect,
             CornerRadius::same(theme::RADIUS_LG),
-            Stroke::new(1.0, toolbar_alpha(color, 90)),
+            Stroke::new(1.0, theme::with_alpha(color, 90)),
             StrokeKind::Inside,
         );
     }
@@ -788,9 +788,6 @@ fn render_toolbar_item(
     paint_toolbar_label(ui, rect, &label, label_color);
 }
 
-fn toolbar_alpha(color: Color32, alpha: u8) -> Color32 {
-    Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha)
-}
 
 fn paint_toolbar_label(ui: &egui::Ui, rect: egui::Rect, label: &str, color: Color32) {
     let max_width = rect.width() - 4.0;
@@ -826,7 +823,7 @@ fn paint_toolbar_icon(
 ) {
     let stroke = Stroke::new(if selected { 2.35 } else { 2.0 }, color);
     let fine_stroke = Stroke::new(if selected { 1.7 } else { 1.45 }, color);
-    let fill = toolbar_alpha(color, if selected { 42 } else { 24 });
+    let fill = theme::with_alpha(color, if selected { 42 } else { 24 });
     let r = rect.shrink(2.0);
     let cx = r.center().x;
     let cy = r.center().y;
@@ -834,7 +831,7 @@ fn paint_toolbar_icon(
     match view {
         MainView::Connection => {
             let plug =
-                egui::Rect::from_center_size(egui::pos2(cx, cy + 4.0), egui::vec2(15.0, 12.0));
+                egui::Rect::from_center_size(egui::pos2(cx, cy + 2.0), egui::vec2(15.0, 10.0));
             painter.rect_filled(plug, CornerRadius::same(theme::RADIUS_SM), fill);
             painter.rect_stroke(
                 plug,
@@ -845,29 +842,29 @@ fn paint_toolbar_icon(
             painter.line_segment(
                 [
                     egui::pos2(cx - 4.0, plug.top()),
-                    egui::pos2(cx - 4.0, plug.top() - 7.0),
+                    egui::pos2(cx - 4.0, plug.top() - 5.0),
                 ],
                 fine_stroke,
             );
             painter.line_segment(
                 [
                     egui::pos2(cx + 4.0, plug.top()),
-                    egui::pos2(cx + 4.0, plug.top() - 7.0),
+                    egui::pos2(cx + 4.0, plug.top() - 5.0),
                 ],
                 fine_stroke,
             );
             painter.line_segment(
                 [
                     egui::pos2(cx, plug.bottom()),
-                    egui::pos2(cx, plug.bottom() + 6.0),
+                    egui::pos2(cx, r.bottom() - 1.0),
                 ],
                 stroke,
             );
-            painter.circle_stroke(egui::pos2(cx, r.top() + 6.0), 4.8, fine_stroke);
+            painter.circle_stroke(egui::pos2(cx, r.top() + 5.0), 4.0, fine_stroke);
             painter.line_segment(
                 [
-                    egui::pos2(cx, r.top() + 10.8),
-                    egui::pos2(cx, plug.top() - 7.0),
+                    egui::pos2(cx, r.top() + 9.0),
+                    egui::pos2(cx, plug.top() - 5.0),
                 ],
                 fine_stroke,
             );
@@ -929,7 +926,7 @@ fn paint_toolbar_icon(
             painter.circle_stroke(r.center(), 6.0, fine_stroke);
         }
         MainView::MaterializedView => {
-            let shell = egui::Rect::from_center_size(r.center(), egui::vec2(26.0, 24.0));
+            let shell = egui::Rect::from_center_size(r.center(), egui::vec2(24.0, 22.0));
             painter.rect_filled(shell, CornerRadius::same(theme::RADIUS_SM), fill);
             painter.rect_stroke(
                 shell,
@@ -999,7 +996,7 @@ fn paint_toolbar_icon(
             );
         }
         MainView::Query => {
-            let doc = egui::Rect::from_center_size(r.center(), egui::vec2(22.0, 25.0));
+            let doc = egui::Rect::from_center_size(r.center(), egui::vec2(22.0, 23.0));
             painter.rect_filled(doc, CornerRadius::same(theme::RADIUS_SM), fill);
             painter.rect_stroke(
                 doc,
@@ -1032,7 +1029,7 @@ fn paint_toolbar_icon(
             ));
         }
         MainView::Data => {
-            let table = egui::Rect::from_center_size(r.center(), egui::vec2(25.0, 22.0));
+            let table = egui::Rect::from_center_size(r.center(), egui::vec2(23.0, 21.0));
             painter.rect_filled(table, CornerRadius::same(theme::RADIUS_SM), fill);
             painter.rect_stroke(
                 table,
@@ -1059,7 +1056,7 @@ fn paint_toolbar_icon(
             painter.add(egui::Shape::convex_polygon(
                 vec![
                     egui::pos2(cx + 9.0, cy - 9.0),
-                    egui::pos2(cx + 12.5, cy - 2.0),
+                    egui::pos2(cx + 12.0, cy - 2.0),
                     egui::pos2(cx + 5.0, cy - 3.0),
                 ],
                 color,
@@ -1078,9 +1075,9 @@ fn paint_toolbar_icon(
         }
         MainView::Model => {
             let nodes = [
-                egui::pos2(cx - 9.0, cy - 7.0),
-                egui::pos2(cx + 9.0, cy - 7.0),
-                egui::pos2(cx, cy + 9.0),
+                egui::pos2(cx - 7.5, cy - 6.0),
+                egui::pos2(cx + 7.5, cy - 6.0),
+                egui::pos2(cx, cy + 8.0),
             ];
             painter.line_segment([nodes[0], nodes[1]], fine_stroke);
             painter.line_segment([nodes[0], nodes[2]], fine_stroke);
@@ -1088,10 +1085,10 @@ fn paint_toolbar_icon(
             for node in nodes {
                 painter.circle_filled(
                     node,
-                    4.7,
-                    toolbar_alpha(color, if selected { 70 } else { 42 }),
+                    4.0,
+                    theme::with_alpha(color, if selected { 70 } else { 42 }),
                 );
-                painter.circle_stroke(node, 4.7, stroke);
+                painter.circle_stroke(node, 4.0, stroke);
             }
         }
         MainView::BI => {
@@ -1105,7 +1102,7 @@ fn paint_toolbar_icon(
                 stroke,
             );
             let bar_width = 4.6;
-            for (idx, height) in [9.0, 16.0, 22.0].into_iter().enumerate() {
+            for (idx, height) in [8.0, 14.0, 19.0].into_iter().enumerate() {
                 let x = axis_origin.x + 5.5 + idx as f32 * 6.8;
                 let bar = egui::Rect::from_min_max(
                     egui::pos2(x, axis_origin.y - height),
@@ -1114,7 +1111,7 @@ fn paint_toolbar_icon(
                 painter.rect_filled(
                     bar,
                     CornerRadius::same(theme::RADIUS_SM),
-                    toolbar_alpha(color, if selected { 105 } else { 70 }),
+                    theme::with_alpha(color, if selected { 105 } else { 70 }),
                 );
                 painter.rect_stroke(
                     bar,
@@ -1134,7 +1131,7 @@ fn paint_toolbar_icon(
                 std::f32::consts::PI + std::f32::consts::FRAC_PI_2,
             ] {
                 let dir = egui::vec2(angle.cos(), angle.sin());
-                painter.line_segment([r.center() + dir * 10.0, r.center() + dir * 13.0], stroke);
+                painter.line_segment([r.center() + dir * 10.0, r.center() + dir * 12.0], stroke);
             }
         }
     }

@@ -565,14 +565,14 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
     match result {
         Ok(msg) => {
             egui::Frame::new()
-                .fill(Color32::from_rgba_unmultiplied(78, 190, 100, 20))
+                .fill(theme::with_alpha(theme::ACCENT_GREEN, 20))
                 .inner_margin(Margin::symmetric(
                     theme::SPACE_LG as i8,
                     theme::SPACE_SM as i8,
                 ))
                 .stroke(Stroke::new(
                     1.0,
-                    Color32::from_rgba_unmultiplied(78, 190, 100, 80),
+                    theme::with_alpha(theme::ACCENT_GREEN, 80),
                 ))
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
@@ -585,14 +585,14 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
         }
         Err(msg) => {
             egui::Frame::new()
-                .fill(Color32::from_rgba_unmultiplied(210, 70, 70, 20))
+                .fill(theme::with_alpha(theme::ACCENT_RED, 20))
                 .inner_margin(Margin::symmetric(
                     theme::SPACE_LG as i8,
                     theme::SPACE_SM as i8,
                 ))
                 .stroke(Stroke::new(
                     1.0,
-                    Color32::from_rgba_unmultiplied(210, 70, 70, 80),
+                    theme::with_alpha(theme::ACCENT_RED, 80),
                 ))
                 .corner_radius(CornerRadius::same(theme::RADIUS_SM))
                 .show(ui, |ui| {
@@ -601,7 +601,7 @@ fn render_test_result(ui: &mut egui::Ui, result: &Result<String, String>) {
                         ui.add_space(4.0);
                         ui.label(
                             RichText::new(msg)
-                                .color(Color32::from_rgb(220, 150, 150))
+                                .color(theme::ACCENT_RED_SOFT)
                                 .size(12.0),
                         );
                     });

@@ -79,7 +79,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                 RichText::new("Result")
                     .color(theme::text_primary())
                     .strong()
-                    .size(13.0),
+                    .size(12.0),
             );
             ui.add_space(theme::SPACE_MD);
             result_meta_chip(

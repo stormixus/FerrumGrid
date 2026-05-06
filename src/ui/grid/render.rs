@@ -81,7 +81,7 @@ fn render_error_bar(ui: &mut egui::Ui, error: &str) {
             ui.add_space(theme::SPACE_MD);
             ui.label(
                 RichText::new(error)
-                    .color(Color32::from_rgb(220, 150, 150))
+                    .color(theme::ACCENT_RED_SOFT)
                     .size(12.0),
             );
         });
@@ -108,7 +108,7 @@ fn render_empty_state(ui: &mut egui::Ui, running: bool) {
                     RichText::new("No result set")
                         .color(theme::text_muted())
                         .strong()
-                        .size(13.0),
+                        .size(12.0),
                 );
                 ui.label(
                     RichText::new("Run a query to populate the grid")
@@ -476,7 +476,7 @@ fn apply_grid_table_visuals(ui: &mut egui::Ui) {
 
 fn grid_separator_color() -> Color32 {
     if theme::is_dark() {
-        Color32::from_rgba_unmultiplied(255, 255, 255, 24)
+        theme::with_alpha(Color32::WHITE, 24)
     } else {
         theme::border_default()
     }
@@ -484,7 +484,7 @@ fn grid_separator_color() -> Color32 {
 
 fn grid_separator_hover_color() -> Color32 {
     if theme::is_dark() {
-        Color32::from_rgba_unmultiplied(255, 255, 255, 54)
+        theme::with_alpha(Color32::WHITE, 54)
     } else {
         theme::border_strong()
     }

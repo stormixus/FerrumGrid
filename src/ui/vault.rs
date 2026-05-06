@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
+use eframe::egui::{self, CornerRadius, Margin, RichText, Stroke};
 use zeroize::Zeroize;
 
 use crate::i18n::t;
@@ -218,10 +218,10 @@ fn render_error(ui: &mut egui::Ui, state: &AppState) {
     };
 
     egui::Frame::new()
-        .fill(Color32::from_rgba_unmultiplied(210, 70, 70, 20))
+        .fill(theme::with_alpha(theme::ACCENT_RED, 20))
         .stroke(Stroke::new(
             1.0,
-            Color32::from_rgba_unmultiplied(210, 70, 70, 80),
+            theme::with_alpha(theme::ACCENT_RED, 80),
         ))
         .corner_radius(CornerRadius::same(theme::RADIUS_MD))
         .inner_margin(Margin::symmetric(

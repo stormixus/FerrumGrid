@@ -42,6 +42,7 @@ pub const ACCENT_TEAL: Color32 = Color32::from_rgb(0, 197, 115);
 pub const ACCENT_BLUE: Color32 = Color32::from_rgb(118, 156, 255);
 pub const ACCENT_GREEN: Color32 = Color32::from_rgb(62, 207, 142);
 pub const ACCENT_RED: Color32 = Color32::from_rgb(229, 72, 77);
+pub const ACCENT_RED_SOFT: Color32 = Color32::from_rgb(220, 150, 150);
 pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
 
 // Borders / separators

@@ -52,7 +52,7 @@ pub(super) fn render_info_empty(ui: &mut egui::Ui, message: &str) {
             theme::text_disabled(),
         );
         ui.add_space(theme::SPACE_SM);
-        ui.label(RichText::new(message).color(theme::text_muted()).size(13.0));
+        ui.label(RichText::new(message).color(theme::text_muted()).size(12.0));
     });
 }
 

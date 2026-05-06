@@ -152,7 +152,7 @@ fn render_date_picker_calendar(
                 .color(theme::text_primary())
                 .monospace()
                 .strong()
-                .size(13.0),
+                .size(12.0),
         );
         ui.add_space(theme::SPACE_XS);
         if picker_nav_button(ui, ">", &t("grid_next_month")).clicked() {

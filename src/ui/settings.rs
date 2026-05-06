@@ -18,36 +18,19 @@ const LABEL_WIDTH: f32 = 210.0;
 const CONTROL_GAP: f32 = 10.0;
 
 fn window_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(31, 31, 31)
-    } else {
-        theme::bg_medium()
-    }
+    theme::bg_medium()
 }
 
 fn header_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(28, 28, 28)
-    } else {
-        Color32::from_rgb(247, 248, 250)
-    }
+    theme::bg_dark()
 }
 
 fn content_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(38, 38, 38)
-    } else {
-        theme::bg_dark()
-    }
+    theme::bg_light()
 }
 
-
 fn footer_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(29, 29, 29)
-    } else {
-        Color32::from_rgb(247, 248, 250)
-    }
+    theme::bg_dark()
 }
 
 fn text_color() -> Color32 {
@@ -58,32 +41,20 @@ fn text_soft() -> Color32 {
     theme::text_secondary()
 }
 
-fn active_blue() -> Color32 {
-    Color32::from_rgb(24, 130, 255)
+fn active_accent() -> Color32 {
+    theme::ACCENT_EMERALD
 }
 
 fn tab_active_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(34, 38, 42)
-    } else {
-        Color32::from_rgb(230, 241, 255)
-    }
+    theme::accent_copper_dim()
 }
 
 fn tab_hover_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(33, 33, 33)
-    } else {
-        Color32::from_rgb(238, 241, 246)
-    }
+    theme::bg_medium()
 }
 
 fn inactive_tab_text() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(154, 154, 154)
-    } else {
-        theme::text_muted()
-    }
+    theme::text_muted()
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -286,21 +257,21 @@ fn render_tab(ui: &mut egui::Ui, idx: usize, tab: TabSpec, state: &mut AppState)
     let painter = ui.painter_at(rect);
     let tab_rect = rect.shrink2(vec2(3.0, 1.0));
     if active {
-        painter.rect_filled(tab_rect, CornerRadius::same(5), tab_active_bg());
+        painter.rect_filled(tab_rect, CornerRadius::same(theme::RADIUS_LG), tab_active_bg());
         painter.rect_filled(
             Rect::from_min_max(
                 pos2(tab_rect.left() + 5.0, tab_rect.bottom() - 2.0),
                 pos2(tab_rect.right() - 5.0, tab_rect.bottom()),
             ),
             CornerRadius::same(1),
-            active_blue(),
+            active_accent(),
         );
     } else if response.hovered() {
-        painter.rect_filled(tab_rect, CornerRadius::same(5), tab_hover_bg());
+        painter.rect_filled(tab_rect, CornerRadius::same(theme::RADIUS_LG), tab_hover_bg());
     }
 
     let color = if active {
-        active_blue()
+        active_accent()
     } else {
         inactive_tab_text()
     };
@@ -471,7 +442,7 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
                     )
                     .fill(theme::bg_light())
                     .stroke(Stroke::new(1.0, theme::border_default()))
-                    .corner_radius(CornerRadius::same(5)),
+                    .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
                 )
                 .clicked()
             {
@@ -482,9 +453,9 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
                 if ui
                     .add(
                         egui::Button::new(RichText::new(t("button_ok")).color(Color32::WHITE))
-                            .fill(active_blue())
-                            .stroke(Stroke::new(1.0, Color32::from_rgb(55, 154, 255)))
-                            .corner_radius(CornerRadius::same(5)),
+                            .fill(theme::BG_DARKEST)
+                            .stroke(Stroke::new(1.0, active_accent()))
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
                     )
                     .clicked()
                 {
@@ -495,7 +466,7 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
                         egui::Button::new(RichText::new(t("button_cancel")).color(text_color()))
                             .fill(theme::bg_light())
                             .stroke(Stroke::new(1.0, theme::border_default()))
-                            .corner_radius(CornerRadius::same(5)),
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD)),
                     )
                     .clicked()
                 {
@@ -532,7 +503,7 @@ fn checkbox_row(ui: &mut egui::Ui, label: &str, value: &mut bool, text: &str) {
     ui.horizontal(|ui| {
         label_cell(ui, label);
         ui.add_space(CONTROL_GAP);
-        ui.checkbox(value, RichText::new(text).color(text_color()).size(13.0));
+        ui.checkbox(value, RichText::new(text).color(text_color()).size(12.0));
     });
     ui.add_space(5.0);
 }
@@ -540,7 +511,7 @@ fn checkbox_row(ui: &mut egui::Ui, label: &str, value: &mut bool, text: &str) {
 fn checkbox_subrow(ui: &mut egui::Ui, value: &mut bool, text: &str) {
     ui.horizontal(|ui| {
         ui.add_space(LABEL_WIDTH + CONTROL_GAP + 22.0);
-        ui.checkbox(value, RichText::new(text).color(text_color()).size(13.0));
+        ui.checkbox(value, RichText::new(text).color(text_color()).size(12.0));
     });
     ui.add_space(5.0);
 }
@@ -554,7 +525,7 @@ fn label_cell_sized(ui: &mut egui::Ui, label: &str, height: f32) {
         vec2(LABEL_WIDTH, height),
         Layout::right_to_left(Align::Center),
         |ui| {
-            ui.label(RichText::new(label).color(text_color()).size(13.0).strong());
+            ui.label(RichText::new(label).color(text_color()).size(12.0).strong());
         },
     );
 }
@@ -637,17 +608,17 @@ fn render_language_combo(
 fn paint_theme_preview(ui: &mut egui::Ui) {
     let (rect, _) = ui.allocate_exact_size(vec2(78.0, 50.0), Sense::hover());
     let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, CornerRadius::same(2), Color32::from_rgb(30, 38, 43));
+    painter.rect_filled(rect, CornerRadius::same(2), theme::bg_darkest());
     painter.rect_stroke(
         rect,
         CornerRadius::same(2),
-        Stroke::new(1.0, Color32::from_rgb(93, 101, 105)),
+        Stroke::new(1.0, theme::border_strong()),
         StrokeKind::Inside,
     );
     painter.rect_filled(
         Rect::from_min_size(rect.left_top() + vec2(4.0, 5.0), vec2(20.0, 40.0)),
         CornerRadius::same(1),
-        Color32::from_rgb(36, 46, 51),
+        theme::bg_dark(),
     );
     for i in 0..5 {
         let y = rect.top() + 9.0 + i as f32 * 7.0;
@@ -655,9 +626,9 @@ fn paint_theme_preview(ui: &mut egui::Ui) {
             Rect::from_min_size(pos2(rect.left() + 8.0, y), vec2(12.0, 2.0)),
             CornerRadius::same(1),
             if i % 2 == 0 {
-                active_blue()
+                active_accent()
             } else {
-                Color32::from_rgb(89, 188, 99)
+                theme::ACCENT_GREEN
             },
         );
     }
