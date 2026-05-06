@@ -7,6 +7,9 @@ members = ["cargo:."]
 cargo-dist-version = "0.28.7"
 # CI backends to support
 ci = "github"
+# Allow manual tweaks (Node24 env block, etc.) to release.yml without
+# 'dist host' failing the freshness check.
+allow-dirty = ["ci"]
 # The installers to generate for each app
 installers = ["shell", "powershell", "msi"]
 # Target platforms to build apps for (Rust target-triple syntax).
