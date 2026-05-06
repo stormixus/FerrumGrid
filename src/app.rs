@@ -172,6 +172,7 @@ impl FerrumGridApp {
                         conn.status = ConnectionStatus::Connected {
                             server_version: server_version.clone(),
                         };
+                        conn.connection_error = None;
                         conn.loading_databases = true;
                         conn.loading_schemas = true;
                     }
@@ -506,6 +507,7 @@ impl FerrumGridApp {
                         crate::db::error::ErrorCategory::Connection => {
                             if let Some(conn) = self.state.connections.get_mut(&conn_id) {
                                 conn.status = ConnectionStatus::Disconnected;
+                                conn.connection_error = Some(error.message.clone());
                             }
                             self.state.status_message =
                                 format!("Connection error: {}", error.message);

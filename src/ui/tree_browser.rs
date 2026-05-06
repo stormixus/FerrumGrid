@@ -95,6 +95,7 @@ fn render_connection_node(
     let is_connected = matches!(conn.status, ConnectionStatus::Connected { .. });
     let is_connecting = matches!(conn.status, ConnectionStatus::Connecting);
     let schemas = conn.schemas.clone();
+    let connection_error = conn.connection_error.clone();
     let node_id = egui::Id::new(format!("conn_{conn_id}"));
 
     let dot_color = if is_connecting {
@@ -127,11 +128,19 @@ fn render_connection_node(
         |ui| {
             if !is_connected && !is_connecting {
                 indented(ui, |ui| {
-                    ui.label(
-                        RichText::new("Not connected")
-                            .color(theme::text_muted())
-                            .size(12.0),
-                    );
+                    if let Some(err) = &connection_error {
+                        ui.label(
+                            RichText::new(err)
+                                .color(theme::ACCENT_RED_SOFT)
+                                .size(11.0),
+                        );
+                    } else {
+                        ui.label(
+                            RichText::new("Not connected")
+                                .color(theme::text_muted())
+                                .size(12.0),
+                        );
+                    }
                 });
                 return;
             }

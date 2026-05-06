@@ -67,6 +67,7 @@ pub struct ConnectionState {
     pub loading_triggers: HashSet<(String, String)>,
     pub loading_functions: HashSet<String>,
     pub loading_roles: bool,
+    pub connection_error: Option<String>,
 }
 
 impl ConnectionState {
@@ -94,6 +95,7 @@ impl ConnectionState {
             loading_triggers: HashSet::new(),
             loading_functions: HashSet::new(),
             loading_roles: false,
+            connection_error: None,
         }
     }
 }
