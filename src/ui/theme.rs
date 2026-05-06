@@ -11,8 +11,11 @@ use std::sync::Arc;
 
 static DARK_MODE: AtomicBool = AtomicBool::new(true);
 
-// Background layers (darkest -> lightest)
-pub const BG_SHELL: Color32 = Color32::from_rgb(15, 15, 15);
+// Background layers — DESIGN.md hierarchy:
+// Canvas (#171717) = main surface for all panels (unified look)
+// Deep (#0f0f0f) = inset areas: code editor, inputs
+// Raised (#1f1f1f ~ #292929) = toolbars, active tabs, cards
+pub const BG_SHELL: Color32 = Color32::from_rgb(23, 23, 23);
 pub const BG_DARKEST: Color32 = Color32::from_rgb(15, 15, 15);
 pub const BG_DARK: Color32 = Color32::from_rgb(23, 23, 23);
 pub const BG_MEDIUM: Color32 = Color32::from_rgb(31, 31, 31);
@@ -71,11 +74,11 @@ pub const RADIUS_MD: u8 = 4;
 pub const RADIUS_LG: u8 = 6;
 
 // f32 versions kept for any place that needs them
-pub const INPUT_HEIGHT: f32 = 32.0;
-pub const INPUT_MARGIN_X: i8 = 10;
-pub const INPUT_MARGIN_Y: i8 = 6;
+pub const INPUT_HEIGHT: f32 = 28.0;
+pub const INPUT_MARGIN_X: i8 = 8;
+pub const INPUT_MARGIN_Y: i8 = 4;
 pub const INPUT_BG: Color32 = Color32::from_rgb(15, 15, 15);
-pub const BUTTON_HEIGHT: f32 = 34.0;
+pub const BUTTON_HEIGHT: f32 = 28.0;
 pub const KEYWORD_COLOR: Color32 = ACCENT_BLUE;
 pub const STRING_COLOR: Color32 = Color32::from_rgb(62, 207, 142);
 pub const COMMENT_COLOR: Color32 = Color32::from_rgb(137, 137, 137);
@@ -204,32 +207,32 @@ impl FerrumTheme {
 
         style.text_styles.insert(
             TextStyle::Monospace,
-            FontId::new(13.0, FontFamily::Monospace),
+            FontId::new(12.0, FontFamily::Monospace),
         );
         style
             .text_styles
-            .insert(TextStyle::Body, FontId::new(13.0, FontFamily::Proportional));
+            .insert(TextStyle::Body, FontId::new(12.0, FontFamily::Proportional));
         style.text_styles.insert(
             TextStyle::Button,
-            FontId::new(13.0, FontFamily::Proportional),
+            FontId::new(12.0, FontFamily::Proportional),
         );
         style.text_styles.insert(
             TextStyle::Small,
-            FontId::new(11.0, FontFamily::Proportional),
+            FontId::new(10.5, FontFamily::Proportional),
         );
         style.text_styles.insert(
             TextStyle::Heading,
-            FontId::new(15.0, FontFamily::Proportional),
+            FontId::new(13.5, FontFamily::Proportional),
         );
 
-        style.spacing.item_spacing = egui::vec2(SPACE_MD, SPACE_SM);
-        style.spacing.button_padding = egui::vec2(SPACE_XL, 8.0);
-        style.spacing.icon_spacing = 6.0;
-        style.spacing.interact_size = egui::vec2(36.0, BUTTON_HEIGHT);
+        style.spacing.item_spacing = egui::vec2(SPACE_SM, SPACE_XS);
+        style.spacing.button_padding = egui::vec2(SPACE_MD, 5.0);
+        style.spacing.icon_spacing = 4.0;
+        style.spacing.interact_size = egui::vec2(28.0, 28.0);
         style.spacing.menu_margin = Margin::same(SPACE_SM_I);
         style.spacing.window_margin = Margin::same(SPACE_MD_I);
-        style.spacing.indent = 16.0;
-        style.animation_time = 0.16;
+        style.spacing.indent = 14.0;
+        style.animation_time = 0.12;
 
         ctx.set_style(style);
     }

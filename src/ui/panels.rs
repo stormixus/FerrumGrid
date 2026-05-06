@@ -27,9 +27,10 @@ pub fn render_panels(
             .default_height(panel_height)
             .max_height(300.0)
             .resizable(state.diagnostics_panel.visible)
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
-                    .fill(theme::bg_darkest())
+                    .fill(theme::bg_dark())
                     .inner_margin(Margin::symmetric(theme::SPACE_LG_I, theme::SPACE_SM_I))
                     .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
@@ -45,10 +46,12 @@ pub fn render_panels(
             .min_width(220.0)
             .max_width(440.0)
             .resizable(true)
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
                     .fill(theme::bg_shell())
-                    .inner_margin(Margin::ZERO),
+                    .inner_margin(Margin::ZERO)
+                    .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
             .show(ctx, |ui| {
                 render_tree_panel_header(ui, state);
@@ -69,10 +72,12 @@ pub fn render_panels(
             .default_height(282.0)
             .min_height(108.0)
             .resizable(true)
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
-                    .fill(theme::bg_darkest())
-                    .inner_margin(Margin::ZERO),
+                    .fill(theme::bg_dark())
+                    .inner_margin(Margin::ZERO)
+                    .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
             .show(ctx, |ui| {
                 grid::render_grid(ui, state, bridge);
@@ -85,10 +90,12 @@ pub fn render_panels(
             .default_width(240.0)
             .min_width(180.0)
             .resizable(true)
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
                     .fill(theme::bg_shell())
-                    .inner_margin(Margin::ZERO),
+                    .inner_margin(Margin::ZERO)
+                    .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
             .show(ctx, |ui| {
                 grid::render_info_panel(ui, state, bridge);
@@ -410,12 +417,13 @@ fn workspace_tab_color(view: MainView) -> Color32 {
 
 fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
     egui::TopBottomPanel::top("main_toolbar")
-        .exact_height(84.0)
+        .exact_height(64.0)
+        .show_separator_line(false)
         .frame(
             egui::Frame::new()
-                .fill(theme::bg_darkest())
+                .fill(theme::bg_shell())
                 .inner_margin(Margin::symmetric(theme::SPACE_XL_I, 0))
-                .stroke(Stroke::new(1.0, theme::border_subtle())),
+                .stroke(Stroke::NONE),
         )
         .show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
@@ -495,30 +503,6 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add_space(theme::SPACE_MD);
-
-                    let settings_resp = ui.add_sized(
-                        egui::vec2(32.0, 32.0),
-                        egui::Button::new(
-                            RichText::new("\u{2699}")
-                                .size(16.0)
-                                .color(theme::text_primary()),
-                        )
-                        .fill(theme::bg_light())
-                        .stroke(Stroke::new(1.0, theme::border_default()))
-                        .corner_radius(CornerRadius::same(theme::RADIUS_LG)),
-                    );
-                    show_dark_hover_tooltip(
-                        ui,
-                        settings_resp.id.with("tooltip"),
-                        &settings_resp,
-                        &t("settings_title"),
-                    );
-                    if settings_resp.clicked() {
-                        state.show_settings_dialog = true;
-                    }
-
-                    ui.add_space(theme::SPACE_XL);
-
                     render_pane_toggles(ui, state);
                 });
             });
@@ -526,6 +510,7 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum PaneToggle {
     Navigator,
     Results,
@@ -533,49 +518,17 @@ enum PaneToggle {
 }
 
 fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
-    egui::Frame::new()
-        .fill(theme::bg_shell())
-        .stroke(Stroke::new(1.0, theme::border_subtle()))
-        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-        .inner_margin(Margin::symmetric(theme::SPACE_SM_I, theme::SPACE_XS_I))
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
-            pane_toggle_button(
-                ui,
-                PaneToggle::Info,
-                &mut state.show_info_panel,
-                t("view_toggle_info"),
-            );
-            pane_toggle_button(
-                ui,
-                PaneToggle::Results,
-                &mut state.show_result_panel,
-                t("view_toggle_results"),
-            );
-            pane_toggle_button(
-                ui,
-                PaneToggle::Navigator,
-                &mut state.show_tree_panel,
-                t("view_toggle_navigator"),
-            );
-        });
-}
-
-fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, visible: &mut bool, tooltip: String) {
+    let popup_id = ui.make_persistent_id("pane_toggle_popup");
     let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
-    if response.clicked() {
-        *visible = !*visible;
-    }
 
     let hovered = response.hovered();
-    let bg = if *visible {
-        toolbar_alpha(theme::ACCENT_BLUE, if hovered { 45 } else { 30 })
-    } else if hovered {
-        toolbar_alpha(theme::text_muted(), 22)
+    let open = ui.memory(|m| m.is_popup_open(popup_id));
+    let bg = if open || hovered {
+        toolbar_alpha(theme::ACCENT_BLUE, 30)
     } else {
         Color32::TRANSPARENT
     };
-    let border = if *visible {
+    let border = if open {
         toolbar_alpha(theme::ACCENT_BLUE, 160)
     } else {
         theme::border_default()
@@ -589,20 +542,29 @@ fn pane_toggle_button(ui: &mut egui::Ui, pane: PaneToggle, visible: &mut bool, t
         Stroke::new(1.0, border),
         StrokeKind::Inside,
     );
-
     paint_pane_icon(
         ui.painter(),
         rect.shrink(5.0),
-        pane,
-        if *visible {
-            theme::ACCENT_BLUE
-        } else {
-            theme::text_muted()
-        },
-        *visible,
+        PaneToggle::Results,
+        if open { theme::ACCENT_BLUE } else { theme::text_muted() },
+        open,
     );
-    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &tooltip);
+
+    if response.clicked() {
+        ui.memory_mut(|m| m.toggle_popup(popup_id));
+    }
+
+    egui::popup_below_widget(ui, popup_id, &response, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+        ui.set_min_width(140.0);
+        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = toolbar_alpha(theme::ACCENT_BLUE, 30);
+
+        if ui.checkbox(&mut state.show_tree_panel, t("view_toggle_navigator")).changed() {}
+        if ui.checkbox(&mut state.show_result_panel, t("view_toggle_results")).changed() {}
+        if ui.checkbox(&mut state.show_info_panel, t("view_toggle_info")).changed() {}
+    });
 }
+
 
 fn paint_pane_icon(
     painter: &egui::Painter,
@@ -771,7 +733,7 @@ fn render_toolbar_item(
     color: Color32,
 ) {
     let selected = state.active_main_view == view;
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(72.0, 72.0), egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(52.0, 52.0), egui::Sense::click());
     let hovered = response.hovered();
     let clicked = response.clicked();
     show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &label);
@@ -784,7 +746,7 @@ fn render_toolbar_item(
         }
     }
 
-    let card_rect = rect.shrink2(egui::vec2(3.0, 4.0));
+    let card_rect = rect.shrink2(egui::vec2(2.0, 2.0));
     if selected {
         ui.painter().rect_filled(
             card_rect,
@@ -818,8 +780,8 @@ fn render_toolbar_item(
         theme::text_secondary()
     };
     let icon_rect = egui::Rect::from_center_size(
-        egui::pos2(rect.center().x, rect.min.y + 29.0),
-        egui::vec2(31.0, 31.0),
+        egui::pos2(rect.center().x, rect.min.y + 18.0),
+        egui::vec2(28.0, 28.0),
     );
 
     paint_toolbar_icon(ui.painter(), view, icon_rect, icon_color, selected);
@@ -831,8 +793,8 @@ fn toolbar_alpha(color: Color32, alpha: u8) -> Color32 {
 }
 
 fn paint_toolbar_label(ui: &egui::Ui, rect: egui::Rect, label: &str, color: Color32) {
-    let max_width = rect.width() - 8.0;
-    let mut font_size = 10.5;
+    let max_width = rect.width() - 4.0;
+    let mut font_size = 9.5;
     let mut galley = ui.painter().layout_no_wrap(
         label.to_owned(),
         egui::FontId::proportional(font_size),
@@ -840,7 +802,7 @@ fn paint_toolbar_label(ui: &egui::Ui, rect: egui::Rect, label: &str, color: Colo
     );
 
     if galley.rect.width() > max_width {
-        font_size = (font_size * max_width / galley.rect.width()).clamp(8.0, 10.5);
+        font_size = (font_size * max_width / galley.rect.width()).clamp(7.0, 9.5);
         galley = ui.painter().layout_no_wrap(
             label.to_owned(),
             egui::FontId::proportional(font_size),
@@ -850,7 +812,7 @@ fn paint_toolbar_label(ui: &egui::Ui, rect: egui::Rect, label: &str, color: Colo
 
     let pos = egui::pos2(
         rect.center().x - galley.rect.width() / 2.0,
-        rect.min.y + 57.0 - galley.rect.height() / 2.0,
+        rect.min.y + 39.0 - galley.rect.height() / 2.0,
     );
     ui.painter().galley(pos, galley, color);
 }

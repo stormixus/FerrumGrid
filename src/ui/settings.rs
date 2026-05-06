@@ -41,13 +41,6 @@ fn content_bg() -> Color32 {
     }
 }
 
-fn field_bg() -> Color32 {
-    if theme::is_dark() {
-        Color32::from_rgb(48, 48, 48)
-    } else {
-        theme::bg_light()
-    }
-}
 
 fn footer_bg() -> Color32 {
     if theme::is_dark() {
@@ -102,6 +95,7 @@ enum CloseAction {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum PrefIcon {
     General,
     Tabs,
@@ -120,18 +114,10 @@ struct TabSpec {
     icon: PrefIcon,
 }
 
-const TABS: [TabSpec; 9] = [
+const TABS: [TabSpec; 3] = [
     TabSpec {
         label_key: "settings_tab_general",
         icon: PrefIcon::General,
-    },
-    TabSpec {
-        label_key: "settings_tab_tabs",
-        icon: PrefIcon::Tabs,
-    },
-    TabSpec {
-        label_key: "settings_tab_code_completion",
-        icon: PrefIcon::Code,
     },
     TabSpec {
         label_key: "settings_tab_editor",
@@ -140,22 +126,6 @@ const TABS: [TabSpec; 9] = [
     TabSpec {
         label_key: "settings_tab_records",
         icon: PrefIcon::Records,
-    },
-    TabSpec {
-        label_key: "settings_tab_auto_recovery",
-        icon: PrefIcon::Recovery,
-    },
-    TabSpec {
-        label_key: "settings_tab_ai",
-        icon: PrefIcon::Ai,
-    },
-    TabSpec {
-        label_key: "settings_tab_environment",
-        icon: PrefIcon::Environment,
-    },
-    TabSpec {
-        label_key: "settings_tab_advanced",
-        icon: PrefIcon::Advanced,
     },
 ];
 
@@ -372,14 +342,8 @@ fn render_content(
                     ui.set_width(600.0);
                     match active_tab {
                         0 => render_general_tab(ui, draft),
-                        1 => render_tabs_tab(ui, draft),
-                        2 => render_code_completion_tab(ui, draft),
-                        3 => render_editor_tab(ui, draft),
-                        4 => render_records_tab(ui, draft),
-                        5 => render_auto_recovery_tab(ui, draft),
-                        6 => render_ai_tab(ui, draft),
-                        7 => render_environment_tab(ui, draft),
-                        _ => render_advanced_tab(ui, draft),
+                        1 => render_editor_tab(ui, draft),
+                        _ => render_records_tab(ui, draft),
                     }
                 });
             });
@@ -396,78 +360,18 @@ fn render_general_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
     form_row(ui, &t("settings_language"), |ui| {
         render_language_combo(ui, "settings_language_general", draft);
     });
-
-    checkbox_row(
-        ui,
-        &t("settings_main_window"),
-        &mut draft.show_objects_under_schema,
-        &t("settings_show_schema_objects"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.show_objects_under_table,
-        &t("settings_show_table_objects"),
-    );
-
-    font_panel(ui, draft);
-
-    checkbox_row(
-        ui,
-        &t("settings_confirm_dialog"),
-        &mut draft.safe_confirm_dialog,
-        &t("settings_safe_confirm_dialog"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.ask_before_closing_queries,
-        &t("settings_ask_close_queries"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.ask_before_closing_tables,
-        &t("settings_ask_close_tables"),
-    );
-
-    checkbox_row(
-        ui,
-        &t("settings_database_items"),
-        &mut draft.show_function_wizard,
-        &t("settings_show_function_wizard"),
-    );
-
-    usage_data_row(ui, draft);
-
-    checkbox_row(
-        ui,
-        &t("settings_update"),
-        &mut draft.auto_check_updates,
-        &t("settings_auto_check_updates"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.include_system_profile,
-        &t("settings_include_system_profile"),
-    );
 }
 
-fn render_tabs_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_tabs"));
-    checkbox_row(
-        ui,
-        &t("settings_tab_tabs"),
-        &mut draft.open_new_queries_in_tabs,
-        &t("settings_open_queries_in_tabs"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.ask_before_closing_queries,
-        &t("settings_ask_close_queries"),
-    );
-    hint(ui);
-}
 
-fn render_code_completion_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_code_completion"));
+fn render_editor_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
+    section_heading(ui, t("settings_tab_editor"));
+    form_row(ui, &t("settings_font"), |ui| {
+        ui.add(
+            egui::Slider::new(&mut draft.font_size, 9.0..=24.0)
+                .show_value(true)
+                .suffix(" pt"),
+        );
+    });
     checkbox_row(
         ui,
         &t("settings_tab_code_completion"),
@@ -479,25 +383,6 @@ fn render_code_completion_tab(ui: &mut egui::Ui, draft: &mut storage::settings::
         &mut draft.code_completion_popup,
         &t("settings_completion_popup"),
     );
-    hint(ui);
-}
-
-fn render_editor_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_editor"));
-    checkbox_row(
-        ui,
-        &t("settings_tab_editor"),
-        &mut draft.show_line_numbers,
-        &t("settings_show_line_numbers"),
-    );
-    form_row(ui, &t("settings_font"), |ui| {
-        ui.add(
-            egui::Slider::new(&mut draft.font_size, 9.0..=24.0)
-                .show_value(true)
-                .suffix(" pt"),
-        );
-    });
-    hint(ui);
 }
 
 fn render_records_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
@@ -563,63 +448,6 @@ fn render_records_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
     hint(ui);
 }
 
-fn render_auto_recovery_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_auto_recovery"));
-    checkbox_row(
-        ui,
-        &t("settings_tab_auto_recovery"),
-        &mut draft.enable_auto_recovery,
-        &t("settings_enable_auto_recovery"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.ask_before_closing_tables,
-        &t("settings_ask_close_tables"),
-    );
-    hint(ui);
-}
-
-fn render_ai_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_ai"));
-    checkbox_row(
-        ui,
-        &t("settings_tab_ai"),
-        &mut draft.ai_assistant_enabled,
-        &t("settings_ai_assistant"),
-    );
-    ui.add_space(8.0);
-    form_row(ui, "Provider", |ui| {
-        ui.add_enabled(false, egui::Button::new("Local / Custom"));
-    });
-    hint(ui);
-}
-
-fn render_environment_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_environment"));
-    form_row(ui, &t("settings_language"), |ui| {
-        render_language_combo(ui, "settings_language_environment", draft);
-    });
-    form_row(ui, &t("settings_appearance"), |ui| {
-        render_appearance_combo(ui, "settings_appearance_environment", draft);
-    });
-    hint(ui);
-}
-
-fn render_advanced_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    section_heading(ui, t("settings_tab_advanced"));
-    checkbox_row(
-        ui,
-        &t("settings_confirm_dialog"),
-        &mut draft.confirm_destructive,
-        &t("settings_confirm_destructive"),
-    );
-    checkbox_subrow(
-        ui,
-        &mut draft.safe_confirm_dialog,
-        &t("settings_safe_confirm_dialog"),
-    );
-    hint(ui);
-}
 
 fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
     let (rect, _) = ui.allocate_exact_size(vec2(PREF_WIDTH, FOOTER_HEIGHT), Sense::hover());
@@ -749,71 +577,6 @@ fn hint(ui: &mut egui::Ui) {
     });
 }
 
-fn font_panel(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    ui.horizontal(|ui| {
-        label_cell(ui, &t("settings_object_list_font"));
-        ui.add_space(CONTROL_GAP);
-        Frame::new()
-            .fill(field_bg())
-            .corner_radius(CornerRadius::same(9))
-            .inner_margin(Margin::symmetric(12, 8))
-            .show(ui, |ui| {
-                ui.set_width(294.0);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(t("settings_font"))
-                            .color(text_color())
-                            .size(13.0)
-                            .strong(),
-                    );
-                    let mut font_name = ".AppleSystemUIFont 12.0".to_string();
-                    ui.add_enabled(
-                        !draft.use_default_object_font,
-                        theme::text_input(&mut font_name).desired_width(180.0),
-                    );
-                    ui.add_enabled(!draft.use_default_object_font, egui::Button::new("..."));
-                });
-                ui.horizontal(|ui| {
-                    ui.add_space(38.0);
-                    ui.checkbox(
-                        &mut draft.use_default_object_font,
-                        RichText::new(t("settings_use_default_font"))
-                            .color(text_color())
-                            .size(13.0),
-                    );
-                });
-            });
-    });
-    ui.add_space(8.0);
-}
-
-fn usage_data_row(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
-    ui.horizontal(|ui| {
-        label_cell(ui, &t("settings_usage_data"));
-        ui.add_space(CONTROL_GAP);
-        ui.checkbox(
-            &mut draft.share_usage_data,
-            RichText::new(t("settings_share_usage_data"))
-                .color(text_color())
-                .size(13.0),
-        );
-        ui.add_enabled(false, egui::Button::new(t("settings_usage_data")));
-    });
-    ui.horizontal(|ui| {
-        ui.add_space(LABEL_WIDTH + CONTROL_GAP + 22.0);
-        ui.label(
-            RichText::new(t("settings_usage_data_help"))
-                .color(text_soft())
-                .size(11.0),
-        );
-        ui.label(
-            RichText::new("Learn More...")
-                .color(active_blue())
-                .size(11.0),
-        );
-    });
-    ui.add_space(8.0);
-}
 
 fn render_appearance_combo(
     ui: &mut egui::Ui,

@@ -129,6 +129,8 @@ impl FerrumGridApp {
             ..Default::default()
         };
 
+        crate::dock_menu::install();
+
         Self {
             state: app_state,
             bridge: Some(bridge),
@@ -599,6 +601,16 @@ impl eframe::App for FerrumGridApp {
                     self.state.echo_warned.remove(&oid);
                 }
             }
+        }
+
+        match crate::dock_menu::poll_action() {
+            1 => show_main_window(ctx),
+            2 => {
+                show_main_window(ctx);
+                self.state.show_connection_dialog = true;
+                self.state.connection_dialog = Default::default();
+            }
+            _ => {}
         }
 
         let menu_actions = self

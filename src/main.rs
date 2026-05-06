@@ -4,6 +4,7 @@ mod automation;
 mod bi;
 mod connection_url;
 mod db;
+mod dock_menu;
 mod i18n;
 mod korean_keyboard;
 mod native_menu;

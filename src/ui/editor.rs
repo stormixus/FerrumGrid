@@ -561,8 +561,9 @@ fn render_editor_body(
 
         {
             let tab = &mut state.editor_tabs[active_tab];
+            let editor_font_size = settings.font_size;
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                let layout_job = highlight_sql(text, wrap_width);
+                let layout_job = highlight_sql(text, wrap_width, editor_font_size);
                 ui.fonts(|f| f.layout_job(layout_job))
             };
 
@@ -1256,11 +1257,11 @@ const SQL_KEYWORDS: &[&str] = &[
     "REVOKE",
 ];
 
-fn highlight_sql(text: &str, wrap_width: f32) -> egui::text::LayoutJob {
+fn highlight_sql(text: &str, wrap_width: f32, font_size: f32) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = wrap_width;
 
-    let font_id = egui::FontId::monospace(13.0);
+    let font_id = egui::FontId::monospace(font_size);
     let default_color = theme::text_primary();
 
     let chars: Vec<char> = text.chars().collect();

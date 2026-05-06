@@ -48,16 +48,23 @@ pub fn render_titlebar(ctx: &egui::Context) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
             }
 
-            // 중앙 제목 (drag region 위에 그려도 hit 우선순위 영향 없음 — Sense::hover 만).
-            let painter = ui.painter_at(drag_rect);
+            let painter = ui.painter_at(full_rect);
             let title = "FerrumGrid";
             let galley = painter.layout_no_wrap(
                 title.to_string(),
                 egui::FontId::proportional(12.0),
                 theme::text_muted(),
             );
-            let center = drag_rect.center() - galley.size() * 0.5;
-            painter.galley(center, galley, theme::text_muted());
+            if cfg!(target_os = "macos") {
+                let pos = egui::pos2(
+                    full_rect.min.x + MAC_TRAFFIC_LIGHTS_WIDTH + 4.0,
+                    full_rect.center().y - galley.size().y * 0.5,
+                );
+                painter.galley(pos, galley, theme::text_muted());
+            } else {
+                let center = full_rect.center() - galley.size() * 0.5;
+                painter.galley(center, galley, theme::text_muted());
+            }
         });
 }
 
