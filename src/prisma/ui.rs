@@ -549,6 +549,7 @@ fn create_schema_from_db(state: &mut AppState, _bridge: &DbBridge) {
     }
 }
 
+#[allow(dead_code)] // Only invoked from the macOS native menu (cfg-gated).
 pub fn open_prisma_window(state: &mut AppState) {
     state.prisma_ui.show_window = true;
     if state.prisma_ui.schema_path.is_empty() {

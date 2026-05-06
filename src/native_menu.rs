@@ -1,4 +1,6 @@
-use crate::state::{AppState, MainView};
+use crate::state::AppState;
+#[cfg(target_os = "macos")]
+use crate::state::MainView;
 use crate::storage::settings::AppSettings;
 use eframe::egui;
 
