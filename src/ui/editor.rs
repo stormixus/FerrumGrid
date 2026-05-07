@@ -314,6 +314,12 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 );
             }
 
+            ui.add_space(theme::SPACE_MD);
+            let history_label = if state.show_history_panel { "History ✓" } else { "History" };
+            if ui.add(theme::secondary_button(history_label)).clicked() {
+                state.show_history_panel = !state.show_history_panel;
+            }
+
             // Right side: active connection name
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(conn_id) = state.active_connection {
@@ -512,6 +518,22 @@ fn render_editor_body(
 ) {
     if settings.enable_code_completion {
         ensure_completion_metadata(state, bridge);
+    }
+
+    if state.show_history_panel {
+        let panel_width = 280.0_f32.min(ui.available_width() * 0.35);
+        egui::SidePanel::right("query_history_panel")
+            .exact_width(panel_width)
+            .resizable(false)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::bg_dark())
+                    .inner_margin(Margin::same(theme::SPACE_SM as i8))
+                    .stroke(Stroke::new(1.0, theme::border_subtle())),
+            )
+            .show_inside(ui, |ui| {
+                render_history_panel(ui, state);
+            });
     }
 
     let editor_frame = egui::Frame::new()
@@ -1385,6 +1407,103 @@ fn highlight_sql(text: &str, wrap_width: f32, font_size: f32) -> egui::text::Lay
     }
 
     job
+}
+
+fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
+    ui.horizontal(|ui| {
+        ui.strong(RichText::new("Query History").size(12.0));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.small_button("×").clicked() {
+                state.show_history_panel = false;
+            }
+        });
+    });
+    ui.separator();
+
+    if state.query_history.is_empty() {
+        ui.centered_and_justified(|ui| {
+            ui.label(
+                RichText::new("No queries yet")
+                    .color(theme::text_muted())
+                    .size(11.0),
+            );
+        });
+        return;
+    }
+
+    egui::ScrollArea::vertical()
+        .id_salt("history_scroll")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            let mut load_query = None;
+            for (idx, entry) in state.query_history.iter().rev().enumerate() {
+                let preview: String = entry
+                    .query
+                    .chars()
+                    .take(120)
+                    .collect::<String>()
+                    .replace('\n', " ");
+                let time_str = entry.timestamp.format("%m-%d %H:%M").to_string();
+
+                let frame = egui::Frame::new()
+                    .fill(theme::bg_medium())
+                    .inner_margin(Margin::same(theme::SPACE_SM as i8))
+                    .corner_radius(egui::CornerRadius::same(theme::RADIUS_SM));
+
+                let resp = frame
+                    .show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                RichText::new(&time_str)
+                                    .color(theme::text_disabled())
+                                    .size(9.5)
+                                    .monospace(),
+                            );
+                            ui.label(
+                                RichText::new(format!("{}ms", entry.duration_ms))
+                                    .color(theme::ACCENT_COPPER)
+                                    .size(9.5),
+                            );
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} {}",
+                                    entry.row_count,
+                                    if entry.row_count == 1 { "row" } else { "rows" }
+                                ))
+                                .color(theme::text_muted())
+                                .size(9.5),
+                            );
+                        });
+                        ui.label(
+                            RichText::new(&preview)
+                                .color(theme::text_secondary())
+                                .size(11.0)
+                                .monospace(),
+                        );
+                    })
+                    .response;
+
+                let resp = ui.interact(
+                    resp.rect,
+                    ui.id().with(("history_item", idx)),
+                    egui::Sense::click(),
+                );
+                if resp.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if resp.clicked() {
+                    load_query = Some(entry.query.clone());
+                }
+                ui.add_space(2.0);
+            }
+
+            if let Some(query) = load_query {
+                if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+                    tab.content = query;
+                }
+            }
+        });
 }
 
 #[inline]

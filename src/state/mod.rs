@@ -221,6 +221,8 @@ pub struct AppState {
     /// US-M2 — pending_invalidations 의 oid 중 EchoTimeout 을 이미 push 한 oid
     /// 집합. 동일 oid 에 대한 5s timeout 중복 push 방지. Post 시 함께 remove.
     pub echo_warned: HashSet<u32>,
+    pub query_history: Vec<crate::storage::history::HistoryEntry>,
+    pub show_history_panel: bool,
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
     pub migration_wizard: MigrationWizardState,
@@ -376,6 +378,8 @@ impl Default for AppState {
             drop_dialog: None,
             pending_invalidations: HashMap::new(),
             echo_warned: HashSet::new(),
+            query_history: Vec::new(),
+            show_history_panel: false,
             transfer: TransferState::default(),
             clipboard_tables: None,
             migration_wizard: MigrationWizardState::default(),

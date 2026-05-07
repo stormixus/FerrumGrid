@@ -129,6 +129,7 @@ impl FerrumGridApp {
             show_connection_dialog: should_show_connection_dialog,
             saved_connections,
             vault,
+            query_history: history.clone(),
             ..Default::default()
         };
 
@@ -265,6 +266,7 @@ impl FerrumGridApp {
                                         truncated,
                                     },
                                 );
+                                self.state.query_history.clone_from(&self.history);
                             }
                         }
                     }

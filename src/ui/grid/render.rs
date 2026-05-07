@@ -527,6 +527,14 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                                     if is_deleted {
                                         ui.set_opacity(0.35);
                                     }
+                                    let cell_rect = ui.available_rect_before_wrap();
+                                    if !is_deleted && ui.rect_contains_pointer(cell_rect) {
+                                        ui.painter().rect_filled(
+                                            cell_rect,
+                                            0.0,
+                                            theme::with_alpha(theme::ACCENT_TEAL, 12),
+                                        );
+                                    }
                                     ui.add_space(GRID_CELL_LEFT_PAD);
                                     if state.active_main_view == MainView::Data && !is_deleted {
                                         let column = result.columns.get(col_idx);

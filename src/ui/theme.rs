@@ -254,7 +254,12 @@ impl FerrumTheme {
 
         v.window_stroke = Stroke::new(1.0, BORDER_STRONG);
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
-        v.window_shadow = egui::Shadow::NONE;
+        v.window_shadow = egui::Shadow {
+            offset: [0, 4],
+            blur: 14,
+            spread: 0,
+            color: Color32::from_black_alpha(60),
+        };
         v.popup_shadow = egui::Shadow {
             offset: [0, 2],
             blur: 8,
@@ -319,7 +324,12 @@ impl FerrumTheme {
 
         v.window_stroke = Stroke::new(1.0, border_default());
         v.window_corner_radius = CornerRadius::same(RADIUS_MD);
-        v.window_shadow = egui::Shadow::NONE;
+        v.window_shadow = egui::Shadow {
+            offset: [0, 3],
+            blur: 12,
+            spread: 0,
+            color: Color32::from_black_alpha(24),
+        };
         v.popup_shadow = egui::Shadow {
             offset: [0, 2],
             blur: 12,

@@ -101,7 +101,7 @@ pub(super) fn render_editable_cell(
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(0.0, 2.0)),
             CornerRadius::same(theme::RADIUS_SM),
-            theme::with_alpha(theme::ACCENT_TEAL, 34),
+            theme::with_alpha(theme::ACCENT_TEAL, 55),
         );
     }
     if dirty {
@@ -121,7 +121,7 @@ pub(super) fn render_editable_cell(
         ui.painter().rect_stroke(
             rect.shrink2(egui::vec2(1.0, 2.0)),
             CornerRadius::same(theme::RADIUS_SM),
-            Stroke::new(1.0, theme::ACCENT_TEAL),
+            Stroke::new(1.5, theme::ACCENT_TEAL),
             egui::StrokeKind::Inside,
         );
     }
@@ -170,8 +170,10 @@ pub(super) fn render_editable_cell(
             false
         };
 
-        if response.clicked() && !relation_clicked {
+        if response.double_clicked() && !relation_clicked {
             select_data_cell(state, row_idx, col_idx, true);
+        } else if response.clicked() && !relation_clicked {
+            select_data_cell(state, row_idx, col_idx, false);
         }
         if let Some(error) = error {
             show_dark_hover_tooltip(ui, response.id.with("error"), &response, &error);

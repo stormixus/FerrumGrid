@@ -153,6 +153,7 @@ fn draw_bezier_connection(
     label: &str,
     color: Color32,
     stroke_width: f32,
+    font_size: f32,
 ) {
     let control_offset = ((to.x - from.x) * 0.5).abs().max(50.0);
 
@@ -211,7 +212,7 @@ fn draw_bezier_connection(
             label_rect.center(),
             egui::Align2::CENTER_CENTER,
             label_text,
-            egui::FontId::monospace(9.0),
+            egui::FontId::monospace(font_size),
             theme::text_muted(),
         );
     }
@@ -719,12 +720,22 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
 
     if state.er_diagram.cards.is_empty() {
         if is_schema_loading || schema_for_loading.is_empty() {
-            paint_canvas_message(
-                &painter,
-                response.rect,
-                &t("visualizer_loading_title"),
-                &t("visualizer_loading_subtitle"),
-            );
+            let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(response.rect));
+            child_ui.centered_and_justified(|ui| {
+                ui.vertical_centered(|ui| {
+                    ui.spinner();
+                    ui.label(
+                        RichText::new(t("visualizer_loading_title"))
+                            .color(theme::text_secondary())
+                            .size(15.0),
+                    );
+                    ui.label(
+                        RichText::new(t("visualizer_loading_subtitle"))
+                            .color(theme::text_muted())
+                            .size(11.0),
+                    );
+                });
+            });
         } else {
             paint_canvas_message(
                 &painter,
@@ -806,21 +817,22 @@ fn draw_foreign_keys(
         );
 
         let selected_relation = selected_id.is_some_and(|id| id == source_id || id == target_id);
-        let (color, stroke_width, label) = if selected_relation {
-            (theme::ACCENT_TEAL, 2.1, fk.name.as_str())
+        let (color, stroke_width, label, font_size) = if selected_relation {
+            (theme::ACCENT_TEAL, 2.1, fk.name.as_str(), 9.5)
         } else if selected_id.is_some() {
-            (theme::with_alpha(theme::ACCENT_TEAL, 36), 0.8, "")
+            (theme::with_alpha(theme::ACCENT_TEAL, 36), 0.8, "", 9.5)
         } else if dense {
-            (theme::with_alpha(theme::ACCENT_TEAL, 82), 0.95, "")
+            (theme::with_alpha(theme::ACCENT_TEAL, 82), 0.95, fk.name.as_str(), 8.5)
         } else {
             (
                 theme::with_alpha(theme::ACCENT_TEAL, 170),
                 1.35,
                 fk.name.as_str(),
+                9.5,
             )
         };
 
-        draw_bezier_connection(painter, from, to, label, color, stroke_width);
+        draw_bezier_connection(painter, from, to, label, color, stroke_width, font_size);
     }
 }
 
@@ -893,6 +905,13 @@ fn render_toolbar(
         }
 
         ui.add_space(8.0);
+
+        // Handle scroll wheel zoom
+        let scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
+        if scroll_delta != 0.0 {
+            let zoom_speed = 0.003;
+            state.er_diagram.zoom = (state.er_diagram.zoom + scroll_delta * zoom_speed).clamp(0.5, 1.8);
+        }
 
         if ui.add(theme::ghost_button("-")).clicked() {
             state.er_diagram.zoom = (state.er_diagram.zoom * 0.9).clamp(0.5, 1.8);
