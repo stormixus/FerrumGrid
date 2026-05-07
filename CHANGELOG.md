@@ -2,6 +2,29 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.1.2] - 2026-05-07
+
+### Added
+
+- Multi-format export: Export dropdown with CSV, JSON, SQL INSERT options
+- Table Designer ALTER DDL: proper column diff engine detects ADD/DROP
+  COLUMN, TYPE changes, SET/DROP NOT NULL, SET/DROP DEFAULT
+- Data grid Add Row / Delete Row buttons with INSERT/DELETE SQL generation
+- Row number gutter column with color coding (red=deleted, teal=inserted)
+- Query history side panel: browse and reload past queries from editor
+- ER diagram scroll wheel zoom
+- ER diagram animated loading spinner
+- i18n keys for grid_add_row / grid_delete_row (en/ko)
+
+### Changed
+
+- Cell selection glow strengthened (alpha 34→55, border 1→1.5px teal)
+- Double-click-to-edit replaces single-click-to-edit in data grid
+- Row hover highlighting with subtle teal tint
+- Window/modal shadows enabled for visual depth (dark & light themes)
+- FK relationship labels always visible in ER diagram (smaller font in
+  dense mode instead of hiding)
+
 ## [0.1.1] - 2026-05-06
 
 ### Added
