@@ -10,8 +10,9 @@ use crate::state::{AppState, MainView};
 use crate::ui::theme;
 
 use super::data_ops::{data_edit_summary, revert_data_edits};
+use crate::types::CellValue;
 use super::pager::render_data_pager;
-use super::paste::{export_csv, result_to_tsv};
+use super::paste::{export_csv, export_json, export_sql_insert, result_to_tsv};
 use super::toolbar::{
     metric_chip, result_meta_chip, result_meta_chip_svg, result_toolbar_action_button,
 };
@@ -46,8 +47,8 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
         egui::vec2(inner.width(), theme::BUTTON_HEIGHT),
     );
     let tsv_width = result_toolbar_action_width(ui, "Copy TSV");
-    let csv_width = result_toolbar_action_width(ui, "CSV");
-    let mut right_width = tsv_width + csv_width + theme::SPACE_SM;
+    let export_width = result_toolbar_action_width(ui, "Export");
+    let mut right_width = tsv_width + export_width + theme::SPACE_SM * 2.0;
     if data_edit_summary.is_some() {
         right_width += 330.0;
     }
@@ -179,17 +180,71 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                 ui.add_space(theme::SPACE_LG);
             }
 
-            let csv_btn = result_toolbar_action_button(
+            if state.active_main_view == MainView::Data && state.data_edit.source.is_some() {
+                let has_selection = state.data_edit.selected_cell.is_some();
+                let del_btn = result_toolbar_action_button(
+                    ui,
+                    crate::ui::icons_svg::CLOSE,
+                    "delete_row",
+                    &t("grid_delete_row"),
+                    has_selection,
+                );
+                if del_btn.clicked() && has_selection {
+                    if let Some((row, _)) = state.data_edit.selected_cell {
+                        state.data_edit.pending_deletes.insert(row);
+                        state.data_edit.selected_cell = None;
+                        state.data_edit.editing_cell = None;
+                    }
+                }
+
+                ui.add_space(theme::SPACE_SM);
+
+                let add_btn = result_toolbar_action_button(
+                    ui,
+                    crate::ui::icons_svg::PLUS,
+                    "add_row",
+                    &t("grid_add_row"),
+                    true,
+                );
+                if add_btn.clicked() {
+                    add_empty_row(state);
+                }
+
+                ui.add_space(theme::SPACE_MD);
+            }
+
+            let export_popup_id = ui.make_persistent_id("export_popup");
+            let export_btn = result_toolbar_action_button(
                 ui,
                 crate::ui::icons_svg::EXPORT,
-                "export_csv",
-                "CSV",
+                "export_menu_btn",
+                "Export",
                 true,
             );
-
-            if csv_btn.clicked() {
-                export_csv(state);
+            if export_btn.clicked() {
+                ui.memory_mut(|m| m.toggle_popup(export_popup_id));
             }
+            super::toolbar::show_dark_popup_below(
+                ui,
+                export_popup_id,
+                &export_btn,
+                120.0,
+                theme::SPACE_MD_I,
+                |ui| {
+                    if ui.button("CSV").clicked() {
+                        export_csv(state);
+                        ui.close_menu();
+                    }
+                    if ui.button("JSON").clicked() {
+                        export_json(state);
+                        ui.close_menu();
+                    }
+                    if ui.button("SQL INSERT").clicked() {
+                        export_sql_insert(state);
+                        ui.close_menu();
+                    }
+                },
+            );
 
             ui.add_space(theme::SPACE_SM);
 
@@ -341,5 +396,43 @@ fn result_meta_chip_svg_width(ui: &egui::Ui, text: &str) -> f32 {
         .rect
         .width();
     (text_width + 34.0).max(74.0)
+}
+
+fn add_empty_row(state: &mut AppState) {
+    let col_count = state
+        .current_result
+        .as_ref()
+        .map(|r| r.columns.len())
+        .unwrap_or(0);
+    if col_count == 0 {
+        return;
+    }
+
+    let new_row: Vec<CellValue> = vec![CellValue::Null; col_count];
+    let row_idx = state
+        .current_result
+        .as_ref()
+        .map(|r| r.rows.len())
+        .unwrap_or(0);
+
+    if let Some(result) = state.current_result.as_mut() {
+        result.rows.push(new_row);
+    }
+
+    state.data_edit.inserted_rows.insert(row_idx);
+
+    for col_idx in 0..col_count {
+        state.data_edit.cells.insert(
+            (row_idx, col_idx),
+            crate::state::EditableCell {
+                original: CellValue::Null,
+                original_text: String::new(),
+                value: String::new(),
+                is_null: true,
+            },
+        );
+    }
+
+    state.data_edit.selected_cell = Some((row_idx, 0));
 }
 

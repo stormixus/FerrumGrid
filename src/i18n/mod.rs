@@ -301,6 +301,8 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("workspace_close_tab", "Close Tab");
     en.insert("workspace_new_query", "New Query");
     en.insert("grid_revert", "Revert");
+    en.insert("grid_add_row", "Add Row");
+    en.insert("grid_delete_row", "Delete Row");
     en.insert("grid_edits", "{0} edits");
     en.insert("grid_pk_required", "Primary key required to update rows");
     en.insert("grid_invalid_values", "{0} invalid value(s)");
@@ -716,6 +718,8 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("workspace_close_tab", "탭 닫기");
     ko.insert("workspace_new_query", "새 쿼리");
     ko.insert("grid_revert", "되돌리기");
+    ko.insert("grid_add_row", "행 추가");
+    ko.insert("grid_delete_row", "행 삭제");
     ko.insert("grid_edits", "{0}개 수정");
     ko.insert("grid_pk_required", "행 업데이트에는 기본키가 필요합니다");
     ko.insert("grid_invalid_values", "잘못된 값 {0}개");

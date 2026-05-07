@@ -55,9 +55,10 @@ pub struct TableDesignerState {
     pub generated_ddl: Option<String>,
     pub show_ddl_preview: bool,
     pub editing_table: Option<(String, String)>,
+    pub original_columns: Vec<ColumnDef>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColumnDef {
     pub name: String,
     pub data_type: String,
@@ -715,39 +716,81 @@ fn generate_create_ddl(td: &TableDesignerState, table_ref: &str) -> String {
 fn generate_alter_ddl(td: &TableDesignerState, table_ref: &str) -> String {
     let mut statements = Vec::new();
 
-    for col in &td.columns {
-        if col.name.is_empty() {
-            continue;
-        }
-        statements.push(format!(
-            "ALTER TABLE {table_ref} ADD COLUMN IF NOT EXISTS {};",
-            column_definition_sql(col, false)
-        ));
-        statements.push(format!(
-            "ALTER TABLE {table_ref} ALTER COLUMN {} {};",
-            escape_identifier(&col.name),
-            if col.is_nullable {
-                "DROP NOT NULL"
-            } else {
-                "SET NOT NULL"
-            }
-        ));
-        if col.default_value.is_empty() {
+    let orig_by_name: std::collections::HashMap<&str, &ColumnDef> = td
+        .original_columns
+        .iter()
+        .map(|c| (c.name.as_str(), c))
+        .collect();
+
+    let current_names: std::collections::HashSet<&str> =
+        td.columns.iter().map(|c| c.name.as_str()).collect();
+
+    // Dropped columns
+    for orig in &td.original_columns {
+        if !orig.name.is_empty() && !current_names.contains(orig.name.as_str()) {
             statements.push(format!(
-                "ALTER TABLE {table_ref} ALTER COLUMN {} DROP DEFAULT;",
-                escape_identifier(&col.name)
-            ));
-        } else {
-            statements.push(format!(
-                "ALTER TABLE {table_ref} ALTER COLUMN {} SET DEFAULT {};",
-                escape_identifier(&col.name),
-                col.default_value
+                "ALTER TABLE {table_ref} DROP COLUMN {};",
+                escape_identifier(&orig.name)
             ));
         }
     }
 
+    for col in &td.columns {
+        if col.name.is_empty() {
+            continue;
+        }
+        let ident = escape_identifier(&col.name);
+
+        match orig_by_name.get(col.name.as_str()) {
+            None => {
+                // New column
+                statements.push(format!(
+                    "ALTER TABLE {table_ref} ADD COLUMN {};",
+                    column_definition_sql(col, false)
+                ));
+            }
+            Some(orig) => {
+                if *orig == col {
+                    continue;
+                }
+                // Type change
+                if orig.data_type != col.data_type || orig.length != col.length {
+                    statements.push(format!(
+                        "ALTER TABLE {table_ref} ALTER COLUMN {} TYPE {} USING {}::{};",
+                        ident,
+                        col_type_sql(col),
+                        ident,
+                        col_type_sql(col)
+                    ));
+                }
+                // Nullability change
+                if orig.is_nullable != col.is_nullable {
+                    statements.push(format!(
+                        "ALTER TABLE {table_ref} ALTER COLUMN {} {};",
+                        ident,
+                        if col.is_nullable { "DROP NOT NULL" } else { "SET NOT NULL" }
+                    ));
+                }
+                // Default change
+                if orig.default_value != col.default_value {
+                    if col.default_value.is_empty() {
+                        statements.push(format!(
+                            "ALTER TABLE {table_ref} ALTER COLUMN {} DROP DEFAULT;",
+                            ident
+                        ));
+                    } else {
+                        statements.push(format!(
+                            "ALTER TABLE {table_ref} ALTER COLUMN {} SET DEFAULT {};",
+                            ident, col.default_value
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     if statements.is_empty() {
-        "-- Add at least one column before generating DDL".to_string()
+        "-- No changes detected".to_string()
     } else {
         statements.join("\n") + "\n"
     }
@@ -869,6 +912,7 @@ pub fn open_for_new_table(state: &mut AppState) {
         generated_ddl: None,
         show_ddl_preview: false,
         editing_table: None,
+        original_columns: Vec::new(),
     };
 }
 
@@ -883,6 +927,7 @@ pub fn open_for_new_table_with_schema(state: &mut AppState, schema: &str) {
         generated_ddl: None,
         show_ddl_preview: false,
         editing_table: None,
+        original_columns: Vec::new(),
     };
 }
 
@@ -920,6 +965,7 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
         })
         .collect();
 
+    let original_columns = column_defs.clone();
     state.table_designer = TableDesignerState {
         show: true,
         schema: schema.to_string(),
@@ -930,12 +976,107 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
         generated_ddl: None,
         show_ddl_preview: false,
         editing_table: Some((schema.to_string(), table.to_string())),
+        original_columns,
     };
 
     bridge.send(crate::db::bridge::DbCommand::ListForeignKeys {
         conn_id,
         schema: schema.to_string(),
     });
+}
+
+#[cfg(test)]
+mod alter_ddl_tests {
+    use super::*;
+
+    fn col(name: &str, dtype: &str, nullable: bool, default: &str) -> ColumnDef {
+        ColumnDef {
+            name: name.to_string(),
+            data_type: dtype.to_string(),
+            length: None,
+            is_nullable: nullable,
+            is_primary_key: false,
+            is_unique: false,
+            default_value: default.to_string(),
+            is_foreign_key: false,
+            fk_ref_schema: String::new(),
+            fk_ref_table: String::new(),
+            fk_ref_column: String::new(),
+        }
+    }
+
+    fn designer(original: Vec<ColumnDef>, current: Vec<ColumnDef>) -> TableDesignerState {
+        TableDesignerState {
+            schema: "public".to_string(),
+            table_name: "users".to_string(),
+            original_columns: original,
+            columns: current,
+            editing_table: Some(("public".to_string(), "users".to_string())),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn no_changes_produces_no_statements() {
+        let cols = vec![col("id", "INTEGER", false, ""), col("name", "TEXT", true, "")];
+        let td = designer(cols.clone(), cols);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert_eq!(ddl, "-- No changes detected");
+    }
+
+    #[test]
+    fn detects_added_column() {
+        let orig = vec![col("id", "INTEGER", false, "")];
+        let current = vec![col("id", "INTEGER", false, ""), col("email", "TEXT", true, "")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("ADD COLUMN email TEXT"));
+    }
+
+    #[test]
+    fn detects_dropped_column() {
+        let orig = vec![col("id", "INTEGER", false, ""), col("old_col", "TEXT", true, "")];
+        let current = vec![col("id", "INTEGER", false, "")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("DROP COLUMN old_col"));
+    }
+
+    #[test]
+    fn detects_type_change() {
+        let orig = vec![col("age", "INTEGER", true, "")];
+        let current = vec![col("age", "BIGINT", true, "")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("ALTER COLUMN age TYPE BIGINT"));
+    }
+
+    #[test]
+    fn detects_nullability_change() {
+        let orig = vec![col("name", "TEXT", true, "")];
+        let current = vec![col("name", "TEXT", false, "")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("SET NOT NULL"));
+    }
+
+    #[test]
+    fn detects_default_change() {
+        let orig = vec![col("status", "TEXT", true, "")];
+        let current = vec![col("status", "TEXT", true, "'active'")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("SET DEFAULT 'active'"));
+    }
+
+    #[test]
+    fn detects_default_removal() {
+        let orig = vec![col("status", "TEXT", true, "'active'")];
+        let current = vec![col("status", "TEXT", true, "")];
+        let td = designer(orig, current);
+        let ddl = generate_alter_ddl(&td, "public.users");
+        assert!(ddl.contains("DROP DEFAULT"));
+    }
 }
 
 pub fn apply_fk_info(state: &mut AppState, foreign_keys: &[crate::ui::er_diagram::ForeignKey]) {

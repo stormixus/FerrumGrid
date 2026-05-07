@@ -413,6 +413,8 @@ impl AppState {
                 page_index_input: "1".to_string(),
                 selected_cell: None,
                 editing_cell: None,
+                pending_deletes: HashSet::new(),
+                inserted_rows: HashSet::new(),
             };
         }
     }
@@ -479,6 +481,8 @@ impl AppState {
             page_index_input,
             selected_cell: None,
             editing_cell: None,
+            pending_deletes: HashSet::new(),
+            inserted_rows: HashSet::new(),
         };
     }
 

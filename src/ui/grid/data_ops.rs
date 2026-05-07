@@ -208,7 +208,9 @@ pub(crate) fn ensure_data_edit_cell_from_result(
 // ---------------------------------------------------------------------------
 
 pub(super) fn has_dirty_data_edits(state: &AppState) -> bool {
-    state.data_edit.cells.values().any(|cell| cell.is_dirty())
+    !state.data_edit.pending_deletes.is_empty()
+        || !state.data_edit.inserted_rows.is_empty()
+        || state.data_edit.cells.values().any(|cell| cell.is_dirty())
 }
 
 #[derive(Clone, Copy)]
@@ -237,12 +239,15 @@ pub(crate) fn data_edit_summary(state: &AppState) -> Option<DataEditSummary> {
     }
 
     let source = state.active_data_source()?;
-    let dirty_count = state
+    let cell_dirty_count = state
         .data_edit
         .cells
         .values()
         .filter(|cell| cell.is_dirty())
         .count();
+    let dirty_count = cell_dirty_count
+        + state.data_edit.pending_deletes.len()
+        + state.data_edit.inserted_rows.len();
     if dirty_count == 0 {
         return None;
     }
@@ -353,8 +358,61 @@ pub(crate) fn build_data_edits(state: &AppState) -> Result<Vec<crate::db::edits:
     }
 
     let mut edits = Vec::new();
+
+    // INSERT ops for inserted rows
+    for &row_idx in &state.data_edit.inserted_rows {
+        if state.data_edit.pending_deletes.contains(&row_idx) {
+            continue;
+        }
+        let mut columns = Vec::new();
+        for (col_idx, col_meta) in result.columns.iter().enumerate() {
+            let col_info = table_columns.iter().find(|info| info.name == col_meta.name);
+            if col_info.is_some_and(|info| info.default_value.is_some() || info.is_primary_key) {
+                if let Some(cell) = state.data_edit.cells.get(&(row_idx, col_idx)) {
+                    if !cell.is_dirty() {
+                        continue;
+                    }
+                } else {
+                    continue;
+                }
+            }
+            let column_type = col_info
+                .map(|info| info.data_type.clone())
+                .unwrap_or_else(|| col_meta.type_name.clone());
+            let value = if let Some(cell) = state.data_edit.cells.get(&(row_idx, col_idx)) {
+                if cell.is_null {
+                    EditValue::Null
+                } else {
+                    EditValue::Text(cell.value.clone())
+                }
+            } else {
+                EditValue::Null
+            };
+            columns.push(ColumnAssignment {
+                column: col_meta.name.clone(),
+                column_type,
+                value,
+            });
+        }
+        let returning_pk: Vec<String> = pk_columns.iter().map(|c| c.name.clone()).collect();
+        edits.push(RowEditOp::Insert {
+            tmp_id: uuid::Uuid::new_v4(),
+            schema: source.schema.clone(),
+            table: source.table.clone(),
+            columns,
+            returning_pk,
+        });
+    }
+
+    // UPDATE ops for existing dirty cells (skip inserted/deleted rows)
     for ((row_idx, col_idx), cell) in &state.data_edit.cells {
         if !cell.is_dirty() {
+            continue;
+        }
+        if state.data_edit.inserted_rows.contains(row_idx) {
+            continue;
+        }
+        if state.data_edit.pending_deletes.contains(row_idx) {
             continue;
         }
         let column = result
@@ -439,6 +497,38 @@ pub(crate) fn build_data_edits(state: &AppState) -> Result<Vec<crate::db::edits:
         });
     }
 
+    // DELETE ops for pending deletes (skip inserted rows — those are just discarded)
+    for &row_idx in &state.data_edit.pending_deletes {
+        if state.data_edit.inserted_rows.contains(&row_idx) {
+            continue;
+        }
+        let Some(row_data) = result.rows.get(row_idx) else {
+            continue;
+        };
+        let mut pk = Vec::new();
+        for pk_col in &pk_columns {
+            let pk_idx = result
+                .columns
+                .iter()
+                .position(|col| col.name == pk_col.name)
+                .ok_or_else(|| tf("grid_pk_missing", &[&pk_col.name]))?;
+            let value = row_data
+                .get(pk_idx)
+                .cloned()
+                .ok_or_else(|| t("grid_pk_value_missing"))?;
+            pk.push(PkColumn {
+                column: pk_col.name.clone(),
+                column_type: pk_col.data_type.clone(),
+                value,
+            });
+        }
+        edits.push(RowEditOp::Delete {
+            schema: source.schema.clone(),
+            table: source.table.clone(),
+            pk,
+        });
+    }
+
     Ok(edits)
 }
 
@@ -469,6 +559,23 @@ fn count_invalid_edits(state: &AppState) -> usize {
 }
 
 pub(crate) fn revert_data_edits(state: &mut AppState) {
+    // Remove inserted rows from result
+    if !state.data_edit.inserted_rows.is_empty() {
+        let mut to_remove: Vec<usize> = state.data_edit.inserted_rows.iter().copied().collect();
+        to_remove.sort_unstable_by(|a, b| b.cmp(a));
+        if let Some(result) = state.current_result.as_mut() {
+            for idx in &to_remove {
+                if *idx < result.rows.len() {
+                    result.rows.remove(*idx);
+                }
+            }
+        }
+        state.data_edit.cells.retain(|(row, _), _| !state.data_edit.inserted_rows.contains(row));
+        state.data_edit.inserted_rows.clear();
+    }
+
+    state.data_edit.pending_deletes.clear();
+
     let column_types = state
         .current_result
         .as_ref()

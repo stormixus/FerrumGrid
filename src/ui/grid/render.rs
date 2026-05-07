@@ -434,7 +434,9 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
 
     let available_width = ui.available_width();
     let column_widths = compute_column_widths(ui, &result);
-    let content_width = column_widths.iter().sum::<f32>().max(available_width);
+    let row_number_width = row_number_gutter_width(result.rows.len());
+    let content_width =
+        (row_number_width + column_widths.iter().sum::<f32>()).max(available_width);
     let row_height = 28.0;
     let header_height = 30.0;
     let header_bg = theme::bg_medium();
@@ -455,6 +457,11 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                     .resizable(true)
                     .cell_layout(egui::Layout::left_to_right(egui::Align::Center));
 
+                // Row number gutter column (fixed, non-resizable)
+                table = table.column(
+                    Column::exact(row_number_width).clip(true),
+                );
+
                 for width in &column_widths {
                     table = table.column(
                         Column::initial(*width)
@@ -466,6 +473,19 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
 
                 table
                     .header(header_height, |mut header| {
+                        // Row number header
+                        header.col(|ui| {
+                            let rect = ui.available_rect_before_wrap();
+                            ui.painter().rect_filled(rect, 0.0, header_bg);
+                            ui.centered_and_justified(|ui| {
+                                ui.label(
+                                    RichText::new("#")
+                                        .color(theme::text_muted())
+                                        .size(11.0)
+                                        .monospace(),
+                                );
+                            });
+                        });
                         for col in &result.columns {
                             header.col(|ui| {
                                 let rect = ui.available_rect_before_wrap();
@@ -477,11 +497,38 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                     .body(|body| {
                         body.rows(row_height, result.rows.len(), |mut row| {
                             let row_idx = row.index();
+                            let is_deleted = state.data_edit.pending_deletes.contains(&row_idx);
+                            let is_inserted = state.data_edit.inserted_rows.contains(&row_idx);
                             let row_data = &result.rows[row_idx];
+
+                            // Row number cell
+                            row.col(|ui| {
+                                let label = if is_inserted { "*" } else { "" };
+                                let num_text = format!("{}{}", row_idx + 1, label);
+                                let color = if is_deleted {
+                                    theme::ACCENT_RED
+                                } else if is_inserted {
+                                    theme::ACCENT_TEAL
+                                } else {
+                                    theme::text_disabled()
+                                };
+                                ui.centered_and_justified(|ui| {
+                                    ui.label(
+                                        RichText::new(num_text)
+                                            .color(color)
+                                            .size(10.0)
+                                            .monospace(),
+                                    );
+                                });
+                            });
+
                             for (col_idx, cell) in row_data.iter().enumerate() {
                                 row.col(|ui| {
+                                    if is_deleted {
+                                        ui.set_opacity(0.35);
+                                    }
                                     ui.add_space(GRID_CELL_LEFT_PAD);
-                                    if state.active_main_view == MainView::Data {
+                                    if state.active_main_view == MainView::Data && !is_deleted {
                                         let column = result.columns.get(col_idx);
                                         render_editable_cell(
                                             ui, state, bridge, row_idx, col_idx, cell, column,
@@ -495,6 +542,15 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                     });
             });
         });
+}
+
+fn row_number_gutter_width(row_count: usize) -> f32 {
+    let digits = if row_count == 0 {
+        1
+    } else {
+        (row_count as f64).log10().floor() as usize + 1
+    };
+    (digits as f32 * 8.0 + 20.0).max(36.0)
 }
 
 fn apply_grid_table_visuals(ui: &mut egui::Ui) {

@@ -11,7 +11,7 @@
 //! and access this module via the parent's `pub use data_edit::*` re-exports
 //! (backward-compat for external `crate::state::*` callers).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{TimeZone, Utc};
 
@@ -85,6 +85,8 @@ pub struct DataEditState {
     pub page_index_input: String,
     pub selected_cell: Option<(usize, usize)>,
     pub editing_cell: Option<(usize, usize)>,
+    pub pending_deletes: HashSet<usize>,
+    pub inserted_rows: HashSet<usize>,
 }
 
 impl Default for DataEditState {
@@ -100,6 +102,8 @@ impl Default for DataEditState {
             page_index_input: "1".to_string(),
             selected_cell: None,
             editing_cell: None,
+            pending_deletes: HashSet::new(),
+            inserted_rows: HashSet::new(),
         }
     }
 }
