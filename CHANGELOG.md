@@ -2,6 +2,19 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.1.3] - 2026-05-07
+
+### Changed
+
+- New app icon: SVG-based minimalist data-storage mark, replacing the
+  procedural SDF renderer
+- macOS .app bundle now ships with a proper `.icns` icon
+  (`assets/AppIcon.icns`, generated from `app-icon-dark.svg` via
+  `scripts/generate-icns.sh`)
+- Light/dark variants generated from a single source SVG via color swap
+  (`#171718 ↔ #ECECEB`, `#12191C → #E2E5E8`); green data-flow accents
+  preserved in both themes
+
 ## [0.1.2] - 2026-05-07
 
 ### Added
