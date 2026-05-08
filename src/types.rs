@@ -38,6 +38,9 @@ pub enum BackupFormat {
     /// `pg_dump --format=tar` — 단일 tar archive (Phase 4a 신설).
     /// `pg_restore` 가능하지만 Custom 보다 압축률 떨어짐.
     Tar,
+    /// FerrumGrid built-in SQL backup engine — does NOT shell out to `pg_dump`.
+    /// Streams DDL + COPY data directly via tokio-postgres.
+    SqlOnly,
 }
 
 impl BackupFormat {
@@ -46,6 +49,7 @@ impl BackupFormat {
             Self::Custom => "Custom archive",
             Self::Plain => "Plain SQL",
             Self::Tar => "Tar archive",
+            Self::SqlOnly => "SQL (built-in)",
         }
     }
 
@@ -54,14 +58,22 @@ impl BackupFormat {
             Self::Custom => "dump",
             Self::Plain => "sql",
             Self::Tar => "tar",
+            Self::SqlOnly => "sql",
         }
     }
 
+    /// pg_dump `--format` flag value.
+    ///
+    /// **Caller contract**: never invoked for `SqlOnly` — the dispatcher in
+    /// `crate::db::backup::run_backup` routes `SqlOnly` to the built-in engine
+    /// before this method is reached. Returns `""` for `SqlOnly` defensively
+    /// (passing it to pg_dump would fail anyway).
     pub fn pg_dump_format(self) -> &'static str {
         match self {
             Self::Custom => "custom",
             Self::Plain => "plain",
             Self::Tar => "tar",
+            Self::SqlOnly => "",
         }
     }
 }
@@ -599,6 +611,27 @@ mod backup_info_tests {
         assert_eq!(BackupFormat::Plain.label(), "Plain SQL");
         assert_eq!(BackupFormat::Plain.extension(), "sql");
         assert_eq!(BackupFormat::Plain.pg_dump_format(), "plain");
+    }
+
+    #[test]
+    fn backup_format_sql_only_label_and_extension() {
+        assert_eq!(BackupFormat::SqlOnly.label(), "SQL (built-in)");
+        assert_eq!(BackupFormat::SqlOnly.extension(), "sql");
+    }
+
+    #[test]
+    fn backup_format_sql_only_pg_dump_format_is_empty_sentinel() {
+        // Contract: dispatcher in db::backup::run_backup must route SqlOnly
+        // before pg_dump_format() is reached. The empty-string return value is
+        // a defensive sentinel — feeding it to pg_dump would fail loudly anyway.
+        assert_eq!(BackupFormat::SqlOnly.pg_dump_format(), "");
+    }
+
+    #[test]
+    fn backup_format_sql_only_distinct_from_plain() {
+        assert_ne!(BackupFormat::SqlOnly, BackupFormat::Plain);
+        assert_eq!(BackupFormat::SqlOnly.extension(), BackupFormat::Plain.extension());
+        assert_ne!(BackupFormat::SqlOnly.label(), BackupFormat::Plain.label());
     }
 
     #[test]

@@ -6,9 +6,14 @@ use std::{
 
 use tokio::process::Command;
 
-use crate::types::{BackupRecord, BackupRequest};
+use crate::types::{BackupFormat, BackupRecord, BackupRequest};
 
 pub async fn run_backup(request: BackupRequest) -> Result<BackupRecord, String> {
+    // Built-in SQL engine path — never invoke pg_dump for SqlOnly.
+    if request.format == BackupFormat::SqlOnly {
+        return crate::db::backup_sql::run_sql_backup(request).await;
+    }
+
     fs::create_dir_all(&request.output_dir)
         .map_err(|err| format!("Backup folder is not writable: {err}"))?;
 
@@ -89,7 +94,12 @@ pub async fn run_backup(request: BackupRequest) -> Result<BackupRecord, String> 
     })
 }
 
-fn backup_file_name(database: &str, schema: Option<&str>, extension: &str, stamp: &str) -> String {
+pub(super) fn backup_file_name(
+    database: &str,
+    schema: Option<&str>,
+    extension: &str,
+    stamp: &str,
+) -> String {
     let scope = schema.unwrap_or("full");
     format!(
         "{}_{}_{}.{}",

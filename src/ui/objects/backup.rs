@@ -297,6 +297,7 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
         BackupFormat::Custom => t("backup_custom_archive"),
         BackupFormat::Plain => t("backup_plain_sql"),
         BackupFormat::Tar => t("backup_tar_archive"),
+        BackupFormat::SqlOnly => format.label().to_string(),
     };
     let button = egui::Button::new(RichText::new(label).color(if selected {
         theme::text_primary()
