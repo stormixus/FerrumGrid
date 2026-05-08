@@ -14,11 +14,13 @@ mod hit_test;
 mod info_panel;
 mod info_row;
 mod json_editor;
+mod object_info;
 mod pager;
 pub(crate) mod paste;
 mod render;
 mod selection;
 mod table_info;
+mod table_render;
 mod toolbar;
 mod tooltips;
 
@@ -29,9 +31,9 @@ use footer::{
 };
 pub use render::render_grid;
 pub(super) use header::{render_result_header, result_toolbar_action_width};
-pub(super) use render::{
+pub(super) use table_render::{
     passive_value_pill, render_cell, render_passive_cell, render_passive_copyable_cell,
-    show_cell_copy_context_menu,
+    render_table, show_cell_copy_context_menu,
 };
 pub(super) use toolbar::{
     metric_chip, result_toolbar_action_button, show_dark_popup_below,
