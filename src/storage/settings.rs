@@ -87,6 +87,44 @@ pub struct AppSettings {
     pub update_channel: String,
     pub check_frequency: String,
     pub auto_install_updates: bool,
+
+    // --- Vault & Security ---
+    pub vault_location: String,
+    pub master_key_type: String,
+    pub auto_lock_after: String,
+    pub log_credential_use: bool,
+    pub redact_screenshots: bool,
+    pub block_clipboard_key: bool,
+    pub team_vault_sync: bool,
+    pub export_format: String,
+
+    // --- Backup ---
+    pub daily_snapshot: bool,
+    pub weekly_archive: bool,
+    pub pre_deploy_hook: bool,
+    pub backup_retention: String,
+    pub backup_compression: String,
+    pub verify_after_dump: bool,
+    pub always_restore_copy: bool,
+    pub require_typing_name: bool,
+
+    // --- AI Assist ---
+    pub ai_backend: String,
+    pub ai_model: String,
+    pub ai_send_schema: bool,
+    pub ai_allow_row_samples: bool,
+    pub ai_explain_on_hover: bool,
+    pub ai_auto_fix: bool,
+    pub ai_generate_test_data: bool,
+    pub ai_block_pii: bool,
+    pub ai_telemetry: bool,
+
+    // --- Language & i18n ---
+    pub date_format: String,
+    pub time_format: String,
+    pub number_format: String,
+    pub client_encoding: String,
+    pub unknown_encoding: String,
 }
 
 impl Default for AppSettings {
@@ -169,6 +207,44 @@ impl Default for AppSettings {
             update_channel: "Stable".to_string(),
             check_frequency: "Daily".to_string(),
             auto_install_updates: true,
+
+            // Vault & Security
+            vault_location: "~/Library/FerrumGrid/vault.db".to_string(),
+            master_key_type: "Keychain".to_string(),
+            auto_lock_after: "15m".to_string(),
+            log_credential_use: true,
+            redact_screenshots: true,
+            block_clipboard_key: true,
+            team_vault_sync: false,
+            export_format: ".vault".to_string(),
+
+            // Backup
+            daily_snapshot: true,
+            weekly_archive: true,
+            pre_deploy_hook: false,
+            backup_retention: "14 days".to_string(),
+            backup_compression: "zstd".to_string(),
+            verify_after_dump: true,
+            always_restore_copy: true,
+            require_typing_name: true,
+
+            // AI Assist
+            ai_backend: "Anthropic".to_string(),
+            ai_model: "claude-haiku-4-5".to_string(),
+            ai_send_schema: true,
+            ai_allow_row_samples: false,
+            ai_explain_on_hover: true,
+            ai_auto_fix: true,
+            ai_generate_test_data: false,
+            ai_block_pii: true,
+            ai_telemetry: false,
+
+            // Language & i18n
+            date_format: "YYYY-MM-DD".to_string(),
+            time_format: "24-hour".to_string(),
+            number_format: "1,234.56".to_string(),
+            client_encoding: "UTF8".to_string(),
+            unknown_encoding: "UTF-8 (replace)".to_string(),
         }
     }
 }

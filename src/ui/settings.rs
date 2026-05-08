@@ -358,9 +358,9 @@ fn render_content(
                         1 => render_editor_tab(ui, draft),
                         2 => render_data_grid_tab(ui, draft),
                         3 => render_connections_tab(ui, draft),
-                        4 => render_vault_tab(ui),
+                        4 => render_vault_tab(ui, draft),
                         5 => render_backup_tab(ui, draft),
-                        6 => render_ai_assist_tab(ui),
+                        6 => render_ai_assist_tab(ui, draft),
                         7 => render_diagnostics_tab(ui, draft),
                         8 => render_language_tab(ui, draft),
                         9 => render_updates_tab(ui, draft),
@@ -747,42 +747,36 @@ fn render_connections_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppS
 // Tab 4 — Vault & Security (shell)
 // =============================================================================
 
-fn render_vault_tab(ui: &mut egui::Ui) {
+fn render_vault_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_storage"));
 
     settings_row(ui, &t("settings_row_vault_loc"), &t("settings_desc_vault_loc"), |ui| {
-        static mut VAULT_LOC: usize = 0;
-        let opts = ["System Keychain", "Encrypted file", "Custom path"];
-        #[allow(static_mut_refs)]
-        let sel = unsafe { &mut VAULT_LOC };
         ComboBox::from_id_salt("vault_location")
             .width(160.0)
-            .selected_text(opts[*sel])
+            .selected_text(&draft.vault_location)
             .show_ui(ui, |ui| {
-                for (i, o) in opts.iter().enumerate() {
-                    ui.selectable_value(sel, i, *o);
-                }
+                ui.selectable_value(&mut draft.vault_location, "~/Library/FerrumGrid/vault.db".to_string(), "~/Library/FerrumGrid/vault.db");
+                ui.selectable_value(&mut draft.vault_location, "Encrypted file".to_string(), "Encrypted file");
+                ui.selectable_value(&mut draft.vault_location, "Custom path".to_string(), "Custom path");
             });
     });
 
     settings_row(ui, &t("settings_row_master_key"), &t("settings_desc_master_key"), |ui| {
-        static mut MASTER_KEY: usize = 0;
         let opts = ["Keychain", "Password", "Hardware"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "vault_master_key", &opts, unsafe { &mut MASTER_KEY });
+        let mut sel = opts.iter().position(|o| *o == draft.master_key_type).unwrap_or(0);
+        settings_chips(ui, "vault_master_key", &opts, &mut sel);
+        draft.master_key_type = opts[sel].to_string();
     });
 
     settings_row(ui, &t("settings_row_autolock"), &t("settings_desc_autolock"), |ui| {
-        static mut AUTO_LOCK: usize = 1;
-        let opts = ["1 min", "5 min", "15 min", "Never"];
-        #[allow(static_mut_refs)]
-        let sel = unsafe { &mut AUTO_LOCK };
+        let opts = ["1m", "5m", "15m", "Never"];
+        let labels = ["1 min", "5 min", "15 min", "Never"];
         ComboBox::from_id_salt("vault_autolock")
             .width(100.0)
-            .selected_text(opts[*sel])
+            .selected_text(&draft.auto_lock_after)
             .show_ui(ui, |ui| {
-                for (i, o) in opts.iter().enumerate() {
-                    ui.selectable_value(sel, i, *o);
+                for (val, lbl) in opts.iter().zip(labels.iter()) {
+                    ui.selectable_value(&mut draft.auto_lock_after, val.to_string(), *lbl);
                 }
             });
     });
@@ -790,36 +784,28 @@ fn render_vault_tab(ui: &mut egui::Ui) {
     settings_section(ui, &t("settings_sec_audit"));
 
     settings_row(ui, &t("settings_row_log_cred"), &t("settings_desc_log_cred"), |ui| {
-        static mut LOG_CRED: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "vault_log_cred", unsafe { &mut LOG_CRED });
+        settings_toggle(ui, "vault_log_cred", &mut draft.log_credential_use);
     });
 
     settings_row(ui, &t("settings_row_redact_ss"), &t("settings_desc_redact_ss"), |ui| {
-        static mut REDACT_SS: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "vault_redact", unsafe { &mut REDACT_SS });
+        settings_toggle(ui, "vault_redact", &mut draft.redact_screenshots);
     });
 
     settings_row(ui, &t("settings_row_block_clip"), &t("settings_desc_block_clip"), |ui| {
-        static mut BLOCK_CLIP: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "vault_block_clip", unsafe { &mut BLOCK_CLIP });
+        settings_toggle(ui, "vault_block_clip", &mut draft.block_clipboard_key);
     });
 
     settings_section(ui, &t("settings_sec_sharing"));
 
     settings_row(ui, &t("settings_row_team_sync"), &t("settings_desc_team_sync"), |ui| {
-        static mut TEAM_SYNC: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "vault_team_sync", unsafe { &mut TEAM_SYNC });
+        settings_toggle(ui, "vault_team_sync", &mut draft.team_vault_sync);
     });
 
     settings_row(ui, &t("settings_row_export_fmt"), &t("settings_desc_export_fmt"), |ui| {
-        static mut EXPORT_FMT: usize = 0;
-        let opts = ["Encrypted", "JSON", "CSV"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "vault_export_fmt", &opts, unsafe { &mut EXPORT_FMT });
+        let opts = [".vault", "JSON", "CSV"];
+        let mut sel = opts.iter().position(|o| *o == draft.export_format).unwrap_or(0);
+        settings_chips(ui, "vault_export_fmt", &opts, &mut sel);
+        draft.export_format = opts[sel].to_string();
     });
 }
 
@@ -831,34 +817,25 @@ fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
     settings_section(ui, &t("settings_sec_auto_backup"));
 
     settings_row(ui, &t("settings_row_daily"), &t("settings_desc_daily"), |ui| {
-        static mut DAILY: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_daily", unsafe { &mut DAILY });
+        settings_toggle(ui, "backup_daily", &mut draft.daily_snapshot);
     });
 
     settings_row(ui, &t("settings_row_weekly"), &t("settings_desc_weekly"), |ui| {
-        static mut WEEKLY: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_weekly", unsafe { &mut WEEKLY });
+        settings_toggle(ui, "backup_weekly", &mut draft.weekly_archive);
     });
 
     settings_row(ui, &t("settings_row_predeploy"), &t("settings_desc_predeploy"), |ui| {
-        static mut PRE_DEPLOY: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_predeploy", unsafe { &mut PRE_DEPLOY });
+        settings_toggle(ui, "backup_predeploy", &mut draft.pre_deploy_hook);
     });
 
     settings_row(ui, &t("settings_row_retention"), &t("settings_desc_retention"), |ui| {
-        static mut RETENTION: usize = 1;
-        let opts = ["7 days", "30 days", "90 days", "1 year"];
-        #[allow(static_mut_refs)]
-        let sel = unsafe { &mut RETENTION };
+        let opts = ["7 days", "14 days", "30 days", "90 days", "1 year"];
         ComboBox::from_id_salt("backup_retention")
             .width(100.0)
-            .selected_text(opts[*sel])
+            .selected_text(&draft.backup_retention)
             .show_ui(ui, |ui| {
-                for (i, o) in opts.iter().enumerate() {
-                    ui.selectable_value(sel, i, *o);
+                for o in opts.iter() {
+                    ui.selectable_value(&mut draft.backup_retention, o.to_string(), *o);
                 }
             });
     });
@@ -894,30 +871,24 @@ fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
     });
 
     settings_row(ui, &t("settings_row_compression"), &t("settings_desc_compression"), |ui| {
-        static mut COMPRESS: usize = 1;
-        let opts = ["None", "gzip", "zstd"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "backup_compress", &opts, unsafe { &mut COMPRESS });
+        let opts = ["none", "gzip", "zstd"];
+        let mut sel = opts.iter().position(|o| *o == draft.backup_compression).unwrap_or(2);
+        settings_chips(ui, "backup_compress", &opts, &mut sel);
+        draft.backup_compression = opts[sel].to_string();
     });
 
     settings_row(ui, &t("settings_row_verify_dump"), &t("settings_desc_verify_dump"), |ui| {
-        static mut VERIFY_DUMP: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_verify", unsafe { &mut VERIFY_DUMP });
+        settings_toggle(ui, "backup_verify", &mut draft.verify_after_dump);
     });
 
     settings_section(ui, &t("settings_sec_restore"));
 
     settings_row(ui, &t("settings_row_restore_copy"), &t("settings_desc_restore_copy"), |ui| {
-        static mut RESTORE_COPY: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_restore_copy", unsafe { &mut RESTORE_COPY });
+        settings_toggle(ui, "backup_restore_copy", &mut draft.always_restore_copy);
     });
 
     settings_row(ui, &t("settings_row_require_name"), &t("settings_desc_require_name"), |ui| {
-        static mut REQUIRE_NAME: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "backup_require_name", unsafe { &mut REQUIRE_NAME });
+        settings_toggle(ui, "backup_require_name", &mut draft.require_typing_name);
     });
 }
 
@@ -925,81 +896,62 @@ fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
 // Tab 6 — AI Assist (shell)
 // =============================================================================
 
-fn render_ai_assist_tab(ui: &mut egui::Ui) {
+fn render_ai_assist_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_provider"));
 
     settings_row(ui, &t("settings_row_backend"), &t("settings_desc_backend"), |ui| {
-        static mut BACKEND: usize = 0;
         let opts = ["Local", "OpenAI", "Anthropic"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "ai_backend", &opts, unsafe { &mut BACKEND });
+        let mut sel = opts.iter().position(|o| *o == draft.ai_backend).unwrap_or(2);
+        settings_chips(ui, "ai_backend", &opts, &mut sel);
+        draft.ai_backend = opts[sel].to_string();
     });
 
     settings_row(ui, &t("settings_row_model"), &t("settings_desc_model"), |ui| {
-        static mut MODEL: usize = 0;
-        let opts = ["GPT-4o", "Claude Sonnet", "Codex", "Local LLM"];
-        #[allow(static_mut_refs)]
-        let sel = unsafe { &mut MODEL };
         ComboBox::from_id_salt("ai_model")
             .width(150.0)
-            .selected_text(opts[*sel])
+            .selected_text(&draft.ai_model)
             .show_ui(ui, |ui| {
-                for (i, o) in opts.iter().enumerate() {
-                    ui.selectable_value(sel, i, *o);
-                }
+                ui.selectable_value(&mut draft.ai_model, "gpt-4o".to_string(), "GPT-4o");
+                ui.selectable_value(&mut draft.ai_model, "claude-sonnet-4-5".to_string(), "Claude Sonnet");
+                ui.selectable_value(&mut draft.ai_model, "claude-haiku-4-5".to_string(), "Claude Haiku");
+                ui.selectable_value(&mut draft.ai_model, "local-llm".to_string(), "Local LLM");
             });
     });
 
     settings_row(ui, &t("settings_row_send_schema"), &t("settings_desc_send_schema"), |ui| {
-        static mut SEND_SCHEMA: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_send_schema", unsafe { &mut SEND_SCHEMA });
+        settings_toggle(ui, "ai_send_schema", &mut draft.ai_send_schema);
     });
 
     settings_row(ui, &t("settings_row_row_samples"), &t("settings_desc_row_samples"), |ui| {
-        static mut ROW_SAMPLES: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_row_samples", unsafe { &mut ROW_SAMPLES });
+        settings_toggle(ui, "ai_row_samples", &mut draft.ai_allow_row_samples);
     });
 
     settings_section(ui, &t("settings_sec_behavior"));
 
     settings_row(ui, &t("settings_row_inline_suggest"), &t("settings_desc_inline_suggest"), |ui| {
-        static mut INLINE: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_inline", unsafe { &mut INLINE });
+        settings_toggle(ui, "ai_inline", &mut draft.ai_suggest_inline);
     });
 
     settings_row(ui, &t("settings_row_explain_hover"), &t("settings_desc_explain_hover"), |ui| {
-        static mut EXPLAIN: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_explain", unsafe { &mut EXPLAIN });
+        settings_toggle(ui, "ai_explain", &mut draft.ai_explain_on_hover);
     });
 
     settings_row(ui, &t("settings_row_autofix"), &t("settings_desc_autofix"), |ui| {
-        static mut AUTOFIX: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_autofix", unsafe { &mut AUTOFIX });
+        settings_toggle(ui, "ai_autofix", &mut draft.ai_auto_fix);
     });
 
     settings_row(ui, &t("settings_row_gen_test"), &t("settings_desc_gen_test"), |ui| {
-        static mut GEN_TEST: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_gen_test", unsafe { &mut GEN_TEST });
+        settings_toggle(ui, "ai_gen_test", &mut draft.ai_generate_test_data);
     });
 
     settings_section(ui, &t("settings_sec_privacy"));
 
     settings_row(ui, &t("settings_row_block_pii"), &t("settings_desc_block_pii"), |ui| {
-        static mut BLOCK_PII: bool = true;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_block_pii", unsafe { &mut BLOCK_PII });
+        settings_toggle(ui, "ai_block_pii", &mut draft.ai_block_pii);
     });
 
     settings_row(ui, &t("settings_row_telemetry"), &t("settings_desc_telemetry"), |ui| {
-        static mut TELEMETRY: bool = false;
-        #[allow(static_mut_refs)]
-        settings_toggle(ui, "ai_telemetry", unsafe { &mut TELEMETRY });
+        settings_toggle(ui, "ai_telemetry", &mut draft.ai_telemetry);
     });
 }
 
@@ -1075,48 +1027,46 @@ fn render_language_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSett
     });
 
     settings_row(ui, &t("settings_row_date_fmt"), &t("settings_desc_date_fmt"), |ui| {
-        static mut DATE_FMT: usize = 0;
         let opts = ["YYYY-MM-DD", "MM/DD/YYYY", "DD.MM.YYYY"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "lang_date_fmt", &opts, unsafe { &mut DATE_FMT });
+        let mut sel = opts.iter().position(|o| *o == draft.date_format).unwrap_or(0);
+        settings_chips(ui, "lang_date_fmt", &opts, &mut sel);
+        draft.date_format = opts[sel].to_string();
     });
 
     settings_row(ui, &t("settings_row_time_fmt"), &t("settings_desc_time_fmt"), |ui| {
-        static mut TIME_FMT: usize = 1;
-        let opts = ["12h", "24h"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "lang_time_fmt", &opts, unsafe { &mut TIME_FMT });
+        let opts = ["12-hour", "24-hour"];
+        let labels = ["12h", "24h"];
+        let mut sel = opts.iter().position(|o| *o == draft.time_format).unwrap_or(1);
+        settings_chips(ui, "lang_time_fmt", &labels, &mut sel);
+        draft.time_format = opts[sel].to_string();
     });
 
     settings_row(ui, &t("settings_row_num_fmt"), &t("settings_desc_num_fmt"), |ui| {
-        static mut NUM_FMT: usize = 0;
         let opts = ["1,234.56", "1.234,56", "1 234.56"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "lang_num_fmt", &opts, unsafe { &mut NUM_FMT });
+        let mut sel = opts.iter().position(|o| *o == draft.number_format).unwrap_or(0);
+        settings_chips(ui, "lang_num_fmt", &opts, &mut sel);
+        draft.number_format = opts[sel].to_string();
     });
 
     settings_section(ui, &t("settings_sec_database"));
 
     settings_row(ui, &t("settings_row_encoding"), &t("settings_desc_encoding"), |ui| {
-        static mut ENCODING: usize = 0;
-        let opts = ["UTF-8", "LATIN1", "EUC_KR", "SJIS"];
-        #[allow(static_mut_refs)]
-        let sel = unsafe { &mut ENCODING };
+        let opts = ["UTF8", "LATIN1", "EUC_KR", "SJIS"];
         ComboBox::from_id_salt("lang_encoding")
             .width(120.0)
-            .selected_text(opts[*sel])
+            .selected_text(&draft.client_encoding)
             .show_ui(ui, |ui| {
-                for (i, o) in opts.iter().enumerate() {
-                    ui.selectable_value(sel, i, *o);
+                for o in opts.iter() {
+                    ui.selectable_value(&mut draft.client_encoding, o.to_string(), *o);
                 }
             });
     });
 
     settings_row(ui, &t("settings_row_unknown_enc"), &t("settings_desc_unknown_enc"), |ui| {
-        static mut UNKNOWN_ENC: usize = 0;
-        let opts = ["Replace", "Ignore", "Error"];
-        #[allow(static_mut_refs)]
-        settings_chips(ui, "lang_unknown_enc", &opts, unsafe { &mut UNKNOWN_ENC });
+        let opts = ["UTF-8 (replace)", "UTF-8 (ignore)", "Error"];
+        let mut sel = opts.iter().position(|o| *o == draft.unknown_encoding).unwrap_or(0);
+        settings_chips(ui, "lang_unknown_enc", &opts, &mut sel);
+        draft.unknown_encoding = opts[sel].to_string();
     });
 }
 
