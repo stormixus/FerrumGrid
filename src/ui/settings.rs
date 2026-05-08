@@ -256,7 +256,7 @@ fn render_header(ui: &mut egui::Ui, width: f32, _state: &mut AppState, close_act
     painter.text(
         pos2(rect.left() + 38.0, rect.center().y),
         Align2::LEFT_CENTER,
-        &t("settings_header_preferences"),
+        t("settings_header_preferences"),
         FontId::proportional(13.0),
         text_color(),
     );
@@ -854,7 +854,7 @@ fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
                 .size(11.0)
                 .color(theme::text_muted()),
         );
-        if ui.small_button(&t("settings_browse")).clicked() {
+        if ui.small_button(t("settings_browse")).clicked() {
             let mut dialog = rfd::FileDialog::new();
             let initial = if draft.backup_directory.trim().is_empty() {
                 std::env::home_dir()
@@ -1118,7 +1118,7 @@ fn render_updates_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
         ui.painter().text(
             badge_rect.center(),
             Align2::CENTER_CENTER,
-            &t("settings_badge_up_to_date"),
+            t("settings_badge_up_to_date"),
             FontId::proportional(10.0),
             theme::ACCENT_EMERALD,
         );
@@ -1149,7 +1149,7 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
             .layout(Layout::left_to_right(Align::Center)),
         |ui| {
             ui.label(
-                RichText::new(&t("settings_footer_sync"))
+                RichText::new(t("settings_footer_sync"))
                     .color(theme::text_muted())
                     .monospace()
                     .size(11.0),

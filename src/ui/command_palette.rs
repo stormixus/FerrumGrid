@@ -181,9 +181,8 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                         .max_height(360.0)
                         .show(ui, |ui| {
                             ui.add_space(4.0);
-                            let mut visual_idx = 0usize;
                             let mut prev_section = String::new();
-                            for resolved in &items {
+                            for (visual_idx, resolved) in items.iter().enumerate() {
                                 if resolved.section != prev_section {
                                     ui.add_space(2.0);
                                     egui::Frame::new()
@@ -259,8 +258,6 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                                     triggered_action = Some(resolved.item.action);
                                     close = true;
                                 }
-
-                                visual_idx += 1;
                             }
 
                             if items.is_empty() {
