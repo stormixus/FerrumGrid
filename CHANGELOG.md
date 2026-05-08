@@ -2,6 +2,22 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.0] - 2026-05-09
+
+### Added
+
+- Built-in SQL backup engine (`BackupFormat::SqlOnly`) — produces a self-contained replayable `.sql` file via `tokio-postgres` without shelling out to `pg_dump`. Streams DDL (CREATE SCHEMA / TABLE / PK / UNIQUE / CHECK / INDEX / FK) plus table data through `COPY ... TO STDOUT`. Supports identity columns, partitioned tables, schema-qualified FK definitions, and topological FK ordering. Output buffered through 64KB `BufWriter`. Partial-file cleanup on error.
+
+### Changed
+
+- Grid module split for maintainability:
+  - `info_panel.rs` 1490 → 711 lines (extracted 9 object-info renderers into new `object_info.rs`)
+  - `render.rs` 1126 → 630 lines (extracted table layout + cell rendering into new `table_render.rs`)
+
+### Fixed
+
+- 5 clippy warnings (loop counter idiom in command palette, needless borrows in settings panes)
+
 ## [0.2.0] - 2026-05-08
 
 ### Added
