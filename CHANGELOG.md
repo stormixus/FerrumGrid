@@ -2,6 +2,17 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.1.4] - 2026-05-08
+
+### Changed
+
+- App icon refined for native macOS Dock appearance: gradient background
+  with material depth, inner highlight, radial spotlight, soft edge
+  separation (no visible vector outlines)
+- Squircle rebuilt as a single continuous path instead of corner cutouts
+- 10% canvas padding to match standard macOS icon sizing
+- Regenerated `.icns` with updated artwork
+
 ## [0.1.3] - 2026-05-07
 
 ### Changed
