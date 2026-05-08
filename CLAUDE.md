@@ -1,6 +1,6 @@
 # FerrumGrid
 
-Open-source PostgreSQL desktop client built with Rust/egui. Navicat alternative.
+Open-source PostgreSQL desktop client built with Rust/egui.
 
 ## Build
 

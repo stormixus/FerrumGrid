@@ -63,7 +63,7 @@ FerrumGrid uses a Supabase-inspired, dark-mode-native developer tool aesthetic: 
 - Cards and panels use dark surfaces, 1px borders, and no decorative shadow.
 - Inputs use deep black fills (#0F0F0F), muted placeholder text, and green focus accents.
 - Tabs and selected states use emerald as border, underline, or text accent.
-- Database tree context menus follow macOS/Navicat-style native menus.
+- Database tree context menus follow macOS-style native menus.
 
 ### Button Specs
 

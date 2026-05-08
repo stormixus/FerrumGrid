@@ -1,6 +1,6 @@
 # FerrumGrid
 
-The open-source Navicat alternative. A fast, native PostgreSQL client built with Rust and egui.
+A fast, native PostgreSQL desktop client built with Rust and egui.
 
 <!-- TODO: Add screenshot GIF here -->
 <!-- ![FerrumGrid Screenshot](docs/screenshot.png) -->
@@ -73,12 +73,12 @@ src/
 
 ## Why FerrumGrid?
 
-| | FerrumGrid | Navicat | DBeaver | pgAdmin |
-|---|---|---|---|---|
-| Price | Free | $18/mo | Free | Free |
-| Speed | Native (Rust) | Native | Java | Web-based |
-| UI Quality | Supabase-inspired | Best-in-class | Complex | Dated |
-| Open Source | Yes | No | Partial | Yes |
+| | FerrumGrid | DBeaver | pgAdmin |
+|---|---|---|---|
+| Price | Free | Free | Free |
+| Speed | Native (Rust) | Java | Web-based |
+| UI Quality | Supabase-inspired | Complex | Dated |
+| Open Source | Yes | Partial | Yes |
 
 ## License
 

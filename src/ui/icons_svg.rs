@@ -1,5 +1,4 @@
 //! Custom designed SVG icons for FerrumGrid.
-//! Designed to match Navicat's aesthetic.
 
 pub const CONNECTION: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="connection_g" x1="12" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#74F2A2"/><stop offset="1" stop-color="#28B86D"/></linearGradient></defs>

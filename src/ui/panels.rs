@@ -503,7 +503,7 @@ fn workspace_tab_color(view: MainView) -> Color32 {
 }
 
 // ---------------------------------------------------------------------------
-// Main Toolbar (Navicat style)
+// Main Toolbar
 // ---------------------------------------------------------------------------
 
 fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
