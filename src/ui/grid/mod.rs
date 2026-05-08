@@ -15,7 +15,7 @@ mod info_panel;
 mod info_row;
 mod json_editor;
 mod pager;
-mod paste;
+pub(crate) mod paste;
 mod render;
 mod selection;
 mod table_info;

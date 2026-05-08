@@ -855,7 +855,7 @@ fn render_schema_node(
             is_root: false,
             depth: 2,
             default_open: false,
-            force_open: schema_opened,
+            force_open: schema_opened || !state.tree_search.is_empty(),
             selected: false,
             icon_svg: icons_svg::SCHEMA,
             icon_name: "schema",
@@ -867,7 +867,7 @@ fn render_schema_node(
             },
         },
         |ui| {
-            if !schema_opened {
+            if !schema_opened && state.tree_search.is_empty() {
                 return;
             }
             render_table_group_node(
@@ -1386,9 +1386,13 @@ fn render_table_group_node(
                 return;
             };
 
+            let search = state.tree_search.to_lowercase();
             let filtered: Vec<TableInfo> = tables
                 .into_iter()
-                .filter(|table| group.matches(&table.table_type))
+                .filter(|table| {
+                    group.matches(&table.table_type)
+                        && (search.is_empty() || table.name.to_lowercase().contains(&search))
+                })
                 .collect();
 
             if filtered.is_empty() {
@@ -1488,12 +1492,18 @@ fn render_function_group_node(
                 return;
             };
 
-            if functions.is_empty() {
+            let search = state.tree_search.to_lowercase();
+            let filtered: Vec<_> = functions
+                .into_iter()
+                .filter(|f| search.is_empty() || f.name.to_lowercase().contains(&search))
+                .collect();
+
+            if filtered.is_empty() {
                 render_status_row(ui, 4, &t("tree_empty"), false);
                 return;
             }
 
-            for function in functions {
+            for function in filtered {
                 render_function_row(ui, 4, schema, &function);
             }
         },

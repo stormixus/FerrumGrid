@@ -347,10 +347,13 @@ pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridg
             state.show_settings_dialog = true;
         }
         PaletteAction::ToggleFilterRow => {
-            state.open_workspace_main_view(MainView::Data);
+            if state.active_main_view != MainView::Data {
+                state.open_workspace_main_view(MainView::Data);
+            }
+            state.show_data_filter = !state.show_data_filter;
         }
         PaletteAction::ExportCsv => {
-            state.open_workspace_main_view(MainView::Data);
+            crate::ui::grid::paste::export_csv(state);
         }
         PaletteAction::RefreshSchema => {
             if let Some(conn_id) = state.active_connection {
