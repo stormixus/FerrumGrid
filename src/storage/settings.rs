@@ -36,6 +36,57 @@ pub struct AppSettings {
     /// VACUUM FULL 중 ctid 변동 시 mutation 실패 → 사용자 인지 가능.
     #[serde(default)]
     pub unsafe_ctid: bool,
+
+    // --- General ---
+    pub accent_color: String,
+    pub density: String,
+    pub warn_dangling_tx: bool,
+    pub reopen_tabs: bool,
+    pub auto_connect_vault: bool,
+
+    // --- Editor ---
+    pub font_family: String,
+    pub font_ligatures: bool,
+    pub format_on_save: bool,
+    pub tab_size: usize,
+    pub show_whitespace: bool,
+    pub word_wrap: bool,
+    pub ai_suggest_inline: bool,
+    pub ai_suggest_on_hold: bool,
+
+    // --- Data Grid ---
+    pub grid_row_height: String,
+    pub color_null_cells: bool,
+    pub color_fk_cells: bool,
+    pub tabular_numbers: bool,
+    pub edit_on_double_click: bool,
+    pub auto_commit_cells: bool,
+    pub confirm_bulk_delete: bool,
+    pub long_text_preview: String,
+    pub json_cell_display: String,
+
+    // --- Connections ---
+    pub pool_min: usize,
+    pub pool_max: usize,
+    pub idle_timeout: String,
+    pub ssl_mode: String,
+    pub statement_timeout: String,
+    pub lock_timeout: String,
+    pub auto_route_replicas: bool,
+    pub show_replica_lag: bool,
+
+    // --- Diagnostics ---
+    pub diag_show_on_launch: bool,
+    pub diag_buffer_size: String,
+    pub diag_persist: bool,
+    pub slow_query_threshold: String,
+    pub render_budget_warn: String,
+    pub track_ctid_conflicts: bool,
+
+    // --- Updates ---
+    pub update_channel: String,
+    pub check_frequency: String,
+    pub auto_install_updates: bool,
 }
 
 impl Default for AppSettings {
@@ -67,6 +118,57 @@ impl Default for AppSettings {
             backup_directory: String::new(),
             data_timezone: "Asia/Seoul".to_string(),
             unsafe_ctid: false,
+
+            // General
+            accent_color: "emerald".to_string(),
+            density: "default".to_string(),
+            warn_dangling_tx: true,
+            reopen_tabs: true,
+            auto_connect_vault: false,
+
+            // Editor
+            font_family: "SF Mono".to_string(),
+            font_ligatures: false,
+            format_on_save: true,
+            tab_size: 2,
+            show_whitespace: false,
+            word_wrap: false,
+            ai_suggest_inline: true,
+            ai_suggest_on_hold: true,
+
+            // Data Grid
+            grid_row_height: "28px".to_string(),
+            color_null_cells: true,
+            color_fk_cells: true,
+            tabular_numbers: true,
+            edit_on_double_click: true,
+            auto_commit_cells: false,
+            confirm_bulk_delete: true,
+            long_text_preview: "160 chars".to_string(),
+            json_cell_display: "Single-line".to_string(),
+
+            // Connections
+            pool_min: 2,
+            pool_max: 8,
+            idle_timeout: "2m".to_string(),
+            ssl_mode: "require".to_string(),
+            statement_timeout: "1m".to_string(),
+            lock_timeout: "30s".to_string(),
+            auto_route_replicas: false,
+            show_replica_lag: true,
+
+            // Diagnostics
+            diag_show_on_launch: true,
+            diag_buffer_size: "2,000".to_string(),
+            diag_persist: true,
+            slow_query_threshold: "500ms".to_string(),
+            render_budget_warn: "16ms".to_string(),
+            track_ctid_conflicts: true,
+
+            // Updates
+            update_channel: "Stable".to_string(),
+            check_frequency: "Daily".to_string(),
+            auto_install_updates: true,
         }
     }
 }
@@ -81,6 +183,13 @@ impl AppSettings {
         if self.data_timezone.trim().is_empty() {
             self.data_timezone = "Asia/Seoul".to_string();
         }
+        // New fields
+        if !matches!(self.density.as_str(), "compact" | "default" | "comfortable") {
+            self.density = "default".to_string();
+        }
+        self.tab_size = self.tab_size.clamp(1, 8);
+        self.pool_min = self.pool_min.clamp(1, 50);
+        self.pool_max = self.pool_max.clamp(self.pool_min, 100);
     }
 }
 

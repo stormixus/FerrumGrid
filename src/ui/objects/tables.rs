@@ -222,17 +222,8 @@ fn icon_action_chip(
         egui::StrokeKind::Inside,
     );
     let icon_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(13.0, 13.0));
-    ui.scope_builder(
-        egui::UiBuilder::new()
-            .max_rect(icon_rect)
-            .layout(egui::Layout::centered_and_justified(
-                egui::Direction::LeftToRight,
-            )),
-        |ui| {
-            ui.set_clip_rect(icon_rect);
-            ui.add(crate::ui::icon_image_tinted(ui, svg, name, 13.0, color));
-        },
-    );
+    let icon_img = crate::ui::icon_image_tinted(ui, svg, name, 13.0, color);
+    icon_img.paint_at(ui, icon_rect);
     if hovered {
         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
     }

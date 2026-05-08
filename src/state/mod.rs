@@ -114,6 +114,7 @@ pub enum MainView {
     View,
     MaterializedView,
     Function,
+    #[allow(dead_code)]
     User,
     Query,
     Data,
@@ -121,6 +122,35 @@ pub enum MainView {
     Automation,
     Model,
     BI,
+}
+
+impl MainView {
+    pub const TOOLBAR_TABS: [MainView; 6] = [
+        MainView::Query,
+        MainView::Data,
+        MainView::Model,
+        MainView::BI,
+        MainView::Backup,
+        MainView::Automation,
+    ];
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TreePanelTab {
+    #[default]
+    Schema,
+    Roles,
+    History,
+    Snippets,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InfoPanelTab {
+    #[default]
+    Cell,
+    Row,
+    Schema,
+    Sql,
 }
 
 #[derive(Debug, Clone)]
@@ -176,6 +206,12 @@ pub struct AppState {
     pub show_tree_panel: bool,
     pub show_result_panel: bool,
     pub show_info_panel: bool,
+    pub tree_panel_tab: TreePanelTab,
+    pub tree_search: String,
+    pub info_panel_tab: InfoPanelTab,
+    pub show_command_palette: bool,
+    pub command_palette_search: String,
+    pub command_palette_selected: usize,
     pub active_settings_tab: usize,
     pub settings_draft: Option<AppSettings>,
     pub objects_schema_filter: String,
@@ -345,6 +381,12 @@ impl Default for AppState {
             show_tree_panel: true,
             show_result_panel: true,
             show_info_panel: true,
+            tree_panel_tab: TreePanelTab::default(),
+            tree_search: String::new(),
+            info_panel_tab: InfoPanelTab::default(),
+            show_command_palette: false,
+            command_palette_search: String::new(),
+            command_palette_selected: 0,
             active_settings_tab: 0,
             settings_draft: None,
             objects_schema_filter: String::new(),

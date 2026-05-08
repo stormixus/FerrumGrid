@@ -5,7 +5,7 @@ use crate::i18n::t;
 use crate::state::{AppState, ConnectionStatus};
 use crate::storage::settings::AppSettings;
 use crate::types::EditorTab;
-use crate::ui::theme;
+use crate::ui::{icons_svg, theme};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -89,37 +89,24 @@ fn render_tab_bar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
 }
 
 fn render_query_add_tab_button(ui: &mut egui::Ui) -> egui::Response {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
-    if response.hovered() {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(28.0, 22.0), egui::Sense::click());
 
-    let paint_rect = rect.shrink(1.0);
     let fill = if response.hovered() {
-        theme::with_alpha(theme::ACCENT_TEAL, 34)
+        theme::bg_light()
     } else {
-        theme::with_alpha(theme::ACCENT_TEAL, 18)
+        Color32::TRANSPARENT
     };
-    let stroke = Stroke::new(
-        1.0,
-        if response.hovered() {
-            theme::ACCENT_TEAL
-        } else {
-            theme::with_alpha(theme::ACCENT_TEAL, 95)
-        },
-    );
     ui.painter()
-        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), fill);
-    ui.painter().rect_stroke(
-        paint_rect,
-        CornerRadius::same(theme::RADIUS_MD),
-        stroke,
-        egui::StrokeKind::Inside,
-    );
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
 
-    let center = paint_rect.center();
-    let arm = 7.0;
-    let plus_stroke = Stroke::new(1.65, theme::ACCENT_TEAL);
+    let center = rect.center();
+    let arm = 5.0;
+    let color = if response.hovered() {
+        theme::text_primary()
+    } else {
+        theme::text_muted()
+    };
+    let plus_stroke = Stroke::new(1.5, color);
     ui.painter().line_segment(
         [
             egui::pos2(center.x - arm, center.y),
@@ -171,7 +158,7 @@ fn render_tab(
     let bg = if selected {
         theme::bg_dark()
     } else if resp.hovered() {
-        theme::with_alpha(theme::ACCENT_TEAL, 18)
+        theme::with_alpha(theme::ACCENT_EMERALD, 18)
     } else {
         Color32::TRANSPARENT
     };
@@ -260,251 +247,186 @@ fn truncate_label(text: &str, max_chars: usize) -> String {
 
 fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let toolbar_frame = egui::Frame::new()
-        .fill(theme::bg_dark())
-        .inner_margin(Margin::symmetric(
-            theme::SPACE_LG as i8,
-            theme::SPACE_SM as i8,
-        ))
+        .fill(theme::bg_shell())
+        .inner_margin(Margin::symmetric(18, theme::SPACE_XS_I))
         .stroke(Stroke::new(1.0, theme::border_subtle()));
 
     toolbar_frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
+        ui.set_min_height(30.0);
         ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
+
             let has_connection = state.active_connection.is_some();
             let can_execute = has_connection && !state.query_running;
-            let action_enabled = can_execute || state.query_running;
-            let action_label = if state.query_running {
-                t("query_cancel")
+
+            // Run / Cancel button (primary pill with icon)
+            if state.query_running {
+                let cancel_btn = ui.add(
+                    theme::primary_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::CLOSE, "ed_cancel2", 12.0, Color32::WHITE),
+                        t("query_cancel"),
+                    )
+                    .stroke(Stroke::new(1.0, theme::ACCENT_RED))
+                );
+                if cancel_btn.clicked() {
+                    if let Some(conn_id) = state.active_connection {
+                        bridge.send(DbCommand::CancelQuery { conn_id });
+                    }
+                }
+                ui.spinner();
             } else {
-                t("query_execute")
-            };
-            let exec_resp = editor_toolbar_action_button(
-                ui,
-                if state.query_running {
-                    crate::ui::icons_svg::CANCEL
-                } else {
-                    crate::ui::icons_svg::EXECUTE
-                },
-                &action_label,
-                can_execute.then_some("⌘↵"),
-                action_enabled,
-                can_execute,
-                state.query_running,
-            );
-
-            let shortcut_fired =
-                can_execute && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
-
-            if shortcut_fired || (exec_resp.clicked() && can_execute) {
-                execute_current_query(state, bridge);
-            }
-            if exec_resp.clicked() && state.query_running {
-                if let Some(conn_id) = state.active_connection {
-                    bridge.send(DbCommand::CancelQuery { conn_id });
+                let run_label = format!("  {}  \u{2318}\u{21B5}  ", t("query_execute"));
+                let run_btn = ui.add(theme::primary_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::PLAY_SM, "ed_play2", 12.0, Color32::WHITE),
+                    run_label,
+                ));
+                let shortcut_fired = can_execute
+                    && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
+                if shortcut_fired || (run_btn.clicked() && can_execute) {
+                    execute_current_query(state, bridge);
                 }
             }
 
-            if state.query_running {
-                ui.add_space(theme::SPACE_MD);
-                ui.spinner();
-                ui.label(
-                    RichText::new("Running...")
-                        .color(theme::ACCENT_YELLOW)
-                        .size(12.0),
-                );
-            }
+            // Save button (secondary with icon)
+            ui.add(theme::secondary_icon_button(
+                crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save2", 12.0, theme::text_secondary()),
+                "Save",
+            ));
 
-            ui.add_space(theme::SPACE_MD);
-            let history_label = if state.show_history_panel { "History ✓" } else { "History" };
-            if ui.add(theme::secondary_button(history_label)).clicked() {
+            // History button (ghost with icon)
+            let history_label = if state.show_history_panel {
+                "History \u{2713}"
+            } else {
+                "History"
+            };
+            if ui
+                .add(theme::ghost_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::HISTORY, "ed_history2", 12.0, theme::text_muted()),
+                    history_label,
+                ))
+                .clicked()
+            {
                 state.show_history_panel = !state.show_history_panel;
             }
 
-            // Right side: active connection name
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if let Some(conn_id) = state.active_connection {
-                    if let Some(conn) = state.connections.get(&conn_id) {
-                        ui.allocate_new_ui(
-                            egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
-                                ui.next_widget_position() + egui::vec2(6.0, 11.0),
-                                egui::vec2(12.0, 12.0),
-                            )),
-                            |ui| {
-                                crate::ui::icon_img(
-                                    ui,
-                                    crate::ui::icons_svg::CONNECT,
-                                    "editor_status_conn",
-                                    10.0,
-                                );
-                            },
-                        );
-                        ui.add_space(14.0);
+            // Separator
+            let sep_rect = ui
+                .allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover())
+                .0;
+            ui.painter()
+                .rect_filled(sep_rect, CornerRadius::ZERO, theme::border_subtle());
 
-                        ui.label(
-                            RichText::new(&conn.config.display_name)
-                                .color(theme::text_secondary())
-                                .size(11.0),
-                        );
-                    }
-                } else {
-                    ui.label(
-                        RichText::new("No connection")
-                            .color(theme::text_disabled())
-                            .size(11.0),
-                    );
-                }
+            // Status badges
+            let stmt_count = state
+                .editor_tabs
+                .get(state.active_tab)
+                .map(|tab| {
+                    tab.content
+                        .split(';')
+                        .filter(|s| !s.trim().is_empty())
+                        .count()
+                        .max(1)
+                })
+                .unwrap_or(1);
+            render_badge_muted(ui, &format!("statement 1 of {stmt_count}"));
+
+            if state.explicit_tx_active {
+                render_badge_info(ui, "transaction active");
+            } else {
+                render_badge_info(ui, "auto-commit");
+            }
+
+            // Right side: cursor info + Format + EXPLAIN
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
+
+                ui.add(theme::ghost_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
+                    "EXPLAIN",
+                ));
+
+                ui.add(theme::ghost_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::SIGMA, "ed_sigma2", 12.0, theme::text_muted()),
+                    "Format",
+                ));
+
+                let sep_rect = ui
+                    .allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover())
+                    .0;
+                ui.painter()
+                    .rect_filled(sep_rect, CornerRadius::ZERO, theme::border_subtle());
+
+                ui.label(
+                    RichText::new("cursor 1:1")
+                        .color(theme::text_muted())
+                        .monospace()
+                        .size(11.0),
+                );
             });
         });
     });
 }
 
-fn editor_toolbar_action_button(
-    ui: &mut egui::Ui,
-    icon_svg: &str,
-    label: &str,
-    shortcut: Option<&str>,
-    enabled: bool,
-    primary: bool,
-    destructive: bool,
-) -> egui::Response {
-    let font = egui::FontId::proportional(12.5);
-    let text_color = if enabled {
-        theme::text_primary()
-    } else {
-        theme::text_disabled()
-    };
-    let text_width = ui
-        .painter()
-        .layout_no_wrap(label.to_string(), font.clone(), text_color)
-        .rect
-        .width();
-    let shortcut_font = egui::FontId::monospace(10.0);
-    let shortcut_width = shortcut
-        .map(|shortcut| {
-            ui.painter()
-                .layout_no_wrap(
-                    shortcut.to_string(),
-                    shortcut_font.clone(),
-                    theme::text_muted(),
-                )
-                .rect
-                .width()
-                + 14.0
-        })
-        .unwrap_or(0.0);
-    let shortcut_gap = if shortcut.is_some() { 10.0 } else { 0.0 };
-    let width = (text_width + shortcut_width + shortcut_gap + 42.0).max(86.0);
-    let sense = if enabled {
-        egui::Sense::click()
-    } else {
-        egui::Sense::hover()
-    };
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 30.0), sense);
-    let hovered = enabled && response.hovered();
-    let accent = if destructive {
-        theme::ACCENT_RED
-    } else {
-        theme::ACCENT_TEAL
-    };
-    let fill = if !enabled {
-        theme::bg_darkest()
-    } else if primary {
-        theme::with_alpha(accent, if hovered { 44 } else { 30 })
-    } else if hovered {
-        theme::bg_light()
-    } else {
-        theme::bg_medium()
-    };
-    let stroke = if enabled && (hovered || primary || destructive) {
-        Stroke::new(1.0, accent)
-    } else if !enabled {
-        Stroke::new(1.0, theme::border_subtle())
-    } else {
-        Stroke::new(1.0, theme::border_default())
-    };
-
-    ui.painter()
-        .rect_filled(rect, CornerRadius::same(theme::RADIUS_LG), fill);
+fn render_badge_muted(ui: &mut egui::Ui, text: &str) {
+    let galley = ui.painter().layout_no_wrap(
+        text.to_owned(),
+        egui::FontId::proportional(10.5),
+        theme::text_muted(),
+    );
+    let size = egui::vec2(galley.rect.width() + 14.0, 20.0);
+    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(255),
+        theme::bg_light(),
+    );
     ui.painter().rect_stroke(
         rect,
-        CornerRadius::same(theme::RADIUS_LG),
-        stroke,
-        egui::StrokeKind::Inside,
+        CornerRadius::same(255),
+        Stroke::new(1.0, theme::border_subtle()),
+        eframe::egui::StrokeKind::Inside,
     );
-
-    let icon_color = if enabled {
-        accent
-    } else {
-        theme::text_disabled()
-    };
-    let icon_name = if destructive {
-        "query_cancel_main"
-    } else {
-        "query_execute_main"
-    };
-    let icon_rect = egui::Rect::from_center_size(
-        rect.left_center() + egui::vec2(16.0, 0.0),
-        egui::vec2(12.0, 12.0),
-    );
-    ui.scope_builder(
-        egui::UiBuilder::new()
-            .max_rect(icon_rect)
-            .layout(egui::Layout::centered_and_justified(
-                egui::Direction::LeftToRight,
-            )),
-        |ui| {
-            ui.add(crate::ui::icon_image_tinted(
-                ui, icon_svg, icon_name, 12.0, icon_color,
-            ));
-        },
-    );
-    let label_pos = rect.left_center() + egui::vec2(31.0, 0.0);
-    let label_clip = egui::Rect::from_min_max(
-        egui::pos2(label_pos.x, rect.top()),
+    ui.painter().galley(
         egui::pos2(
-            rect.right() - shortcut_width - shortcut_gap - 8.0,
-            rect.bottom(),
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.center().y - galley.rect.height() / 2.0,
         ),
+        galley,
+        theme::text_muted(),
     );
-    ui.painter().with_clip_rect(label_clip).text(
-        label_pos,
-        egui::Align2::LEFT_CENTER,
-        label,
-        font,
-        text_color,
-    );
-
-    if let Some(shortcut) = shortcut {
-        let key_rect = egui::Rect::from_center_size(
-            rect.right_center() - egui::vec2(shortcut_width / 2.0 + 7.0, 0.0),
-            egui::vec2(shortcut_width, 18.0),
-        );
-        ui.painter().rect_filled(
-            key_rect,
-            CornerRadius::same(theme::RADIUS_SM),
-            theme::with_alpha(theme::bg_light(), if enabled { 190 } else { 110 }),
-        );
-        ui.painter().rect_stroke(
-            key_rect,
-            CornerRadius::same(theme::RADIUS_SM),
-            Stroke::new(1.0, theme::border_subtle()),
-            egui::StrokeKind::Inside,
-        );
-        ui.painter().text(
-            key_rect.center(),
-            egui::Align2::CENTER_CENTER,
-            shortcut,
-            shortcut_font,
-            if enabled {
-                theme::text_muted()
-            } else {
-                theme::text_disabled()
-            },
-        );
-    }
-
-    response
 }
+
+fn render_badge_info(ui: &mut egui::Ui, text: &str) {
+    let color = theme::ACCENT_BLUE;
+    let galley = ui.painter().layout_no_wrap(
+        text.to_owned(),
+        egui::FontId::proportional(10.5),
+        color,
+    );
+    let size = egui::vec2(galley.rect.width() + 14.0, 20.0);
+    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(255),
+        theme::with_alpha(color, 20),
+    );
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(255),
+        Stroke::new(1.0, theme::with_alpha(color, 50)),
+        eframe::egui::StrokeKind::Inside,
+    );
+    ui.painter().galley(
+        egui::pos2(
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.center().y - galley.rect.height() / 2.0,
+        ),
+        galley,
+        color,
+    );
+}
+
 
 // ---------------------------------------------------------------------------
 // Editor body
@@ -541,6 +463,9 @@ fn render_editor_body(
         .inner_margin(Margin::ZERO);
 
     editor_frame.show(ui, |ui| {
+        ui.set_min_size(ui.available_size());
+        ui.visuals_mut().faint_bg_color = theme::bg_editor();
+        ui.visuals_mut().extreme_bg_color = theme::bg_editor();
         let active_tab = state.active_tab;
         if active_tab >= state.editor_tabs.len() {
             return;
@@ -592,30 +517,69 @@ fn render_editor_body(
 
             let frame = egui::Frame::new()
                 .fill(theme::bg_editor())
-                .inner_margin(Margin::same(theme::SPACE_LG as i8));
+                .inner_margin(Margin::ZERO);
+            let avail_h = ui.available_height();
             let (_inner, dropped) = ui.dnd_drop_zone::<crate::ui::TableDragPayload, ()>(
                 frame,
                 |ui| {
-                    egui::ScrollArea::vertical()
-                        .id_salt(("editor_scroll", tab.id))
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            let te_id = egui::Id::new(("sql_editor", tab.id));
-                            let output = egui::TextEdit::multiline(&mut tab.content)
-                                .id(te_id)
-                                .font(egui::TextStyle::Monospace)
-                                .code_editor()
-                                .desired_width(f32::INFINITY)
-                                .desired_rows(12)
-                                .hint_text("SELECT *\nFROM public.table_name\nLIMIT 100;")
-                                .frame(false)
-                                .layouter(&mut layouter)
-                                .show(ui);
-                            editor_rect = output.response.rect;
-                            cursor_index =
-                                output.cursor_range.map(|range| range.primary.ccursor.index);
-                            content_snapshot = tab.content.clone();
-                        });
+                    ui.set_min_height(avail_h);
+                    // Paint full area with bg_editor first
+                    ui.painter().rect_filled(ui.max_rect(), CornerRadius::ZERO, theme::bg_editor());
+                    ui.horizontal_top(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        // Gutter: line numbers
+                        let line_count = tab.content.lines().count().max(1);
+                        let gutter_width = 44.0_f32;
+                        let (gutter_rect, _) = ui.allocate_exact_size(
+                            egui::vec2(gutter_width, avail_h),
+                            egui::Sense::hover(),
+                        );
+                        ui.painter().rect_filled(gutter_rect, CornerRadius::ZERO, theme::bg_editor());
+                        ui.painter().vline(
+                            gutter_rect.right(),
+                            gutter_rect.y_range(),
+                            Stroke::new(1.0, theme::border_subtle()),
+                        );
+                        let line_height = editor_font_size * 1.6;
+                        for i in 0..line_count {
+                            let y = gutter_rect.top() + 8.0 + i as f32 * line_height;
+                            if y > gutter_rect.bottom() {
+                                break;
+                            }
+                            ui.painter().text(
+                                egui::pos2(gutter_rect.right() - 10.0, y),
+                                egui::Align2::RIGHT_TOP,
+                                format!("{}", i + 1),
+                                egui::FontId::monospace(11.5),
+                                theme::text_disabled(),
+                            );
+                        }
+
+                        // Editor
+                        egui::ScrollArea::vertical()
+                            .id_salt(("editor_scroll", tab.id))
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                ui.set_min_height(avail_h - 4.0);
+                                let te_id = egui::Id::new(("sql_editor", tab.id));
+                                let output = egui::TextEdit::multiline(&mut tab.content)
+                                    .id(te_id)
+                                    .font(egui::TextStyle::Monospace)
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(100)
+                                    .hint_text("SELECT *\nFROM public.table_name\nLIMIT 100;")
+                                    .background_color(theme::bg_editor())
+                                    .text_color(theme::text_primary())
+                                    .margin(Margin::symmetric(theme::SPACE_LG_I, theme::SPACE_MD_I))
+                                    .layouter(&mut layouter)
+                                    .show(ui);
+                                editor_rect = output.response.rect;
+                                cursor_index =
+                                    output.cursor_range.map(|range| range.primary.ccursor.index);
+                                content_snapshot = tab.content.clone();
+                            });
+                    });
                 },
             );
             if let Some(payload) = dropped {
@@ -876,9 +840,9 @@ fn render_completion_item(ui: &mut egui::Ui, item: &CompletionItem, selected: bo
     let width = ui.available_width().max(360.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_TEAL, 45)
+        theme::with_alpha(theme::ACCENT_EMERALD, 45)
     } else if response.hovered() {
-        theme::with_alpha(theme::ACCENT_TEAL, 28)
+        theme::with_alpha(theme::ACCENT_EMERALD, 28)
     } else {
         Color32::TRANSPARENT
     };
@@ -997,7 +961,7 @@ fn collect_completions(state: &AppState, context: &CompletionContext) -> Vec<Com
                 schema,
                 "SCHEMA",
                 sql_ident(schema),
-                theme::ACCENT_TEAL,
+                theme::ACCENT_EMERALD,
                 &context.fragment,
             );
         }
@@ -1139,7 +1103,7 @@ fn trim_completion_items(mut items: Vec<CompletionItem>) -> Vec<CompletionItem> 
 fn table_type_completion_color(table_type: &str) -> Color32 {
     match table_type {
         "VIEW" => theme::ACCENT_BLUE,
-        "MATERIALIZED VIEW" => theme::ACCENT_TEAL,
+        "MATERIALIZED VIEW" => theme::ACCENT_EMERALD,
         _ => theme::ACCENT_COPPER,
     }
 }

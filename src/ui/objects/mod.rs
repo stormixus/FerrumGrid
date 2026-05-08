@@ -192,7 +192,7 @@ fn render_sub_toolbar(
 ) -> Option<ObjectAction> {
     let mut action = None;
     let frame = egui::Frame::new()
-        .fill(theme::bg_dark())
+        .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(
             theme::SPACE_LG as i8,
             theme::SPACE_SM as i8,

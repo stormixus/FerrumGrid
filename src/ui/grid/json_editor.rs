@@ -91,7 +91,7 @@ fn render_json_value_node(
                 "array",
                 &items.len().to_string(),
                 depth,
-                theme::ACCENT_TEAL,
+                theme::ACCENT_EMERALD,
             );
             if items.is_empty() {
                 render_json_empty_line(ui, "[]", depth + 1);
@@ -272,7 +272,7 @@ fn json_value_color(value: &serde_json::Value) -> Color32 {
         serde_json::Value::Bool(_) => theme::ACCENT_YELLOW,
         serde_json::Value::Number(_) => theme::ACCENT_COPPER_LIGHT,
         serde_json::Value::String(_) => theme::ACCENT_GREEN,
-        serde_json::Value::Array(_) => theme::ACCENT_TEAL,
+        serde_json::Value::Array(_) => theme::ACCENT_EMERALD,
         serde_json::Value::Object(_) => theme::ACCENT_BLUE,
     }
 }

@@ -39,11 +39,11 @@ pub enum DiagChannel {
 impl DiagChannel {
     pub fn label(self) -> &'static str {
         match self {
-            DiagChannel::EchoTimeout => "echo_timeout",
-            DiagChannel::DanglingTx => "dangling_tx",
-            DiagChannel::CacheStale => "cache_stale",
-            DiagChannel::BackupError => "backup_error",
-            DiagChannel::MutationDiagnostic => "mutation_diagnostic",
+            DiagChannel::EchoTimeout => "Schema",
+            DiagChannel::DanglingTx => "Tx",
+            DiagChannel::CacheStale => "Conn",
+            DiagChannel::BackupError => "Render",
+            DiagChannel::MutationDiagnostic => "Query",
         }
     }
 }
@@ -227,16 +227,52 @@ impl DiagnosticsPanel {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                for entry in &visible_entries {
+                let row_font = egui::FontId::monospace(10.5);
+                for (i, entry) in visible_entries.iter().enumerate() {
                     let (icon, color) = severity_icon_color(entry.severity);
                     let time = format_timestamp(entry.timestamp);
-                    ui.colored_label(
+                    let row_bg = if i % 2 == 1 {
+                        theme::with_alpha(theme::bg_light(), 40)
+                    } else {
+                        egui::Color32::TRANSPARENT
+                    };
+                    let (row_rect, _) = ui.allocate_exact_size(
+                        egui::vec2(ui.available_width(), 18.0),
+                        egui::Sense::hover(),
+                    );
+                    ui.painter()
+                        .rect_filled(row_rect, egui::CornerRadius::ZERO, row_bg);
+
+                    let y = row_rect.center().y;
+                    let x0 = row_rect.left() + 4.0;
+
+                    ui.painter().text(
+                        egui::pos2(x0, y),
+                        egui::Align2::LEFT_CENTER,
+                        &time,
+                        row_font.clone(),
+                        theme::text_disabled(),
+                    );
+                    ui.painter().text(
+                        egui::pos2(x0 + 64.0, y),
+                        egui::Align2::LEFT_CENTER,
+                        icon,
+                        row_font.clone(),
                         color,
-                        format!(
-                            "{time}  {icon} [{}] {}",
-                            entry.channel.label(),
-                            entry.message,
-                        ),
+                    );
+                    ui.painter().text(
+                        egui::pos2(x0 + 64.0 + 60.0, y),
+                        egui::Align2::LEFT_CENTER,
+                        entry.channel.label(),
+                        row_font.clone(),
+                        theme::text_muted(),
+                    );
+                    ui.painter().text(
+                        egui::pos2(x0 + 64.0 + 60.0 + 80.0, y),
+                        egui::Align2::LEFT_CENTER,
+                        &entry.message,
+                        row_font.clone(),
+                        color,
                     );
                 }
             });
@@ -377,11 +413,11 @@ mod tests {
 
     #[test]
     fn channel_labels_are_stable_strings() {
-        assert_eq!(DiagChannel::EchoTimeout.label(), "echo_timeout");
-        assert_eq!(DiagChannel::DanglingTx.label(), "dangling_tx");
-        assert_eq!(DiagChannel::CacheStale.label(), "cache_stale");
-        assert_eq!(DiagChannel::BackupError.label(), "backup_error");
-        assert_eq!(DiagChannel::MutationDiagnostic.label(), "mutation_diagnostic");
+        assert_eq!(DiagChannel::EchoTimeout.label(), "Schema");
+        assert_eq!(DiagChannel::DanglingTx.label(), "Tx");
+        assert_eq!(DiagChannel::CacheStale.label(), "Conn");
+        assert_eq!(DiagChannel::BackupError.label(), "Render");
+        assert_eq!(DiagChannel::MutationDiagnostic.label(), "Query");
     }
 
     #[test]

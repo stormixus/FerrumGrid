@@ -185,7 +185,6 @@ pub const ERROR: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill
     <path d="M22 22L42 42M42 22L22 42" stroke="#D24646" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>"##;
 
-pub const CONNECT: &str = CONNECTION;
 
 pub const CALENDAR: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" color="#2DBDFF" xmlns="http://www.w3.org/2000/svg">
     <rect x="10" y="14" width="44" height="40" rx="7" fill="#0D1820" stroke="currentColor" stroke-width="4"/>
@@ -241,7 +240,6 @@ pub const SORT_DESC: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" 
     <path d="M38 22H44M38 32H48M38 42H52" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>"##;
 
-pub const CANCEL: &str = CLOSE;
 pub const EXECUTE: &str = QUERY;
 
 pub const EDIT: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -265,3 +263,29 @@ pub const CODE: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill=
 pub const PLAY: &str = r##"<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M16 12L52 32L16 52V12Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
 </svg>"##;
+
+pub const SAVE: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 14h8v6H8z"/></svg>"##;
+
+pub const HISTORY: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>"##;
+
+pub const SIGMA: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5H6l6 7-6 7h12"/></svg>"##;
+
+pub const BRAIN: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5a3 3 0 0 0-3 3v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3 0z"/><path d="M15 5a3 3 0 0 1 3 3v1a3 3 0 0 1 2 5 3 3 0 0 1-2 5v1a3 3 0 0 1-6 0"/></svg>"##;
+
+pub const FILTER: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 9v6l-4-2v-4z"/></svg>"##;
+
+pub const SEARCH: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>"##;
+
+pub const COG: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.4.9a7 7 0 0 0-2.2-1.3L13.7 3h-3.4l-.6 2.4a7 7 0 0 0-2.2 1.3l-2.4-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.4-.9a7 7 0 0 0 2.2 1.3l.6 2.4h3.4l.6-2.4a7 7 0 0 0 2.2-1.3l2.4.9 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z"/></svg>"##;
+
+pub const VAULT: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 9v-1M12 16v-1M9 12h-1M16 12h-1"/></svg>"##;
+
+pub const DOWNLOAD: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0l-5-5m5 5l5-5"/><path d="M5 20h14"/></svg>"##;
+
+pub const CHART: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M8 14l3-3 3 3 5-6"/></svg>"##;
+
+pub const DIAGRAM: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8" y="14" width="9" height="7" rx="1"/><path d="M6 10v2h6v2M17 10v2h-5"/></svg>"##;
+
+pub const PLAY_SM: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4l14 8-14 8z" fill="currentColor" stroke="none"/></svg>"##;
+
+pub const TABLE_SM: &str = r##"<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>"##;

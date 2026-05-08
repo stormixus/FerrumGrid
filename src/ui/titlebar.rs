@@ -1,39 +1,28 @@
-//! Custom titlebar strip — borderless 윈도우 상단의 drag region + macOS native
-//! traffic lights 영역 보존.
-//!
-//! macOS: `with_fullsize_content_view(true)` + `with_title_shown(false)` 와
-//! 함께 사용. 콘텐츠가 native titlebar 아래로 확장되지만 신호등 (close/min/max)
-//! 은 native 그대로 좌상단에 표시된다. 본 strip 은 신호등 우측을 drag region
-//! 으로 처리하고 좌측 [`MAC_TRAFFIC_LIGHTS_WIDTH`] 만큼은 비워둔다.
+//! Custom titlebar strip — borderless window top drag region + macOS native
+//! traffic lights preservation.
 
-use eframe::egui::{self, Margin, Sense, Stroke};
+use eframe::egui::{self, CornerRadius, Margin, Sense, Stroke};
 
+use crate::state::{AppState, ConnectionStatus};
 use super::theme;
 
-/// 타이틀바 strip 의 총 높이 (px).
-pub const TITLEBAR_HEIGHT: f32 = 28.0;
+pub const TITLEBAR_HEIGHT: f32 = 32.0;
 
-/// macOS native traffic lights 가 차지하는 좌측 영역 폭 (close/min/max 3개 +
-/// 좌측 padding). 본 영역은 drag region 에서 제외해야 신호등 클릭이 hit.
 pub const MAC_TRAFFIC_LIGHTS_WIDTH: f32 = 78.0;
 
-/// `panels::render_panels` 가 가장 먼저 호출 — main_toolbar 위에 위치한다.
-/// 빈 strip 위에 pointer drag 시 `ViewportCommand::StartDrag` 발사.
-pub fn render_titlebar(ctx: &egui::Context) {
+pub fn render_titlebar(ctx: &egui::Context, state: &AppState, settings: &mut crate::storage::settings::AppSettings) {
     egui::TopBottomPanel::top("custom_titlebar")
         .exact_height(TITLEBAR_HEIGHT)
         .frame(
             egui::Frame::new()
                 .fill(theme::bg_shell())
-                .inner_margin(Margin::ZERO)
-                .stroke(Stroke::new(1.0, theme::border_subtle())),
+                .inner_margin(Margin::ZERO),
         )
         .show_separator_line(false)
         .show(ctx, |ui| {
             let full_rect = ui.max_rect();
             let drag_rect = drag_region_rect(full_rect);
 
-            // Drag region — pointer drag 시 윈도우 이동.
             let drag_response = ui.interact(
                 drag_rect,
                 ui.id().with("titlebar_drag"),
@@ -42,30 +31,103 @@ pub fn render_titlebar(ctx: &egui::Context) {
             if drag_response.drag_started_by(egui::PointerButton::Primary) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
             }
-            // 더블클릭 시 maximize 토글 (macOS native 동작 모방).
             if drag_response.double_clicked() {
                 let maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
             }
 
             let painter = ui.painter_at(full_rect);
-            let title = "FerrumGrid";
+
+            // Center: connection info
+            let title = build_titlebar_text(state);
             let galley = painter.layout_no_wrap(
-                title.to_string(),
+                title,
                 egui::FontId::proportional(12.0),
-                theme::text_muted(),
+                theme::text_secondary(),
             );
-            if cfg!(target_os = "macos") {
-                let pos = egui::pos2(
-                    full_rect.min.x + MAC_TRAFFIC_LIGHTS_WIDTH + 4.0,
-                    full_rect.center().y - galley.size().y * 0.5,
+            let center = egui::pos2(
+                full_rect.center().x - galley.size().x * 0.5,
+                full_rect.center().y - galley.size().y * 0.5,
+            );
+            painter.galley(center, galley, theme::text_secondary());
+
+            // Right: Dark/Light theme toggle
+            let toggle_right = full_rect.right() - 12.0;
+            let toggle_y = full_rect.center().y;
+
+            // Pill container background
+            let pill_w = 78.0;
+            let pill_h = 22.0;
+            let pill_rect = egui::Rect::from_min_size(
+                egui::pos2(toggle_right - pill_w, toggle_y - pill_h / 2.0),
+                egui::vec2(pill_w, pill_h),
+            );
+            painter.rect_filled(
+                pill_rect,
+                CornerRadius::same(theme::RADIUS_MD),
+                theme::bg_light(),
+            );
+
+            for (i, (label, is_dark)) in [("Dark", true), ("Light", false)].iter().enumerate() {
+                let w = 38.0;
+                let x = pill_rect.left() + i as f32 * w;
+                let rect = egui::Rect::from_min_size(
+                    egui::pos2(x, pill_rect.top()),
+                    egui::vec2(w, pill_h),
                 );
-                painter.galley(pos, galley, theme::text_muted());
-            } else {
-                let center = full_rect.center() - galley.size() * 0.5;
-                painter.galley(center, galley, theme::text_muted());
+                let active = settings.dark_mode == *is_dark;
+                let response = ui.interact(rect, ui.id().with(label), Sense::click());
+
+                if active {
+                    painter.rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), theme::with_alpha(theme::ACCENT_EMERALD, 40));
+                }
+                let text_color = if active {
+                    theme::ACCENT_EMERALD
+                } else {
+                    theme::text_muted()
+                };
+
+                let seg_galley = painter.layout_no_wrap(
+                    label.to_string(),
+                    egui::FontId::proportional(11.0),
+                    text_color,
+                );
+                painter.galley(
+                    egui::pos2(
+                        rect.center().x - seg_galley.size().x / 2.0,
+                        rect.center().y - seg_galley.size().y / 2.0,
+                    ),
+                    seg_galley,
+                    text_color,
+                );
+
+                if response.clicked() && settings.dark_mode != *is_dark {
+                    settings.dark_mode = *is_dark;
+                    settings.appearance = if *is_dark { "dark" } else { "light" }.to_string();
+                    theme::apply_appearance(ui.ctx(), &settings.appearance);
+                    crate::storage::settings::save_settings(settings);
+                }
             }
         });
+}
+
+fn build_titlebar_text(state: &AppState) -> String {
+    let mut parts = vec!["FerrumGrid".to_string()];
+    if let Some(conn_id) = state.active_connection {
+        if let Some(conn) = state.connections.get(&conn_id) {
+            parts.push(" \u{2014} ".to_string());
+            let dot = match &conn.status {
+                ConnectionStatus::Connected { .. } => "\u{25CF} ",
+                ConnectionStatus::Connecting => "\u{25CB} ",
+                ConnectionStatus::Disconnected => "\u{25CB} ",
+            };
+            parts.push(dot.to_string());
+            parts.push(conn.config.display_name.clone());
+            parts.push(" \u{00B7} ".to_string());
+            parts.push(conn.config.database.clone());
+        }
+    }
+    parts.join("")
 }
 
 /// 신호등 영역 (좌측 [`MAC_TRAFFIC_LIGHTS_WIDTH`]) 을 제외한 drag region.

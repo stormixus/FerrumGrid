@@ -48,7 +48,7 @@ pub fn result_toolbar_action_button(
                 icon_name,
                 12.0,
                 if enabled {
-                    theme::ACCENT_TEAL
+                    theme::ACCENT_EMERALD
                 } else {
                     theme::text_disabled()
                 },
@@ -236,7 +236,7 @@ pub(super) fn result_toolbar_button_frame(
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -336,7 +336,7 @@ pub fn metric_chip(ui: &mut egui::Ui, text: &str, color: Color32) {
         theme::text_primary(),
     );
     let (rect, _) = ui.allocate_exact_size(
-        egui::vec2(galley.rect.width() + 18.0, 20.0),
+        egui::vec2(galley.rect.width() + 26.0, 20.0),
         egui::Sense::hover(),
     );
     ui.painter().rect_filled(
@@ -345,9 +345,9 @@ pub fn metric_chip(ui: &mut egui::Ui, text: &str, color: Color32) {
         theme::with_alpha(color, 24),
     );
     ui.painter()
-        .circle_filled(rect.left_center() + egui::vec2(9.0, 0.0), 2.5, color);
+        .circle_filled(rect.left_center() + egui::vec2(11.0, 0.0), 2.5, color);
     ui.painter().text(
-        rect.left_center() + egui::vec2(15.0, 0.0),
+        rect.left_center() + egui::vec2(17.0, 0.0),
         egui::Align2::LEFT_CENTER,
         text,
         egui::FontId::proportional(11.0),

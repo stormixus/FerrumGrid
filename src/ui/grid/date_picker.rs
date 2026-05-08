@@ -377,7 +377,7 @@ fn date_picker_day_cell(
     let (rect, response) = ui.allocate_exact_size(egui::vec2(30.0, 26.0), egui::Sense::click());
     let hovered = response.hovered();
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_TEAL, 54)
+        theme::with_alpha(theme::ACCENT_EMERALD, 54)
     } else if hovered {
         theme::bg_light()
     } else {
@@ -388,7 +388,7 @@ fn date_picker_day_cell(
             .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
     }
     let stroke = if selected {
-        Some(Stroke::new(1.0, theme::ACCENT_TEAL))
+        Some(Stroke::new(1.0, theme::ACCENT_EMERALD))
     } else if today {
         Some(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_BLUE, 150)))
     } else {
@@ -408,7 +408,7 @@ fn date_picker_day_cell(
         day.to_string(),
         egui::FontId::monospace(12.0),
         if selected {
-            theme::ACCENT_TEAL
+            theme::ACCENT_EMERALD
         } else {
             theme::text_secondary()
         },
@@ -544,7 +544,7 @@ fn inline_dark_text_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };

@@ -196,7 +196,7 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
         metric_chip(
             ui,
             &tf("data_info_indexes_n", &[&context.indexes.len().to_string()]),
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
         metric_chip(
             ui,
@@ -295,7 +295,7 @@ pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoCo
                             fk.target_table,
                             fk.target_column
                         ))
-                        .color(theme::ACCENT_TEAL)
+                        .color(theme::ACCENT_EMERALD)
                         .monospace()
                         .size(10.0),
                     );
@@ -321,7 +321,7 @@ pub(super) fn render_info_table_indexes(ui: &mut egui::Ui, indexes: &[IndexInfo]
             if index.is_primary {
                 Some(("PK".to_string(), theme::ACCENT_YELLOW))
             } else if index.is_unique {
-                Some(("UNIQUE".to_string(), theme::ACCENT_TEAL))
+                Some(("UNIQUE".to_string(), theme::ACCENT_EMERALD))
             } else {
                 None
             },

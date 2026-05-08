@@ -1,6 +1,7 @@
 use eframe::egui;
 
 pub mod about;
+pub mod command_palette;
 pub mod diagnostics_panel;
 pub mod dialogs;
 pub mod drop_dialog;

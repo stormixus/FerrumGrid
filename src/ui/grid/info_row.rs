@@ -2,7 +2,7 @@
 //!
 //! Plan v7 US-G3 — extracted from `info_panel.rs`.
 
-use eframe::egui::{self, CornerRadius, Margin, RichText, Stroke};
+use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 
 use crate::db::bridge::DbBridge;
 use crate::i18n::{t, tf};
@@ -22,21 +22,56 @@ use super::{
     metric_chip, open_related_data, parse_bool, relation_for_column, validate_edit_value,
 };
 
-pub(super) fn render_info_header(ui: &mut egui::Ui) {
+pub(super) fn render_info_header(ui: &mut egui::Ui, state: &mut crate::state::AppState) {
+    use crate::state::InfoPanelTab;
+
     egui::Frame::new()
         .fill(theme::bg_shell())
-        .inner_margin(Margin::same(theme::SPACE_LG_I))
+        .inner_margin(Margin::symmetric(theme::SPACE_SM_I, theme::SPACE_SM_I))
         .stroke(Stroke::new(1.0, theme::border_subtle()))
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.horizontal(|ui| {
-                crate::ui::icon_img(ui, crate::ui::icons_svg::INFO, "info", 14.0);
-                ui.add_space(4.0);
-                ui.label(
-                    RichText::new(t("info"))
-                        .color(theme::text_primary())
-                        .strong(),
-                );
+                ui.spacing_mut().item_spacing.x = 2.0;
+                for (tab, label) in [
+                    (InfoPanelTab::Cell, "Cell"),
+                    (InfoPanelTab::Row, "Row"),
+                    (InfoPanelTab::Schema, "Schema"),
+                    (InfoPanelTab::Sql, "SQL"),
+                ] {
+                    let active = state.info_panel_tab == tab;
+                    let text_color = if active {
+                        theme::text_primary()
+                    } else {
+                        theme::text_muted()
+                    };
+                    let bg = if active {
+                        theme::bg_light()
+                    } else {
+                        Color32::TRANSPARENT
+                    };
+                    let galley = ui.painter().layout_no_wrap(
+                        label.to_string(),
+                        egui::FontId::proportional(11.0),
+                        text_color,
+                    );
+                    let w = galley.rect.width() + 16.0;
+                    let (rect, resp) =
+                        ui.allocate_exact_size(egui::vec2(w, 24.0), egui::Sense::click());
+                    ui.painter()
+                        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), bg);
+                    ui.painter().galley(
+                        egui::pos2(
+                            rect.center().x - galley.rect.width() / 2.0,
+                            rect.center().y - galley.rect.height() / 2.0,
+                        ),
+                        galley,
+                        text_color,
+                    );
+                    if resp.clicked() {
+                        state.info_panel_tab = tab;
+                    }
+                }
             });
         });
 }
@@ -76,7 +111,7 @@ pub(super) fn render_info_row_summary(ui: &mut egui::Ui, context: &SelectedRowCo
         metric_chip(
             ui,
             &tf("data_info_row_n", &[&(context.row_idx + 1).to_string()]),
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
         metric_chip(
             ui,
@@ -154,7 +189,7 @@ pub(super) fn render_info_row_field(
     let data_timezone = state.data_timezone.clone();
 
     let stroke_color = if field.selected {
-        theme::ACCENT_TEAL
+        theme::ACCENT_EMERALD
     } else {
         theme::border_subtle()
     };
@@ -183,7 +218,7 @@ pub(super) fn render_info_row_field(
                     tiny_badge(ui, "PK", theme::ACCENT_YELLOW);
                 }
                 if field.selected {
-                    tiny_badge(ui, &t("data_info_selected"), theme::ACCENT_TEAL);
+                    tiny_badge(ui, &t("data_info_selected"), theme::ACCENT_EMERALD);
                 }
             });
 
@@ -294,7 +329,7 @@ pub(super) fn render_info_row_field(
                             "info_relation_jump",
                             &t("data_relation_open"),
                             true,
-                            theme::ACCENT_TEAL,
+                            theme::ACCENT_EMERALD,
                         );
                         if relation_resp.clicked() {
                             open_related_data(state, bridge, &fk, filter);

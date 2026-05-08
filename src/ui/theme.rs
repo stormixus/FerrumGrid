@@ -45,6 +45,7 @@ pub const ACCENT_RED: Color32 = Color32::from_rgb(229, 72, 77);
 pub const ACCENT_RED_SOFT: Color32 = Color32::from_rgb(220, 150, 150);
 const LIGHT_ACCENT_RED_SOFT: Color32 = Color32::from_rgb(180, 82, 82);
 pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
+pub const ACCENT_PURPLE: Color32 = Color32::from_rgb(181, 139, 247);
 
 // Borders / separators
 pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(36, 36, 36);
@@ -68,8 +69,6 @@ pub const SPACE_XS_I: i8 = 2;
 pub const SPACE_SM_I: i8 = 4;
 pub const SPACE_MD_I: i8 = 8;
 pub const SPACE_LG_I: i8 = 12;
-pub const SPACE_XL_I: i8 = 16;
-
 // u8 versions for CornerRadius::same
 pub const RADIUS_SM: u8 = 2;
 pub const RADIUS_MD: u8 = 4;
@@ -425,13 +424,22 @@ fn install_apple_system_fonts(fonts: &mut FontDefinitions) {
 
 fn install_locale_ui_fonts(fonts: &mut FontDefinitions, language: &str) {
     match language {
-        "ko" => install_font(
-            fonts,
-            "ferrum_apple_sd_gothic_neo",
-            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
-            &[FontFamily::Proportional],
-            FontPlacement::Front,
-        ),
+        "ko" => {
+            static NANUM_REGULAR: &[u8] = include_bytes!("../../fonts/NanumGothicCoding.ttf");
+            static NANUM_BOLD: &[u8] = include_bytes!("../../fonts/NanumGothicCoding-Bold.ttf");
+            fonts.font_data.insert(
+                "ferrum_nanum_gothic_coding".to_owned(),
+                Arc::new(FontData::from_static(NANUM_REGULAR)),
+            );
+            fonts.font_data.insert(
+                "ferrum_nanum_gothic_coding_bold".to_owned(),
+                Arc::new(FontData::from_static(NANUM_BOLD)),
+            );
+            for family in [FontFamily::Proportional, FontFamily::Monospace] {
+                let list = fonts.families.entry(family).or_default();
+                list.insert(0, "ferrum_nanum_gothic_coding".to_owned());
+            }
+        }
         "zh-CN" => install_font(
             fonts,
             "ferrum_st_heiti",
@@ -529,8 +537,8 @@ pub fn secondary_button(text: &str) -> egui::Button<'_> {
 }
 
 pub fn ghost_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(text_secondary()).size(12.5))
-        .fill(bg_darkest())
+    egui::Button::new(egui::RichText::new(text).color(text_muted()).size(12.5))
+        .fill(Color32::TRANSPARENT)
         .stroke(Stroke::NONE)
         .corner_radius(CornerRadius::same(RADIUS_MD))
         .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
@@ -575,11 +583,11 @@ pub fn ghost_icon_button(
     egui::Button::image_and_text(
         icon,
         egui::RichText::new(text.into())
-            .color(text_secondary())
+            .color(text_muted())
             .size(12.5),
     )
-    .fill(bg_darkest())
-    .stroke(Stroke::new(1.0, border_subtle()))
+    .fill(Color32::TRANSPARENT)
+    .stroke(Stroke::NONE)
     .corner_radius(CornerRadius::same(RADIUS_MD))
     .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }

@@ -17,6 +17,40 @@ use crate::ui::{icon_image, icon_img, icon_img_tinted, icons_svg, theme, TableDr
 // ---------------------------------------------------------------------------
 
 pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    use crate::state::TreePanelTab;
+    match state.tree_panel_tab {
+        TreePanelTab::Schema => render_tree_schema(ui, state, bridge),
+        TreePanelTab::Roles => {
+            ui.add_space(theme::SPACE_XXL);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new("R").monospace().size(20.0).color(theme::ACCENT_RED));
+                ui.add_space(theme::SPACE_SM);
+                ui.label(RichText::new(t("tree_roles_title")).color(theme::text_muted()).size(12.0));
+                ui.label(RichText::new(t("tree_roles_desc")).color(theme::text_disabled()).size(11.0));
+            });
+        }
+        TreePanelTab::History => {
+            ui.add_space(theme::SPACE_XXL);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new("H").monospace().size(20.0).color(theme::ACCENT_BLUE));
+                ui.add_space(theme::SPACE_SM);
+                ui.label(RichText::new(t("tree_history_title")).color(theme::text_muted()).size(12.0));
+                ui.label(RichText::new(t("tree_history_desc")).color(theme::text_disabled()).size(11.0));
+            });
+        }
+        TreePanelTab::Snippets => {
+            ui.add_space(theme::SPACE_XXL);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new("S").monospace().size(20.0).color(theme::ACCENT_PURPLE));
+                ui.add_space(theme::SPACE_SM);
+                ui.label(RichText::new(t("tree_snippets_title")).color(theme::text_muted()).size(12.0));
+                ui.label(RichText::new(t("tree_snippets_desc")).color(theme::text_disabled()).size(11.0));
+            });
+        }
+    }
+}
+
+fn render_tree_schema(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     if state.connections.is_empty() && state.saved_connections.is_empty() {
         ui.add_space(theme::SPACE_XXL);
         ui.vertical_centered(|ui| {
@@ -241,7 +275,7 @@ fn render_saved_connection_row(
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(2.0, 1.0)),
             CornerRadius::same(theme::RADIUS_LG),
-            theme::with_alpha(theme::ACCENT_TEAL, 18),
+            theme::with_alpha(theme::ACCENT_EMERALD, 18),
         );
     }
 
@@ -1055,7 +1089,7 @@ fn mac_menu_item(
         ui.painter().rect_filled(
             rect.expand2(egui::vec2(6.0, 0.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_TEAL, 46),
+            theme::with_alpha(theme::ACCENT_EMERALD, 46),
         );
     }
 
@@ -1065,7 +1099,7 @@ fn mac_menu_item(
         theme::text_disabled()
     };
     let aux_color = if hovered {
-        theme::ACCENT_TEAL
+        theme::ACCENT_EMERALD
     } else {
         theme::text_muted()
     };
@@ -1095,7 +1129,7 @@ fn mac_menu_item(
             trailing,
             egui::FontId::proportional(17.0),
             if hovered {
-                theme::ACCENT_TEAL
+                theme::ACCENT_EMERALD
             } else {
                 theme::text_secondary()
             },
@@ -1743,7 +1777,7 @@ fn render_table_node(
 
     let header_text = RichText::new(table_name)
         .color(if is_selected {
-            theme::ACCENT_TEAL
+            theme::ACCENT_EMERALD
         } else {
             theme::text_primary()
         })
@@ -2309,7 +2343,7 @@ fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo, depth: u
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(4.0, 1.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_TEAL, 16),
+            theme::with_alpha(theme::ACCENT_EMERALD, 16),
         );
     }
 
@@ -2486,7 +2520,7 @@ fn render_leaf_row(
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(2.0, 1.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_TEAL, 16),
+            theme::with_alpha(theme::ACCENT_EMERALD, 16),
         );
     }
 
@@ -2519,17 +2553,76 @@ fn paint_inline_icon(
     rect: egui::Rect,
     indent_x: f32,
     icon_svg: &str,
-    icon_name: &str,
+    _icon_name: &str,
     size: f32,
 ) {
-    ui.allocate_new_ui(
-        egui::UiBuilder::new().max_rect(egui::Rect::from_center_size(
-            rect.left_center() + egui::vec2(indent_x + size / 2.0, 0.0),
-            egui::vec2(size, size),
-        )),
-        |ui| {
-            icon_img(ui, icon_svg, icon_name, size);
-        },
+    let badge_rect = egui::Rect::from_center_size(
+        rect.left_center() + egui::vec2(indent_x + size / 2.0, 0.0),
+        egui::vec2(size, size),
+    );
+    paint_letter_badge(ui, badge_rect, icon_svg);
+}
+
+fn tree_icon_spec(icon_svg: &str) -> (&'static str, Color32, Color32) {
+    match icon_svg {
+        s if std::ptr::eq(s, icons_svg::DATABASE) => (
+            "D",
+            theme::with_alpha(theme::ACCENT_EMERALD, 40),
+            theme::ACCENT_EMERALD,
+        ),
+        s if std::ptr::eq(s, icons_svg::SCHEMA) => (
+            "S",
+            theme::bg_light(),
+            theme::text_secondary(),
+        ),
+        s if std::ptr::eq(s, icons_svg::TABLE) => (
+            "T",
+            theme::with_alpha(theme::ACCENT_EMERALD, 40),
+            theme::ACCENT_EMERALD,
+        ),
+        s if std::ptr::eq(s, icons_svg::VIEW) => (
+            "V",
+            theme::with_alpha(theme::ACCENT_BLUE, 40),
+            theme::ACCENT_BLUE,
+        ),
+        s if std::ptr::eq(s, icons_svg::MATERIALIZED_VIEW) => (
+            "M",
+            theme::with_alpha(theme::ACCENT_BLUE, 40),
+            theme::ACCENT_BLUE,
+        ),
+        s if std::ptr::eq(s, icons_svg::FUNCTION) => (
+            "\u{0192}",
+            theme::with_alpha(theme::ACCENT_PURPLE, 46),
+            theme::ACCENT_PURPLE,
+        ),
+        s if std::ptr::eq(s, icons_svg::QUERY) => (
+            "Q",
+            theme::with_alpha(theme::ACCENT_BLUE, 40),
+            theme::ACCENT_BLUE,
+        ),
+        s if std::ptr::eq(s, icons_svg::BACKUP) => (
+            "B",
+            theme::with_alpha(theme::ACCENT_YELLOW, 40),
+            theme::ACCENT_YELLOW,
+        ),
+        _ => (
+            "\u{00B7}",
+            theme::bg_light(),
+            theme::text_muted(),
+        ),
+    }
+}
+
+fn paint_letter_badge(ui: &mut egui::Ui, rect: egui::Rect, icon_svg: &str) {
+    let (letter, bg, fg) = tree_icon_spec(icon_svg);
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(3), bg);
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        letter,
+        egui::FontId::monospace(9.0),
+        fg,
     );
 }
 
@@ -2675,11 +2768,11 @@ fn collapsing_node(
         ui.allocate_exact_size(egui::vec2(full_width, row_height), Sense::click());
 
     let bg = if spec.selected {
-        Some(theme::with_alpha(theme::ACCENT_TEAL, 42))
+        Some(theme::with_alpha(theme::ACCENT_EMERALD, 42))
     } else if header_resp.is_pointer_button_down_on() {
         Some(theme::bg_elevated())
     } else if header_resp.hovered() {
-        Some(theme::with_alpha(theme::ACCENT_TEAL, 20))
+        Some(theme::with_alpha(theme::ACCENT_EMERALD, 20))
     } else if spec.is_root {
         Some(theme::bg_dark())
     } else {
@@ -2702,7 +2795,7 @@ fn collapsing_node(
         ui.painter().rect_stroke(
             paint_rect,
             CornerRadius::same(theme::RADIUS_MD),
-            Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 120)),
+            Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 120)),
             egui::StrokeKind::Inside,
         );
         let stripe =
@@ -2710,7 +2803,7 @@ fn collapsing_node(
         ui.painter().rect_filled(
             stripe,
             CornerRadius::same(theme::RADIUS_SM),
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
     }
 
@@ -2767,11 +2860,20 @@ fn collapsing_node(
             egui::vec2(16.0, 16.0),
         )),
         |ui| {
+            let (badge_rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
             if let Some(tint) = spec.icon_tint {
-                let img = icon_image(ui, spec.icon_svg, spec.icon_name, 14.0).tint(tint);
-                ui.add(img);
+                let (letter, _, _) = tree_icon_spec(spec.icon_svg);
+                let bg = theme::with_alpha(tint, 40);
+                ui.painter().rect_filled(badge_rect, CornerRadius::same(3), bg);
+                ui.painter().text(
+                    badge_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    letter,
+                    egui::FontId::monospace(9.0),
+                    tint,
+                );
             } else {
-                icon_img(ui, spec.icon_svg, spec.icon_name, 14.0);
+                paint_letter_badge(ui, badge_rect, spec.icon_svg);
             }
         },
     );

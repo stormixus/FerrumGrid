@@ -2,6 +2,48 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.2.0] - 2026-05-08
+
+### Added
+
+- Command Palette (⌘K) with search, keyboard navigation, and action execution
+- Settings window with 10 panes (General, Editor, Data Grid, Connections, Vault, Backup, AI, Diagnostics, Language, Updates) and 46 new configurable fields
+- Info panel tabs (Cell, Row, Schema, SQL) with SQL copy button
+- Tree panel tabs (Schema, Roles, History, Snippets) with content switching
+- Connection mini-status indicator in tree panel header (LED dot + hostname)
+- NanumGothicCoding font embedded for Korean language support
+- Letter badge icons for tree browser (D/S/T/V/M/ƒ/Q/B) matching mockup design
+- Empty grid area click-to-deselect for cell editing
+- i18n support for ~160 new UI strings across 7 languages (Korean native translations)
+
+### Changed
+
+- Main toolbar restructured: 64px icon cards replaced with 38px compact tab buttons
+- Workspace tabs restyled: top accent bar, rounded corners, bg_darkest fill, view suffix labels
+- Titlebar enhanced: connection info display, Dark/Light theme toggle pill, 32px height
+- Settings redesigned: sidebar navigation, responsive sizing (min 480x360, max 720x540), dim overlay
+- Data grid: 48px row numbers with bg_shell, right-aligned numbers (ACCENT_YELLOW), subtle cell hover, border-subtle separators
+- Diagnostics panel: grid-based row layout (timestamp/level/channel/message columns), 160px height
+- Info panel default width increased to 280px
+- Status bar height reduced to 22px
+- Accent color unified to ACCENT_EMERALD across tree browser, grid, editor, and all selection states
+- Editable cell colors aligned with mockup (numbers=yellow, JSON=purple, dates=text_secondary, UUID=muted)
+- Tree browser icon tinting uses text_secondary for theme compatibility
+- Settings row layout uses justify-between (labels left, controls right)
+- Metric chip label padding increased by 4px each side
+
+### Fixed
+
+- Table list action icons overlapping (scope_builder double allocation replaced with paint_at)
+- Light theme titlebar dark line between titlebar and toolbar
+- Cell editing not deactivating when clicking outside grid area
+- Command palette overlay covering the palette itself (z-order fix)
+- Settings overlay covering the settings window (z-order fix)
+
+### Removed
+
+- ~200 lines of dead code from old toolbar design (settings.rs, icons_svg.rs, theme.rs, state/mod.rs)
+
 ## [0.1.4] - 2026-05-08
 
 ### Changed

@@ -30,7 +30,9 @@ use super::table_info::{ensure_table_info_metadata, render_info_table_overview};
 use super::show_dark_hover_tooltip;
 
 pub fn render_info_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
-    render_info_header(ui);
+    use crate::state::InfoPanelTab;
+
+    render_info_header(ui, state);
 
     egui::ScrollArea::vertical()
         .id_salt("data_info_scroll")
@@ -42,39 +44,126 @@ pub fn render_info_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
 
-                    match state.active_main_view {
-                        MainView::Data => render_data_info(ui, state, bridge),
-                        MainView::Connection => render_connection_info(ui, state),
-                        MainView::Table => render_table_kind_info(
-                            ui,
-                            state,
-                            bridge,
-                            "BASE TABLE",
-                            &t("info_view_table_title"),
-                        ),
-                        MainView::View => render_table_kind_info(
-                            ui,
-                            state,
-                            bridge,
-                            "VIEW",
-                            &t("info_view_view_title"),
-                        ),
-                        MainView::MaterializedView => render_table_kind_info(
-                            ui,
-                            state,
-                            bridge,
-                            "MATERIALIZED VIEW",
-                            &t("info_view_matview_title"),
-                        ),
-                        MainView::Function => render_function_info(ui, state),
-                        MainView::User => render_role_info(ui, state),
-                        MainView::Query => render_query_info(ui, state),
-                        MainView::Backup => render_backup_info(ui, state),
-                        MainView::Automation => render_automation_info(ui, state),
-                        MainView::Model => render_model_info(ui, state, bridge),
-                        MainView::BI => render_bi_info(ui, state),
+                    if state.active_main_view == MainView::Data {
+                        match state.info_panel_tab {
+                            InfoPanelTab::Cell => render_data_info(ui, state, bridge),
+                            InfoPanelTab::Row => render_data_row_tab(ui, state, bridge),
+                            InfoPanelTab::Schema => render_data_schema_tab(ui, state, bridge),
+                            InfoPanelTab::Sql => render_data_sql_tab(ui, state, bridge),
+                        }
+                    } else {
+                        match state.active_main_view {
+                            MainView::Connection => render_connection_info(ui, state),
+                            MainView::Table => render_table_kind_info(
+                                ui,
+                                state,
+                                bridge,
+                                "BASE TABLE",
+                                &t("info_view_table_title"),
+                            ),
+                            MainView::View => render_table_kind_info(
+                                ui,
+                                state,
+                                bridge,
+                                "VIEW",
+                                &t("info_view_view_title"),
+                            ),
+                            MainView::MaterializedView => render_table_kind_info(
+                                ui,
+                                state,
+                                bridge,
+                                "MATERIALIZED VIEW",
+                                &t("info_view_matview_title"),
+                            ),
+                            MainView::Function => render_function_info(ui, state),
+                            MainView::User => render_role_info(ui, state),
+                            MainView::Query => render_query_info(ui, state),
+                            MainView::Backup => render_backup_info(ui, state),
+                            MainView::Automation => render_automation_info(ui, state),
+                            MainView::Model => render_model_info(ui, state, bridge),
+                            MainView::BI => render_bi_info(ui, state),
+                            _ => render_data_info(ui, state, bridge),
+                        }
                     }
                 });
+        });
+}
+
+fn render_data_row_tab(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    let Some(context) = selected_data_row_context(state) else {
+        render_info_empty(ui, &t("data_info_select_cell"));
+        return;
+    };
+    render_info_row_summary(ui, &context);
+    render_info_row_fields(ui, state, bridge, &context);
+}
+
+fn render_data_schema_tab(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    let Some(source) = state.active_data_source() else {
+        render_info_empty(ui, &t("data_info_select_cell"));
+        return;
+    };
+    ensure_table_info_metadata(state, bridge, &source);
+    render_info_table_overview(ui, state, &source);
+}
+
+fn render_data_sql_tab(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+    let Some(source) = state.active_data_source() else {
+        render_info_empty(ui, &t("data_info_no_table"));
+        return;
+    };
+    ensure_table_info_metadata(state, bridge, &source);
+
+    let sql = format!(
+        "SELECT *\nFROM \"{}\".\"{}\"{}",
+        source.schema,
+        source.table,
+        source
+            .filter
+            .as_ref()
+            .map(|f| format!("\nWHERE \"{}\" = '{}'", f.column, f.sql_value))
+            .unwrap_or_default(),
+    );
+
+    ui.horizontal(|ui| {
+        info_section_label(ui, &t("data_info_select_query"));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let copy_btn = ui.add(
+                egui::Button::image(
+                    crate::ui::icon_image_tinted(
+                        ui,
+                        crate::ui::icons_svg::COPY,
+                        "sql_copy_btn",
+                        14.0,
+                        theme::text_muted(),
+                    ),
+                )
+                .fill(Color32::TRANSPARENT)
+                .stroke(Stroke::NONE)
+                .corner_radius(CornerRadius::same(theme::RADIUS_SM)),
+            );
+            if copy_btn.clicked() {
+                ui.ctx().copy_text(sql.clone());
+            }
+            if copy_btn.hovered() {
+                egui::show_tooltip_at_pointer(ui.ctx(), ui.layer_id(), ui.id().with("sql_copy_tip"), |ui| {
+                    ui.label(RichText::new(t("data_info_copy_sql")).size(11.0));
+                });
+            }
+        });
+    });
+    egui::Frame::new()
+        .fill(theme::bg_darkest())
+        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+        .inner_margin(Margin::symmetric(theme::SPACE_MD_I, theme::SPACE_MD_I))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(
+                RichText::new(&sql)
+                    .monospace()
+                    .size(11.0)
+                    .color(theme::text_primary()),
+            );
         });
 }
 
@@ -149,7 +238,7 @@ fn render_connection_info(ui: &mut egui::Ui, state: &AppState) {
         };
         metric_chip(ui, &label, color);
         if conn.config.use_tls {
-            metric_chip(ui, &t("info_view_ssl"), theme::ACCENT_TEAL);
+            metric_chip(ui, &t("info_view_ssl"), theme::ACCENT_EMERALD);
         }
     });
 
@@ -377,7 +466,7 @@ fn render_function_info(ui: &mut egui::Ui, state: &AppState) {
             ui.horizontal_wrapped(|ui| {
                 metric_chip(ui, &func.kind, theme::ACCENT_COPPER);
                 metric_chip(ui, &func.language, theme::ACCENT_BLUE);
-                metric_chip(ui, &func.return_type, theme::ACCENT_TEAL);
+                metric_chip(ui, &func.return_type, theme::ACCENT_EMERALD);
             });
             ui.add_space(theme::SPACE_LG);
             info_section_label(ui, &t("objects_signature"));
@@ -485,7 +574,7 @@ fn render_role_info(ui: &mut egui::Ui, state: &AppState) {
                     metric_chip(ui, "CREATEROLE", theme::ACCENT_COPPER);
                 }
                 if role.can_replicate {
-                    metric_chip(ui, "REPLICATION", theme::ACCENT_TEAL);
+                    metric_chip(ui, "REPLICATION", theme::ACCENT_EMERALD);
                 }
             });
             if let Some(valid_until) = &role.valid_until {
@@ -572,7 +661,7 @@ fn render_query_info(ui: &mut egui::Ui, state: &AppState) {
             metric_chip(
                 ui,
                 &tf("info_view_query_last_rows", &[&result.rows.len().to_string()]),
-                theme::ACCENT_TEAL,
+                theme::ACCENT_EMERALD,
             );
             metric_chip(
                 ui,
@@ -689,7 +778,7 @@ fn render_automation_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &format!("{}: {}", t("info_view_automation_total"), total),
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
     });
 
@@ -711,7 +800,7 @@ fn render_automation_info(ui: &mut egui::Ui, state: &AppState) {
         };
         ui.label(
             RichText::new(tf("info_view_automation_draft_ready", &[&label]))
-                .color(theme::ACCENT_TEAL)
+                .color(theme::ACCENT_EMERALD)
                 .strong()
                 .size(12.0),
         );
@@ -832,7 +921,7 @@ fn render_bi_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &tf("info_view_bi_total_rows", &[&result.rows.len().to_string()]),
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
         metric_chip(
             ui,
@@ -1145,7 +1234,7 @@ pub(super) fn info_action_button_frame(
         theme::bg_medium()
     };
     let stroke_color = if hovered {
-        theme::with_alpha(theme::ACCENT_TEAL, 140)
+        theme::with_alpha(theme::ACCENT_EMERALD, 140)
     } else if enabled {
         theme::border_default()
     } else {
@@ -1197,14 +1286,14 @@ pub(super) fn info_toggle_control(
         egui::vec2(16.0, 16.0),
     );
     let box_fill = if *checked {
-        theme::with_alpha(theme::ACCENT_TEAL, if hovered { 52 } else { 36 })
+        theme::with_alpha(theme::ACCENT_EMERALD, if hovered { 52 } else { 36 })
     } else if hovered {
         theme::bg_light()
     } else {
         theme::bg_medium()
     };
     let box_stroke = if *checked {
-        theme::ACCENT_TEAL
+        theme::ACCENT_EMERALD
     } else if hovered {
         theme::border_strong()
     } else {
@@ -1223,9 +1312,9 @@ pub(super) fn info_toggle_control(
         let b = box_rect.center() + egui::vec2(-1.0, 4.0);
         let c = box_rect.right_center() + egui::vec2(-3.5, -4.5);
         ui.painter()
-            .line_segment([a, b], Stroke::new(1.8, theme::ACCENT_TEAL));
+            .line_segment([a, b], Stroke::new(1.8, theme::ACCENT_EMERALD));
         ui.painter()
-            .line_segment([b, c], Stroke::new(1.8, theme::ACCENT_TEAL));
+            .line_segment([b, c], Stroke::new(1.8, theme::ACCENT_EMERALD));
     }
     ui.painter().text(
         rect.left_center() + egui::vec2(24.0, 0.0),
@@ -1273,7 +1362,7 @@ fn dark_select_button(ui: &mut egui::Ui, selected_text: &str, width: f32) -> egu
         theme::input_bg()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -1321,7 +1410,7 @@ fn dark_select_option(
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
     let hovered = response.hovered();
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_TEAL, 34)
+        theme::with_alpha(theme::ACCENT_EMERALD, 34)
     } else if hovered {
         theme::bg_light()
     } else {
@@ -1337,7 +1426,7 @@ fn dark_select_option(
         label,
         egui::FontId::proportional(12.0),
         if selected {
-            theme::ACCENT_TEAL
+            theme::ACCENT_EMERALD
         } else {
             theme::text_secondary()
         },
@@ -1346,7 +1435,7 @@ fn dark_select_option(
         ui.painter().circle_filled(
             rect.right_center() - egui::vec2(11.0, 0.0),
             3.0,
-            theme::ACCENT_TEAL,
+            theme::ACCENT_EMERALD,
         );
     }
     set_pointing_cursor_on_hover(ui, &response, true);

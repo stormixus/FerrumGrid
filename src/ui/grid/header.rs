@@ -9,7 +9,71 @@ use crate::i18n::{t, tf};
 use crate::state::{AppState, MainView};
 use crate::ui::theme;
 
+use eframe::egui::Color32;
 use super::data_ops::{data_edit_summary, revert_data_edits};
+
+fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, active: bool) {
+    let text_color = if active {
+        theme::text_primary()
+    } else {
+        theme::text_muted()
+    };
+    let bg = if active {
+        theme::bg_light()
+    } else {
+        Color32::TRANSPARENT
+    };
+
+    let text = label.to_string();
+
+    let galley = ui.painter().layout_no_wrap(
+        text.clone(),
+        egui::FontId::proportional(11.5),
+        text_color,
+    );
+    let count_width = count.map_or(0.0, |n| {
+        let cg = ui.painter().layout_no_wrap(
+            n.to_string(),
+            egui::FontId::monospace(10.0),
+            if active { theme::ACCENT_EMERALD } else { theme::text_disabled() },
+        );
+        cg.rect.width() + 8.0
+    });
+    let btn_width = galley.rect.width() + count_width + 20.0;
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(btn_width, 24.0), egui::Sense::click());
+
+    let fill = if response.hovered() && !active {
+        theme::bg_light()
+    } else {
+        bg
+    };
+    ui.painter().rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+
+    // Label
+    ui.painter().galley(
+        egui::pos2(rect.left() + 10.0, rect.center().y - galley.rect.height() / 2.0),
+        galley,
+        text_color,
+    );
+
+    // Count
+    if let Some(n) = count {
+        let count_color = if active { theme::ACCENT_EMERALD } else { theme::text_disabled() };
+        let cg = ui.painter().layout_no_wrap(
+            n.to_string(),
+            egui::FontId::monospace(10.0),
+            count_color,
+        );
+        ui.painter().galley(
+            egui::pos2(
+                rect.right() - 10.0 - cg.rect.width(),
+                rect.center().y - cg.rect.height() / 2.0,
+            ),
+            cg,
+            count_color,
+        );
+    }
+}
 use crate::types::CellValue;
 use super::pager::render_data_pager;
 use super::paste::{export_csv, export_json, export_sql_insert, result_to_tsv};
@@ -24,21 +88,77 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
     };
 
     let row_count = result.rows.len();
+    let exec_ms = result.execution_time_ms;
+
+    // Mockup-style result tabs header
+    let frame = egui::Frame::new()
+        .fill(theme::bg_shell())
+        .inner_margin(egui::Margin::symmetric(8, 4))
+        .stroke(Stroke::new(1.0, theme::border_subtle()));
+
+    frame.show(ui, |ui| {
+        ui.set_min_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+
+            // Result tab (active)
+            render_result_tab(ui, "Result", Some(row_count), true);
+            render_result_tab(ui, "Messages", Some(0), false);
+            render_result_tab(ui, "Plan", None, false);
+
+            // Right side: meta info
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.spacing_mut().item_spacing.x = theme::SPACE_LG;
+
+                // Download button
+                ui.add(theme::ghost_icon_button(
+                    crate::ui::icon_image_tinted(ui, crate::ui::icons_svg::DOWNLOAD, "res_dl", 12.0, theme::text_muted()),
+                    "",
+                ));
+                // Filter button
+                ui.add(theme::ghost_icon_button(
+                    crate::ui::icon_image_tinted(ui, crate::ui::icons_svg::FILTER, "res_filter", 12.0, theme::text_muted()),
+                    "",
+                ));
+
+                // Meta segments
+                ui.label(
+                    egui::RichText::new(format!("rows {}", row_count))
+                        .color(theme::text_muted())
+                        .monospace()
+                        .size(11.0),
+                );
+                ui.label(
+                    egui::RichText::new("elapsed")
+                        .color(theme::text_disabled())
+                        .size(11.0),
+                );
+                ui.label(
+                    egui::RichText::new(format!("{} ms", exec_ms))
+                        .color(theme::ACCENT_EMERALD)
+                        .monospace()
+                        .size(11.0),
+                );
+            });
+        });
+    });
+
+    // Keep the old layout code below for data edit actions
+    let result = match &state.current_result {
+        Some(r) => r,
+        None => return,
+    };
+    let row_count = result.rows.len();
     let col_count = result.columns.len();
     let exec_ms = result.execution_time_ms;
     let truncated = state.current_result_truncated;
     let data_edit_summary = data_edit_summary(state);
 
-    let header_height = 56.0;
+    // Skip old header painting — already rendered above
+    let header_height = 0.0;
     let (rect, _) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), header_height),
         egui::Sense::hover(),
-    );
-    let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, theme::bg_shell());
-    painter.line_segment(
-        [rect.left_bottom(), rect.right_bottom()],
-        Stroke::new(1.0, theme::border_subtle()),
     );
 
     let inner = rect.shrink2(egui::vec2(theme::SPACE_LG, 0.0));
@@ -90,7 +210,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     row_count,
                     if row_count == 1 { "row" } else { "rows" }
                 ),
-                theme::ACCENT_TEAL,
+                theme::ACCENT_EMERALD,
             );
             result_meta_chip(
                 ui,
@@ -398,7 +518,7 @@ fn result_meta_chip_svg_width(ui: &egui::Ui, text: &str) -> f32 {
     (text_width + 34.0).max(74.0)
 }
 
-fn add_empty_row(state: &mut AppState) {
+pub fn add_empty_row(state: &mut AppState) {
     let col_count = state
         .current_result
         .as_ref()

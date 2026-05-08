@@ -99,30 +99,22 @@ pub(super) fn render_editable_cell(
     let rect = ui.available_rect_before_wrap();
     if selected {
         ui.painter().rect_filled(
-            rect.shrink2(egui::vec2(0.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
-            theme::with_alpha(theme::ACCENT_TEAL, 55),
+            rect,
+            CornerRadius::ZERO,
+            theme::with_alpha(theme::ACCENT_EMERALD, 16),
         );
     }
     if dirty {
         ui.painter().rect_filled(
-            rect.shrink2(egui::vec2(0.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
+            rect,
+            CornerRadius::ZERO,
             theme::with_alpha(theme::ACCENT_COPPER, 30),
         );
     } else if error.is_some() {
         ui.painter().rect_filled(
-            rect.shrink2(egui::vec2(0.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
+            rect,
+            CornerRadius::ZERO,
             theme::with_alpha(theme::ACCENT_RED, 28),
-        );
-    }
-    if selected {
-        ui.painter().rect_stroke(
-            rect.shrink2(egui::vec2(1.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
-            Stroke::new(1.5, theme::ACCENT_TEAL),
-            egui::StrokeKind::Inside,
         );
     }
 
@@ -248,15 +240,9 @@ pub(super) fn render_readonly_data_cell(
 
     if selected {
         ui.painter().rect_filled(
-            rect.shrink2(egui::vec2(0.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
-            theme::with_alpha(theme::ACCENT_TEAL, 30),
-        );
-        ui.painter().rect_stroke(
-            rect.shrink2(egui::vec2(1.0, 2.0)),
-            CornerRadius::same(theme::RADIUS_SM),
-            Stroke::new(1.0, theme::ACCENT_TEAL),
-            egui::StrokeKind::Inside,
+            rect,
+            CornerRadius::ZERO,
+            theme::with_alpha(theme::ACCENT_EMERALD, 16),
         );
     }
 
@@ -363,7 +349,7 @@ fn render_relation_jump_button(
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::ACCENT_TEAL)
+        Stroke::new(1.0, theme::ACCENT_EMERALD)
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -376,9 +362,9 @@ fn render_relation_jump_button(
         egui::StrokeKind::Inside,
     );
     let icon_color = if emphasized {
-        theme::ACCENT_TEAL
+        theme::ACCENT_EMERALD
     } else {
-        theme::with_alpha(theme::ACCENT_TEAL, 190)
+        theme::with_alpha(theme::ACCENT_EMERALD, 190)
     };
     let center = button_rect.center();
     let tip = egui::pos2(center.x + 3.0, center.y);
@@ -446,13 +432,15 @@ fn render_editable_display_cell(
             passive_value_pill(ui, text, color);
         }
         EditKind::Number => {
-            render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_COPPER_LIGHT)
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_YELLOW)
+            });
         }
-        EditKind::Json => render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_TEAL),
+        EditKind::Json => render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_PURPLE),
         EditKind::Date | EditKind::DateTime => {
-            render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_BLUE)
+            render_passive_copyable_cell(ui, &edit.value, theme::text_secondary())
         }
-        EditKind::Uuid => render_passive_copyable_cell(ui, &edit.value, theme::ACCENT_COPPER_LIGHT),
+        EditKind::Uuid => render_passive_copyable_cell(ui, &edit.value, theme::text_muted()),
         EditKind::Bytes => render_passive_copyable_cell(ui, &edit.value, theme::text_muted()),
         EditKind::Text => render_passive_copyable_cell(ui, &edit.value, theme::text_primary()),
     }

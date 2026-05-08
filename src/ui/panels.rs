@@ -11,14 +11,27 @@ pub fn render_panels(
     bridge: &DbBridge,
     settings: &mut crate::storage::settings::AppSettings,
 ) {
-    titlebar::render_titlebar(ctx);
+    settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance);
+    titlebar::render_titlebar(ctx, state, settings);
     render_main_toolbar(ctx, state);
     render_status_bar(ctx, state);
+
+    // ⌘K shortcut to toggle command palette
+    if ctx.input(|i| (i.modifiers.mac_cmd || i.modifiers.ctrl) && i.key_pressed(egui::Key::K)) {
+        state.show_command_palette = !state.show_command_palette;
+        if !state.show_command_palette {
+            state.command_palette_search.clear();
+            state.command_palette_selected = 0;
+        }
+    }
+    if let Some(action) = crate::ui::command_palette::render_command_palette(ctx, state) {
+        crate::ui::command_palette::execute_palette_action(action, state, bridge);
+    }
 
     // Diagnostics panel (above status bar)
     if state.diagnostics_panel.visible || state.diagnostics_panel.unsafe_ctid_active {
         let panel_height = if state.diagnostics_panel.visible {
-            140.0
+            160.0
         } else {
             28.0
         };
@@ -67,7 +80,9 @@ pub fn render_panels(
     }
 
     // Bottom panel: result grid — animate slide in/out using exact_height.
-    let want_result_visible = state.show_result_panel && state.active_main_view != MainView::Data;
+    let want_result_visible = state.show_result_panel
+        && state.active_main_view != MainView::Data
+        && state.current_result.is_some();
     let result_t = ctx.animate_bool_with_time(
         egui::Id::new("result_panel_slide"),
         want_result_visible,
@@ -113,7 +128,7 @@ pub fn render_panels(
     // Right panel: Info / Properties
     if state.show_info_panel {
         egui::SidePanel::right("info_panel")
-            .default_width(240.0)
+            .default_width(280.0)
             .min_width(180.0)
             .resizable(true)
             .show_separator_line(false)
@@ -132,10 +147,11 @@ pub fn render_panels(
     egui::CentralPanel::default()
         .frame(
             egui::Frame::new()
-                .fill(theme::bg_dark())
+                .fill(theme::bg_darkest())
                 .inner_margin(Margin::ZERO),
         )
         .show(ctx, |ui| {
+            ui.painter().rect_filled(ui.max_rect(), CornerRadius::ZERO, theme::bg_darkest());
             render_workspace_tabs(ui, state, bridge);
 
             match state.active_main_view {
@@ -206,8 +222,12 @@ fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
         ui.set_min_height(36.0);
+        egui::ScrollArea::horizontal()
+            .id_salt("workspace_tabs_scroll")
+            .max_width(ui.available_width())
+            .show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
+            ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
 
             for (index, tab) in tabs.iter().enumerate() {
                 let selected = index == active;
@@ -216,8 +236,9 @@ fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
                     activate = Some(index);
                 }
 
+                let tab_paint_cy = response.rect.top() + 4.0 + 16.0;
                 let close_rect = egui::Rect::from_center_size(
-                    egui::pos2(response.rect.right() - 13.0, response.rect.center().y),
+                    egui::pos2(response.rect.right() - 13.0, tab_paint_cy),
                     egui::vec2(16.0, 16.0),
                 );
                 let close_resp =
@@ -272,6 +293,7 @@ fn render_workspace_tabs(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
                 );
             });
         });
+        }); // close ScrollArea
     });
 
     if let Some(index) = close {
@@ -292,56 +314,95 @@ fn render_workspace_tab(
     title: &str,
     selected: bool,
 ) -> egui::Response {
-    let color = workspace_tab_color(view);
-    let label = truncate_tab_label(title, 26);
+    let _color = workspace_tab_color(view);
+    let view_suffix = match view {
+        MainView::Data => " \u{00B7} Data",
+        MainView::Table => " \u{00B7} Object",
+        MainView::View => " \u{00B7} Object",
+        MainView::MaterializedView => " \u{00B7} Object",
+        MainView::Function => " \u{00B7} Object",
+        MainView::Model => " \u{00B7} ER",
+        MainView::BI => " \u{00B7} Sales",
+        _ => "",
+    };
+    let full_title = format!("{title}{view_suffix}");
+    let label = truncate_tab_label(&full_title, 30);
     let width = tab_width(ui, &label).clamp(96.0, 240.0);
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 32.0), egui::Sense::click());
 
     let bg = if selected {
-        theme::bg_dark()
-    } else if response.hovered() {
-        theme::with_alpha(color, 22)
-    } else {
         theme::bg_darkest()
+    } else if response.hovered() {
+        theme::bg_light()
+    } else {
+        Color32::TRANSPARENT
     };
     let border = if selected {
-        theme::with_alpha(color, 150)
-    } else {
         theme::border_subtle()
+    } else {
+        Color32::TRANSPARENT
     };
-    let paint_rect = rect.shrink2(egui::vec2(0.0, 1.0));
-    ui.painter()
-        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), bg);
-    ui.painter().rect_stroke(
-        paint_rect,
-        CornerRadius::same(theme::RADIUS_MD),
-        Stroke::new(1.0, border),
-        StrokeKind::Inside,
+    let paint_rect = egui::Rect::from_min_size(
+        egui::pos2(rect.left(), rect.top() + 4.0),
+        egui::vec2(rect.width(), 32.0),
     );
-
+    let tab_rounding = CornerRadius {
+        nw: theme::RADIUS_LG,
+        ne: theme::RADIUS_LG,
+        sw: 0,
+        se: 0,
+    };
+    ui.painter().rect_filled(paint_rect, tab_rounding, bg);
     if selected {
+        ui.painter().rect_stroke(
+            paint_rect,
+            tab_rounding,
+            Stroke::new(1.0, border),
+            StrokeKind::Inside,
+        );
         ui.painter().rect_filled(
             egui::Rect::from_min_size(
-                egui::pos2(paint_rect.left() + 8.0, paint_rect.bottom() - 2.0),
-                egui::vec2((paint_rect.width() - 16.0).max(12.0), 2.0),
+                paint_rect.min,
+                egui::vec2(paint_rect.width(), 2.0),
             ),
-            CornerRadius::same(theme::RADIUS_SM),
-            color,
+            CornerRadius {
+                nw: theme::RADIUS_LG,
+                ne: theme::RADIUS_LG,
+                sw: 0,
+                se: 0,
+            },
+            theme::ACCENT_EMERALD,
         );
     }
 
-    let dot_center = egui::pos2(rect.left() + 12.0, rect.center().y);
-    ui.painter().circle_filled(dot_center, 3.5, color);
-    ui.painter().text(
-        egui::pos2(rect.left() + 22.0, rect.center().y),
+    let tab_cy = paint_rect.center().y;
+    let text_color = if selected {
+        theme::text_primary()
+    } else {
+        theme::text_secondary()
+    };
+
+    // View-type icon — painted directly, no layout allocation
+    let icon_svg = workspace_tab_icon_svg(view);
+    let icon_name = format!("wstab_{}_{}", view as u8, if selected { "s" } else { "n" });
+    let icon_image = crate::ui::icon_image_tinted(ui, icon_svg, &icon_name, 12.0, text_color);
+    let icon_rect = egui::Rect::from_center_size(
+        egui::pos2(paint_rect.left() + 14.0, tab_cy),
+        egui::vec2(12.0, 12.0),
+    );
+    icon_image.paint_at(ui, icon_rect);
+
+    // Text — clipped before close button
+    let text_clip = egui::Rect::from_min_max(
+        egui::pos2(paint_rect.left() + 26.0, paint_rect.top()),
+        egui::pos2(paint_rect.right() - 22.0, paint_rect.bottom()),
+    );
+    ui.painter().with_clip_rect(text_clip).text(
+        egui::pos2(paint_rect.left() + 26.0, tab_cy),
         egui::Align2::LEFT_CENTER,
         label,
         egui::FontId::proportional(12.0),
-        if selected {
-            theme::text_primary()
-        } else {
-            theme::text_secondary()
-        },
+        text_color,
     );
 
     show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, title);
@@ -349,37 +410,24 @@ fn render_workspace_tab(
 }
 
 fn render_workspace_add_tab_button(ui: &mut egui::Ui) -> egui::Response {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(30.0, 28.0), egui::Sense::click());
-    if response.hovered() {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(28.0, 22.0), egui::Sense::click());
 
-    let paint_rect = rect.shrink2(egui::vec2(1.0, 1.0));
     let fill = if response.hovered() {
-        theme::with_alpha(theme::ACCENT_TEAL, 34)
+        theme::bg_light()
     } else {
-        theme::with_alpha(theme::ACCENT_TEAL, 18)
+        Color32::TRANSPARENT
     };
-    let stroke = Stroke::new(
-        1.0,
-        if response.hovered() {
-            theme::ACCENT_TEAL
-        } else {
-            theme::with_alpha(theme::ACCENT_TEAL, 95)
-        },
-    );
     ui.painter()
-        .rect_filled(paint_rect, CornerRadius::same(theme::RADIUS_MD), fill);
-    ui.painter().rect_stroke(
-        paint_rect,
-        CornerRadius::same(theme::RADIUS_MD),
-        stroke,
-        StrokeKind::Inside,
-    );
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
 
-    let center = paint_rect.center();
-    let arm = 7.0;
-    let plus_stroke = Stroke::new(1.65, theme::ACCENT_TEAL);
+    let center = rect.center();
+    let arm = 5.0;
+    let color = if response.hovered() {
+        theme::text_primary()
+    } else {
+        theme::text_muted()
+    };
+    let plus_stroke = Stroke::new(1.5, color);
     ui.painter().line_segment(
         [
             egui::pos2(center.x - arm, center.y),
@@ -404,7 +452,7 @@ fn tab_width(ui: &egui::Ui, label: &str) -> f32 {
         egui::FontId::proportional(12.0),
         theme::text_primary(),
     );
-    galley.rect.width() + 48.0
+    galley.rect.width() + 62.0 // icon(14) + gap(12) + close(16) + padding(20)
 }
 
 fn truncate_tab_label(label: &str, max_chars: usize) -> String {
@@ -417,6 +465,23 @@ fn truncate_tab_label(label: &str, max_chars: usize) -> String {
             .collect::<String>();
         truncated.push_str("...");
         truncated
+    }
+}
+
+fn workspace_tab_icon_svg(view: MainView) -> &'static str {
+    match view {
+        MainView::Connection => icons_svg::VAULT,
+        MainView::Table => icons_svg::TABLE_SM,
+        MainView::View => icons_svg::TABLE_SM,
+        MainView::MaterializedView => icons_svg::TABLE_SM,
+        MainView::Function => icons_svg::COG,
+        MainView::User => icons_svg::COG,
+        MainView::Query => icons_svg::PLAY_SM,
+        MainView::Data => icons_svg::TABLE_SM,
+        MainView::Backup => icons_svg::DOWNLOAD,
+        MainView::Automation => icons_svg::COG,
+        MainView::Model => icons_svg::DIAGRAM,
+        MainView::BI => icons_svg::CHART,
     }
 }
 
@@ -443,97 +508,203 @@ fn workspace_tab_color(view: MainView) -> Color32 {
 
 fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
     egui::TopBottomPanel::top("main_toolbar")
-        .exact_height(64.0)
+        .exact_height(38.0)
         .show_separator_line(false)
         .frame(
             egui::Frame::new()
-                .fill(theme::bg_shell())
-                .inner_margin(Margin::symmetric(theme::SPACE_XL_I, 0))
+                .fill(theme::bg_medium())
+                .inner_margin(Margin::symmetric(theme::SPACE_LG_I, 0))
                 .stroke(Stroke::NONE),
         )
         .show(ctx, |ui| {
+            let bottom_line = ui.max_rect().x_range();
+            ui.painter().hline(
+                bottom_line,
+                ui.max_rect().bottom(),
+                Stroke::new(1.0, theme::border_subtle()),
+            );
+
             ui.horizontal_centered(|ui| {
-                ui.spacing_mut().item_spacing.x = theme::SPACE_XXL;
+                ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
 
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Connection,
-                    t("toolbar_connection"),
-                    theme::ACCENT_GREEN,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Table,
-                    t("toolbar_table"),
-                    theme::ACCENT_COPPER,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::View,
-                    t("toolbar_view"),
-                    theme::ACCENT_BLUE,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::MaterializedView,
-                    t("toolbar_materialized_view"),
-                    theme::ACCENT_TEAL,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Function,
-                    t("toolbar_function"),
-                    theme::ACCENT_YELLOW,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::User,
-                    t("toolbar_user"),
-                    theme::ACCENT_COPPER_LIGHT,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Query,
-                    t("toolbar_query"),
-                    theme::ACCENT_BLUE,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Backup,
-                    t("toolbar_backup"),
-                    theme::text_muted(),
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Automation,
-                    t("toolbar_automation"),
-                    theme::ACCENT_TEAL,
-                );
-                render_toolbar_item(
-                    ui,
-                    state,
-                    MainView::Model,
-                    t("toolbar_model"),
-                    theme::ACCENT_GREEN,
-                );
-                render_toolbar_item(ui, state, MainView::BI, t("toolbar_bi"), theme::ACCENT_RED);
+                // Left group: panel toggles
+                render_toolbar_pane_toggle(ui, &mut state.show_tree_panel, PaneToggle::Navigator);
+                render_toolbar_pane_toggle(ui, &mut state.show_info_panel, PaneToggle::Info);
 
+                // Separator
+                ui.add_space(theme::SPACE_SM);
+                let sep_rect = ui.allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover()).0;
+                ui.painter().rect_filled(sep_rect, CornerRadius::ZERO, theme::border_subtle());
+                ui.add_space(theme::SPACE_SM);
+
+                // Center group: 6 main view tabs with icons
+                ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
+                for view in MainView::TOOLBAR_TABS {
+                    let selected = state.active_main_view == view;
+                    let label = main_view_title(view);
+                    let icon_svg = toolbar_tab_icon(view);
+                    let response = render_toolbar_tab_button_with_icon(ui, label, icon_svg, selected);
+                    if response.clicked() {
+                        state.open_workspace_main_view(view);
+                    }
+                }
+
+                // Right group: Search, Vault, Settings (right-aligned)
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_space(theme::SPACE_MD);
-                    render_pane_toggles(ui, state);
+                    ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
+
+                    let settings_btn = ui.add(
+                        egui::Button::image(
+                            crate::ui::icon_image_tinted(ui, icons_svg::COG, "tb_cog2", 14.0, theme::text_muted()),
+                        )
+                        .fill(Color32::TRANSPARENT)
+                        .stroke(Stroke::NONE)
+                        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                        .min_size(egui::vec2(26.0, 26.0)),
+                    );
+                    if settings_btn.clicked() {
+                        state.show_settings_dialog = true;
+                    }
+
+                    let vault_btn = ui.add(
+                        egui::Button::image_and_text(
+                            crate::ui::icon_image_tinted(ui, icons_svg::VAULT, "tb_vault2", 13.0, theme::text_muted()),
+                            egui::RichText::new(t("panel_vault")).color(theme::text_muted()).size(12.0),
+                        )
+                        .fill(Color32::TRANSPARENT)
+                        .stroke(Stroke::NONE)
+                        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                        .min_size(egui::vec2(0.0, 26.0)),
+                    );
+                    if vault_btn.clicked() {
+                        state.show_connection_dialog = true;
+                        state.connection_dialog = Default::default();
+                    }
+
+                    // In RTL: kbd badge renders first (rightmost), then search button
+                    render_kbd_badge(ui, "\u{2318}K");
+                    let search_btn = ui.add(
+                        egui::Button::image_and_text(
+                            crate::ui::icon_image_tinted(ui, icons_svg::SEARCH, "tb_search3", 13.0, theme::text_muted()),
+                            egui::RichText::new(t("panel_search")).color(theme::text_muted()).size(12.0),
+                        )
+                        .fill(Color32::TRANSPARENT)
+                        .stroke(Stroke::NONE)
+                        .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                        .min_size(egui::vec2(0.0, 26.0)),
+                    );
+                    if search_btn.clicked() {
+                        state.show_command_palette = true;
+                    }
                 });
             });
         });
 }
+
+fn render_kbd_badge(ui: &mut egui::Ui, text: &str) {
+    let galley = ui.painter().layout_no_wrap(
+        text.to_owned(),
+        egui::FontId::monospace(10.5),
+        theme::text_secondary(),
+    );
+    let size = egui::vec2(galley.rect.width() + 8.0, 18.0);
+    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    ui.painter().rect_filled(
+        rect,
+        CornerRadius::same(3),
+        theme::bg_light(),
+    );
+    ui.painter().rect_stroke(
+        rect,
+        CornerRadius::same(3),
+        Stroke::new(1.0, theme::border_default()),
+        StrokeKind::Inside,
+    );
+    ui.painter().galley(
+        egui::pos2(
+            rect.center().x - galley.rect.width() / 2.0,
+            rect.center().y - galley.rect.height() / 2.0,
+        ),
+        galley,
+        theme::text_secondary(),
+    );
+}
+
+fn render_toolbar_pane_toggle(
+    ui: &mut egui::Ui,
+    active: &mut bool,
+    pane: PaneToggle,
+) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
+    let hovered = response.hovered();
+    let color = if *active {
+        theme::text_primary()
+    } else {
+        theme::text_muted()
+    };
+    let bg = if hovered {
+        theme::bg_light()
+    } else {
+        Color32::TRANSPARENT
+    };
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), bg);
+    paint_pane_icon(ui.painter(), rect.shrink(5.0), pane, color, *active);
+
+    if response.clicked() {
+        *active = !*active;
+    }
+    response
+}
+
+fn toolbar_tab_icon(view: MainView) -> &'static str {
+    match view {
+        MainView::Query => icons_svg::PLAY_SM,
+        MainView::Data => icons_svg::TABLE_SM,
+        MainView::Model => icons_svg::DIAGRAM,
+        MainView::BI => icons_svg::CHART,
+        MainView::Backup => icons_svg::DOWNLOAD,
+        MainView::Automation => icons_svg::COG,
+        _ => icons_svg::TABLE_SM,
+    }
+}
+
+fn render_toolbar_tab_button_with_icon(
+    ui: &mut egui::Ui,
+    label: &str,
+    icon_svg: &str,
+    selected: bool,
+) -> egui::Response {
+    let text_color = if selected {
+        theme::text_primary()
+    } else {
+        theme::text_secondary()
+    };
+    let fill = if selected {
+        theme::bg_light()
+    } else {
+        Color32::TRANSPARENT
+    };
+    let border = if selected {
+        Stroke::new(1.0, theme::border_default())
+    } else {
+        Stroke::NONE
+    };
+    let icon_name = format!("tb_{}", label.to_lowercase());
+    let icon = crate::ui::icon_image_tinted(ui, icon_svg, &icon_name, 14.0, text_color);
+
+    let btn = egui::Button::image_and_text(
+        icon,
+        egui::RichText::new(label).color(text_color).size(12.0),
+    )
+    .fill(fill)
+    .stroke(border)
+    .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+    .min_size(egui::vec2(0.0, 26.0));
+
+    ui.add(btn)
+}
+
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
@@ -542,96 +713,6 @@ enum PaneToggle {
     Results,
     Info,
 }
-
-fn render_pane_toggles(ui: &mut egui::Ui, state: &mut AppState) {
-    let popup_id = ui.make_persistent_id("pane_toggle_popup");
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
-
-    let hovered = response.hovered();
-    let open = ui.memory(|m| m.is_popup_open(popup_id));
-    let bg = if open || hovered {
-        theme::with_alpha(theme::ACCENT_BLUE, 30)
-    } else {
-        Color32::TRANSPARENT
-    };
-    let border = if open {
-        theme::with_alpha(theme::ACCENT_BLUE, 160)
-    } else {
-        theme::border_default()
-    };
-
-    ui.painter()
-        .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_MD), bg);
-    ui.painter().rect_stroke(
-        rect.shrink(1.0),
-        CornerRadius::same(theme::RADIUS_MD),
-        Stroke::new(1.0, border),
-        StrokeKind::Inside,
-    );
-    paint_pane_icon(
-        ui.painter(),
-        rect.shrink(5.0),
-        PaneToggle::Results,
-        if open { theme::ACCENT_BLUE } else { theme::text_muted() },
-        open,
-    );
-
-    if response.clicked() {
-        ui.memory_mut(|m| m.toggle_popup(popup_id));
-    }
-
-    if ui.memory(|m| m.is_popup_open(popup_id)) {
-        let popup_rect = egui::Rect::from_min_size(
-            response.rect.left_bottom() + egui::vec2(-30.0, 2.0),
-            egui::vec2(92.0, 33.0),
-        );
-        egui::Area::new(popup_id)
-            .fixed_pos(popup_rect.min)
-            .order(egui::Order::Foreground)
-            .show(ui.ctx(), |ui| {
-                egui::Frame::new()
-                    .fill(theme::bg_elevated())
-                    .stroke(Stroke::new(1.0, theme::border_default()))
-                    .corner_radius(CornerRadius::same(theme::RADIUS_MD))
-                    .inner_margin(egui::Margin::same(4))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 2.0;
-                            pane_toggle_icon(ui, PaneToggle::Navigator, &mut state.show_tree_panel);
-                            pane_toggle_icon(ui, PaneToggle::Results, &mut state.show_result_panel);
-                            pane_toggle_icon(ui, PaneToggle::Info, &mut state.show_info_panel);
-                        });
-                    });
-            });
-        if ui.input(|i| i.pointer.any_click()) && !popup_rect.contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default())) && !response.rect.contains(ui.input(|i| i.pointer.interact_pos().unwrap_or_default())) {
-            ui.memory_mut(|m| m.close_popup());
-        }
-    }
-}
-
-fn pane_toggle_icon(ui: &mut egui::Ui, pane: PaneToggle, active: &mut bool) {
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(25.0, 25.0), egui::Sense::click());
-    let hovered = response.hovered();
-    let color = if *active {
-        theme::ACCENT_BLUE
-    } else {
-        theme::text_muted()
-    };
-    let bg = if hovered {
-        theme::with_alpha(theme::ACCENT_BLUE, 30)
-    } else if *active {
-        theme::with_alpha(theme::ACCENT_BLUE, 20)
-    } else {
-        Color32::TRANSPARENT
-    };
-    ui.painter()
-        .rect_filled(rect.shrink(1.0), CornerRadius::same(theme::RADIUS_SM), bg);
-    paint_pane_icon(ui.painter(), rect.shrink(5.0), pane, color, *active);
-    if response.clicked() {
-        *active = !*active;
-    }
-}
-
 
 fn paint_pane_icon(
     painter: &egui::Painter,
@@ -792,417 +873,6 @@ fn clamp_axis(value: f32, min: f32, max: f32) -> f32 {
     }
 }
 
-fn render_toolbar_item(
-    ui: &mut egui::Ui,
-    state: &mut AppState,
-    view: MainView,
-    label: String,
-    color: Color32,
-) {
-    let selected = state.active_main_view == view;
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(52.0, 52.0), egui::Sense::click());
-    let hovered = response.hovered();
-    let clicked = response.clicked();
-    show_dark_hover_tooltip(ui, response.id.with("tooltip"), &response, &label);
-
-    if clicked {
-        state.open_workspace_main_view(view);
-        if view == MainView::Connection {
-            state.show_connection_dialog = true;
-            state.connection_dialog = Default::default();
-        }
-    }
-
-    let card_rect = rect.shrink2(egui::vec2(2.0, 2.0));
-    if selected {
-        ui.painter().rect_filled(
-            card_rect,
-            CornerRadius::same(theme::RADIUS_LG),
-            theme::with_alpha(color, 225),
-        );
-        ui.painter().rect_stroke(
-            card_rect,
-            CornerRadius::same(theme::RADIUS_LG),
-            Stroke::new(1.0, theme::with_alpha(Color32::WHITE, 75)),
-            StrokeKind::Inside,
-        );
-    } else if hovered {
-        ui.painter().rect_filled(
-            card_rect,
-            CornerRadius::same(theme::RADIUS_LG),
-            theme::with_alpha(color, 26),
-        );
-        ui.painter().rect_stroke(
-            card_rect,
-            CornerRadius::same(theme::RADIUS_LG),
-            Stroke::new(1.0, theme::with_alpha(color, 90)),
-            StrokeKind::Inside,
-        );
-    }
-
-    let icon_color = if selected { Color32::WHITE } else { color };
-    let label_color = if selected {
-        Color32::WHITE
-    } else {
-        theme::text_secondary()
-    };
-    let icon_rect = egui::Rect::from_center_size(
-        egui::pos2(rect.center().x, rect.min.y + 18.0),
-        egui::vec2(28.0, 28.0),
-    );
-
-    paint_toolbar_icon(ui.painter(), view, icon_rect, icon_color, selected);
-    paint_toolbar_label(ui, rect, &label, label_color);
-}
-
-
-fn paint_toolbar_label(ui: &egui::Ui, rect: egui::Rect, label: &str, color: Color32) {
-    let max_width = rect.width() - 4.0;
-    let mut font_size = 9.5;
-    let mut galley = ui.painter().layout_no_wrap(
-        label.to_owned(),
-        egui::FontId::proportional(font_size),
-        color,
-    );
-
-    if galley.rect.width() > max_width {
-        font_size = (font_size * max_width / galley.rect.width()).clamp(7.0, 9.5);
-        galley = ui.painter().layout_no_wrap(
-            label.to_owned(),
-            egui::FontId::proportional(font_size),
-            color,
-        );
-    }
-
-    let pos = egui::pos2(
-        rect.center().x - galley.rect.width() / 2.0,
-        rect.min.y + 39.0 - galley.rect.height() / 2.0,
-    );
-    ui.painter().galley(pos, galley, color);
-}
-
-fn paint_toolbar_icon(
-    painter: &egui::Painter,
-    view: MainView,
-    rect: egui::Rect,
-    color: Color32,
-    selected: bool,
-) {
-    let stroke = Stroke::new(if selected { 2.35 } else { 2.0 }, color);
-    let fine_stroke = Stroke::new(if selected { 1.7 } else { 1.45 }, color);
-    let fill = theme::with_alpha(color, if selected { 42 } else { 24 });
-    let r = rect.shrink(2.0);
-    let cx = r.center().x;
-    let cy = r.center().y;
-
-    match view {
-        MainView::Connection => {
-            let plug =
-                egui::Rect::from_center_size(egui::pos2(cx, cy + 2.0), egui::vec2(15.0, 10.0));
-            painter.rect_filled(plug, CornerRadius::same(theme::RADIUS_SM), fill);
-            painter.rect_stroke(
-                plug,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx - 4.0, plug.top()),
-                    egui::pos2(cx - 4.0, plug.top() - 5.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx + 4.0, plug.top()),
-                    egui::pos2(cx + 4.0, plug.top() - 5.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx, plug.bottom()),
-                    egui::pos2(cx, r.bottom() - 1.0),
-                ],
-                stroke,
-            );
-            painter.circle_stroke(egui::pos2(cx, r.top() + 5.0), 4.0, fine_stroke);
-            painter.line_segment(
-                [
-                    egui::pos2(cx, r.top() + 9.0),
-                    egui::pos2(cx, plug.top() - 5.0),
-                ],
-                fine_stroke,
-            );
-        }
-        MainView::Table => {
-            let table = egui::Rect::from_center_size(r.center(), egui::vec2(24.0, 21.0));
-            let header =
-                egui::Rect::from_min_max(table.min, egui::pos2(table.right(), table.top() + 6.0));
-            painter.rect_filled(header, CornerRadius::same(theme::RADIUS_SM), fill);
-            painter.rect_stroke(
-                table,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-            for y in [table.top() + 7.0, table.top() + 14.0] {
-                painter.line_segment(
-                    [egui::pos2(table.left(), y), egui::pos2(table.right(), y)],
-                    fine_stroke,
-                );
-            }
-            for x in [table.left() + 8.0, table.left() + 16.0] {
-                painter.line_segment(
-                    [egui::pos2(x, table.top()), egui::pos2(x, table.bottom())],
-                    fine_stroke,
-                );
-            }
-        }
-        MainView::View => {
-            painter.line_segment(
-                [
-                    egui::pos2(r.left() + 1.0, cy),
-                    egui::pos2(cx, r.top() + 5.0),
-                ],
-                stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx, r.top() + 5.0),
-                    egui::pos2(r.right() - 1.0, cy),
-                ],
-                stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(r.right() - 1.0, cy),
-                    egui::pos2(cx, r.bottom() - 5.0),
-                ],
-                stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx, r.bottom() - 5.0),
-                    egui::pos2(r.left() + 1.0, cy),
-                ],
-                stroke,
-            );
-            painter.circle_filled(r.center(), 3.2, color);
-            painter.circle_stroke(r.center(), 6.0, fine_stroke);
-        }
-        MainView::MaterializedView => {
-            let shell = egui::Rect::from_center_size(r.center(), egui::vec2(24.0, 22.0));
-            painter.rect_filled(shell, CornerRadius::same(theme::RADIUS_SM), fill);
-            painter.rect_stroke(
-                shell,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-            let eye_center = shell.center();
-            painter.line_segment(
-                [
-                    eye_center + egui::vec2(-8.0, 0.0),
-                    eye_center + egui::vec2(0.0, -5.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    eye_center + egui::vec2(0.0, -5.0),
-                    eye_center + egui::vec2(8.0, 0.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    eye_center + egui::vec2(8.0, 0.0),
-                    eye_center + egui::vec2(0.0, 5.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    eye_center + egui::vec2(0.0, 5.0),
-                    eye_center + egui::vec2(-8.0, 0.0),
-                ],
-                fine_stroke,
-            );
-            painter.circle_filled(eye_center, 2.7, color);
-        }
-        MainView::Function => {
-            painter.text(
-                r.center(),
-                egui::Align2::CENTER_CENTER,
-                "fn",
-                egui::FontId::proportional(17.5),
-                color,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(r.left() + 4.0, r.bottom() - 4.0),
-                    egui::pos2(r.right() - 4.0, r.bottom() - 4.0),
-                ],
-                fine_stroke,
-            );
-        }
-        MainView::User => {
-            painter.circle_stroke(egui::pos2(cx, r.top() + 8.5), 5.4, stroke);
-            let shoulders = egui::Rect::from_center_size(
-                egui::pos2(cx, r.bottom() - 6.0),
-                egui::vec2(23.0, 11.0),
-            );
-            painter.rect_filled(shoulders, CornerRadius::same(theme::RADIUS_LG), fill);
-            painter.rect_stroke(
-                shoulders,
-                CornerRadius::same(theme::RADIUS_LG),
-                stroke,
-                StrokeKind::Inside,
-            );
-        }
-        MainView::Query => {
-            let doc = egui::Rect::from_center_size(r.center(), egui::vec2(22.0, 23.0));
-            painter.rect_filled(doc, CornerRadius::same(theme::RADIUS_SM), fill);
-            painter.rect_stroke(
-                doc,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(doc.left() + 5.0, doc.top() + 8.0),
-                    egui::pos2(doc.right() - 5.0, doc.top() + 8.0),
-                ],
-                fine_stroke,
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(doc.left() + 5.0, doc.top() + 14.0),
-                    egui::pos2(doc.right() - 7.0, doc.top() + 14.0),
-                ],
-                fine_stroke,
-            );
-            painter.add(egui::Shape::convex_polygon(
-                vec![
-                    egui::pos2(doc.left() + 7.0, doc.bottom() - 7.0),
-                    egui::pos2(doc.left() + 7.0, doc.bottom() - 2.0),
-                    egui::pos2(doc.left() + 13.0, doc.bottom() - 4.5),
-                ],
-                color,
-                Stroke::NONE,
-            ));
-        }
-        MainView::Data => {
-            let table = egui::Rect::from_center_size(r.center(), egui::vec2(23.0, 21.0));
-            painter.rect_filled(table, CornerRadius::same(theme::RADIUS_SM), fill);
-            painter.rect_stroke(
-                table,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-            for y in [table.top() + 7.0, table.top() + 14.0] {
-                painter.line_segment(
-                    [egui::pos2(table.left(), y), egui::pos2(table.right(), y)],
-                    fine_stroke,
-                );
-            }
-            for x in [table.left() + 8.0, table.left() + 17.0] {
-                painter.line_segment(
-                    [egui::pos2(x, table.top()), egui::pos2(x, table.bottom())],
-                    fine_stroke,
-                );
-            }
-            painter.circle_filled(table.right_bottom() - egui::vec2(5.0, 5.0), 2.4, color);
-        }
-        MainView::Backup => {
-            painter.circle_stroke(r.center(), 9.0, fine_stroke);
-            painter.add(egui::Shape::convex_polygon(
-                vec![
-                    egui::pos2(cx + 9.0, cy - 9.0),
-                    egui::pos2(cx + 12.0, cy - 2.0),
-                    egui::pos2(cx + 5.0, cy - 3.0),
-                ],
-                color,
-                Stroke::NONE,
-            ));
-            let tray = egui::Rect::from_center_size(
-                egui::pos2(cx, r.bottom() - 4.0),
-                egui::vec2(22.0, 5.0),
-            );
-            painter.rect_stroke(
-                tray,
-                CornerRadius::same(theme::RADIUS_SM),
-                stroke,
-                StrokeKind::Inside,
-            );
-        }
-        MainView::Model => {
-            let nodes = [
-                egui::pos2(cx - 7.5, cy - 6.0),
-                egui::pos2(cx + 7.5, cy - 6.0),
-                egui::pos2(cx, cy + 8.0),
-            ];
-            painter.line_segment([nodes[0], nodes[1]], fine_stroke);
-            painter.line_segment([nodes[0], nodes[2]], fine_stroke);
-            painter.line_segment([nodes[1], nodes[2]], fine_stroke);
-            for node in nodes {
-                painter.circle_filled(
-                    node,
-                    4.0,
-                    theme::with_alpha(color, if selected { 70 } else { 42 }),
-                );
-                painter.circle_stroke(node, 4.0, stroke);
-            }
-        }
-        MainView::BI => {
-            let axis_origin = egui::pos2(r.left() + 4.0, r.bottom() - 4.0);
-            painter.line_segment(
-                [axis_origin, egui::pos2(r.right() - 2.0, axis_origin.y)],
-                stroke,
-            );
-            painter.line_segment(
-                [axis_origin, egui::pos2(axis_origin.x, r.top() + 3.0)],
-                stroke,
-            );
-            let bar_width = 4.6;
-            for (idx, height) in [8.0, 14.0, 19.0].into_iter().enumerate() {
-                let x = axis_origin.x + 5.5 + idx as f32 * 6.8;
-                let bar = egui::Rect::from_min_max(
-                    egui::pos2(x, axis_origin.y - height),
-                    egui::pos2(x + bar_width, axis_origin.y),
-                );
-                painter.rect_filled(
-                    bar,
-                    CornerRadius::same(theme::RADIUS_SM),
-                    theme::with_alpha(color, if selected { 105 } else { 70 }),
-                );
-                painter.rect_stroke(
-                    bar,
-                    CornerRadius::same(theme::RADIUS_SM),
-                    fine_stroke,
-                    StrokeKind::Inside,
-                );
-            }
-        }
-        MainView::Automation => {
-            painter.circle_stroke(r.center(), 8.5, stroke);
-            painter.circle_filled(r.center(), 3.0, color);
-            for angle in [
-                0.0_f32,
-                std::f32::consts::FRAC_PI_2,
-                std::f32::consts::PI,
-                std::f32::consts::PI + std::f32::consts::FRAC_PI_2,
-            ] {
-                let dir = egui::vec2(angle.cos(), angle.sin());
-                painter.line_segment([r.center() + dir * 10.0, r.center() + dir * 12.0], stroke);
-            }
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Status bar
@@ -1210,7 +880,7 @@ fn paint_toolbar_icon(
 
 fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
     egui::TopBottomPanel::bottom("status_bar")
-        .exact_height(24.0)
+        .exact_height(22.0)
         .frame(
             egui::Frame::new()
                 .fill(theme::bg_shell())
@@ -1221,63 +891,76 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
         .show(ctx, |ui| {
             let top_line = ui.max_rect().x_range();
             ui.painter().hline(top_line, ui.max_rect().top(), Stroke::new(1.0, theme::border_subtle()));
-            ui.set_min_height(24.0);
+            ui.set_min_height(22.0);
             ui.horizontal(|ui| {
-                // Connection status dot + name
+                ui.spacing_mut().item_spacing.x = theme::SPACE_LG;
+
+                // Left: connection status
                 if let Some(conn_id) = state.active_connection {
                     if let Some(conn) = state.connections.get(&conn_id) {
-                        let (dot_color, label) = match &conn.status {
-                            ConnectionStatus::Connected { server_version } => {
-                                (theme::ACCENT_GREEN, format!("PG {}", server_version))
-                            }
-                            ConnectionStatus::Connecting => {
-                                (theme::ACCENT_YELLOW, t("status_connecting"))
-                            }
-                            ConnectionStatus::Disconnected => {
-                                (theme::ACCENT_RED, t("status_disconnected"))
-                            }
+                        let dot_color = match &conn.status {
+                            ConnectionStatus::Connected { .. } => theme::ACCENT_GREEN,
+                            ConnectionStatus::Connecting => theme::ACCENT_YELLOW,
+                            ConnectionStatus::Disconnected => theme::ACCENT_RED,
                         };
-
                         let (dot_rect, _) =
-                            ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
+                            ui.allocate_exact_size(egui::vec2(10.0, 16.0), egui::Sense::hover());
                         ui.painter()
-                            .circle_filled(dot_rect.center(), 3.8, dot_color);
-                        ui.add_space(2.0);
-
+                            .circle_filled(dot_rect.center(), 3.0, dot_color);
+                        let status_label = match &conn.status {
+                            ConnectionStatus::Connected { .. } => {
+                                format!("connected \u{00B7} {}", conn.config.display_name)
+                            }
+                            ConnectionStatus::Connecting => t("status_connecting"),
+                            ConnectionStatus::Disconnected => t("status_disconnected"),
+                        };
                         ui.label(
-                            RichText::new(&conn.config.display_name)
-                                .color(theme::text_primary())
-                                .size(11.0),
-                        );
-                        ui.label(
-                            RichText::new(format!("  {label}"))
+                            RichText::new(status_label)
                                 .color(theme::text_muted())
                                 .size(11.0),
                         );
-                        ui.label(
-                            RichText::new(format!("  {}", state.status_message))
-                                .color(theme::text_disabled())
-                                .size(11.0),
-                        );
+                        if let ConnectionStatus::Connected { server_version } = &conn.status {
+                            ui.label(
+                                RichText::new(format!("PG {server_version}"))
+                                    .color(theme::text_muted())
+                                    .size(11.0),
+                            );
+                        }
+                        if state.explicit_tx_active {
+                            let elapsed = state
+                                .explicit_tx_started
+                                .map(|s| s.elapsed().as_secs())
+                                .unwrap_or(0);
+                            ui.label(
+                                RichText::new(format!("tx: 1 open \u{00B7} {elapsed}s"))
+                                    .color(theme::ACCENT_YELLOW)
+                                    .size(11.0),
+                            );
+                        }
                     }
                 } else {
                     let (dot_rect, _) =
                         ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
                     ui.painter()
-                        .circle_filled(dot_rect.center(), 3.5, theme::text_disabled());
+                        .circle_filled(dot_rect.center(), 3.0, theme::text_disabled());
                     ui.label(
                         RichText::new(t("no_connection"))
                             .color(theme::text_muted())
                             .size(11.0),
                     );
-                    ui.label(
-                        RichText::new(format!("  {}", state.status_message))
-                            .color(theme::text_disabled())
-                            .size(11.0),
-                    );
                 }
 
+                // Right side
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing.x = theme::SPACE_LG;
+
+                    // Version
+                    ui.label(
+                        RichText::new("v0.1.4")
+                            .color(theme::text_muted())
+                            .size(11.0),
+                    );
+
                     // Diagnostics toggle
                     {
                         let count = state.diagnostics_panel.entry_count();
@@ -1287,20 +970,20 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
                                     == crate::ui::diagnostics_panel::DiagSeverity::Error
                             });
                         let color = if count == 0 {
-                            theme::text_disabled()
+                            theme::text_muted()
                         } else if has_error {
                             theme::ACCENT_RED
                         } else {
                             theme::ACCENT_YELLOW
                         };
                         let text = if count > 0 {
-                            format!("\u{25b2} {count}")
+                            format!("Diagnostics \u{25BE} {count}")
                         } else {
-                            "\u{25b2}".to_string()
+                            "Diagnostics \u{25BE}".to_string()
                         };
                         let btn = ui.add(
                             egui::Button::new(
-                                RichText::new(&text).color(color).size(10.0).monospace(),
+                                RichText::new(&text).color(color).size(11.0),
                             )
                             .fill(if state.diagnostics_panel.visible {
                                 theme::with_alpha(color, 20)
@@ -1310,31 +993,19 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
                             .stroke(Stroke::NONE)
                             .corner_radius(CornerRadius::same(theme::RADIUS_SM)),
                         );
-                        let diag_tooltip = if count > 0 {
-                            format!("Diagnostics Panel ({count} entries)")
-                        } else {
-                            "Diagnostics Panel".to_string()
-                        };
-                        show_dark_hover_tooltip(
-                            ui,
-                            btn.id.with("diag_tip"),
-                            &btn,
-                            &diag_tooltip,
-                        );
                         if btn.clicked() {
                             state.diagnostics_panel.visible =
                                 !state.diagnostics_panel.visible;
                         }
-                        ui.separator();
                     }
 
+                    // Last query stats
                     if let Some(ref result) = state.current_result {
                         ui.label(
                             RichText::new(format!(
-                                "{}ms  \u{2502}  {} {}",
+                                "last query {} ms \u{00B7} {} rows",
                                 result.execution_time_ms,
                                 result.rows.len(),
-                                t("result_rows")
                             ))
                             .color(theme::text_muted())
                             .size(11.0),
@@ -1359,6 +1030,8 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
 // ---------------------------------------------------------------------------
 
 fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
+    use crate::state::TreePanelTab;
+
     let frame = egui::Frame::new()
         .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(
@@ -1369,42 +1042,143 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
 
     frame.show(ui, |ui| {
         ui.set_min_width(ui.available_width());
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    crate::ui::icon_img(ui, icons_svg::DATABASE, "tree_db", 14.0);
-                    ui.add_space(4.0);
-                    ui.label(
-                        RichText::new(t("explorer_title"))
-                            .color(theme::text_primary())
-                            .size(13.0)
-                            .strong(),
-                    );
-                });
+
+        // 1) Connection mini-status (FIRST — matching mockup parts.js:17-21)
+        {
+            let (dot_color, label_text, version_text) =
+                if let Some(conn_id) = state.active_connection {
+                    if let Some(conn) = state.connections.get(&conn_id) {
+                        let dot = match &conn.status {
+                            ConnectionStatus::Connected { .. } => theme::ACCENT_GREEN,
+                            ConnectionStatus::Connecting => theme::ACCENT_YELLOW,
+                            ConnectionStatus::Disconnected => theme::ACCENT_RED,
+                        };
+                        let name = if conn.config.display_name.is_empty() {
+                            format!("{}@{}", conn.config.username, conn.config.host)
+                        } else {
+                            conn.config.display_name.clone()
+                        };
+                        let ver = match &conn.status {
+                            ConnectionStatus::Connected { server_version } => {
+                                format!("PG {server_version}")
+                            }
+                            _ => String::new(),
+                        };
+                        (dot, name, ver)
+                    } else {
+                        (theme::text_disabled(), t("panel_no_connection"), String::new())
+                    }
+                } else {
+                    (theme::text_disabled(), t("panel_no_connection"), String::new())
+                };
+
+            ui.horizontal(|ui| {
+                let (dot_rect, _) =
+                    ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
+                ui.painter()
+                    .circle_filled(dot_rect.center(), 3.0, dot_color);
                 ui.label(
-                    RichText::new(format!(
-                        "{} saved connections",
-                        state.saved_connections.len()
-                    ))
-                    .color(theme::text_muted())
-                    .size(10.0),
+                    RichText::new(label_text)
+                        .color(theme::text_secondary())
+                        .monospace()
+                        .size(11.0),
                 );
-            });
-
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let btn = ui.add(
-                    theme::secondary_icon_button(
-                        crate::ui::icon_image(ui, icons_svg::PLUS, "explorer_new_icon", 12.0),
-                        t("explorer_new"),
-                    )
-                    .min_size(egui::vec2(74.0, 30.0)),
-                );
-
-                if btn.clicked() {
-                    state.show_connection_dialog = true;
-                    state.connection_dialog = Default::default();
+                if !version_text.is_empty() {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            RichText::new(version_text)
+                                .color(theme::text_disabled())
+                                .size(11.0),
+                        );
+                    });
                 }
             });
+            ui.add_space(theme::SPACE_SM);
+        }
+
+        // 2) Search input (SECOND)
+        let search_frame = egui::Frame::new()
+            .fill(theme::bg_darkest())
+            .stroke(Stroke::new(1.0, theme::border_default()))
+            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+            .inner_margin(Margin::symmetric(theme::SPACE_MD_I, theme::SPACE_SM_I));
+        search_frame.show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                crate::ui::icon_img_tinted(ui, icons_svg::INFO, "tree_search_ic", 12.0, theme::text_muted());
+                ui.add(
+                    egui::TextEdit::singleline(&mut state.tree_search)
+                        .hint_text(t("panel_search_schema"))
+                        .background_color(Color32::TRANSPARENT)
+                        .text_color(theme::text_primary())
+                        .margin(Margin::ZERO)
+                        .min_size(egui::vec2(0.0, 18.0))
+                        .font(egui::FontId::proportional(12.0))
+                        .frame(false),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(
+                        RichText::new("\u{2318}K")
+                            .color(theme::text_disabled())
+                            .monospace()
+                            .size(10.0),
+                    );
+                });
+            });
+        });
+
+        ui.add_space(theme::SPACE_SM);
+
+        // 3) Tab bar: Schema | Roles | History | Snippets (THIRD)
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = theme::SPACE_XS;
+            for (tab, label) in [
+                (TreePanelTab::Schema, "Schema"),
+                (TreePanelTab::Roles, "Roles"),
+                (TreePanelTab::History, "History"),
+                (TreePanelTab::Snippets, "Snippets"),
+            ] {
+                let selected = state.tree_panel_tab == tab;
+                let text_color = if selected {
+                    theme::ACCENT_EMERALD
+                } else {
+                    theme::text_muted()
+                };
+                let bg = if selected {
+                    theme::with_alpha(theme::ACCENT_EMERALD, 30)
+                } else {
+                    Color32::TRANSPARENT
+                };
+
+                let galley = ui.painter().layout_no_wrap(
+                    label.to_owned(),
+                    egui::FontId::proportional(10.5),
+                    text_color,
+                );
+                let btn_width = galley.rect.width() + 16.0;
+                let (rect, response) =
+                    ui.allocate_exact_size(egui::vec2(btn_width, 22.0), egui::Sense::click());
+
+                let fill = if response.hovered() && !selected {
+                    theme::bg_light()
+                } else {
+                    bg
+                };
+                ui.painter()
+                    .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+                ui.painter().galley(
+                    egui::pos2(
+                        rect.center().x - galley.rect.width() / 2.0,
+                        rect.center().y - galley.rect.height() / 2.0,
+                    ),
+                    galley,
+                    text_color,
+                );
+
+                if response.clicked() {
+                    state.tree_panel_tab = tab;
+                }
+            }
         });
     });
 }
