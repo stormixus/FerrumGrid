@@ -1,7 +1,7 @@
 //! Custom titlebar strip — borderless window top drag region + macOS native
 //! traffic lights preservation.
 
-use eframe::egui::{self, CornerRadius, Margin, Sense, Stroke};
+use eframe::egui::{self, CornerRadius, Margin, Sense};
 
 use crate::state::{AppState, ConnectionStatus};
 use super::theme;

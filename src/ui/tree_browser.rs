@@ -2741,6 +2741,7 @@ struct CollapsingNodeSpec<'a> {
     force_open: bool,
     selected: bool,
     icon_svg: &'a str,
+    #[allow(dead_code)]
     icon_name: &'a str,
     double_click_to_expand: bool,
     icon_tint: Option<Color32>,

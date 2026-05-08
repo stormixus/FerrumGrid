@@ -15,8 +15,6 @@ const PREF_MIN_HEIGHT: f32 = 360.0;
 const HEADER_HEIGHT: f32 = 48.0;
 const FOOTER_HEIGHT: f32 = 48.0;
 const NAV_WIDTH: f32 = 200.0;
-const CONTROL_GAP: f32 = 10.0;
-
 // New-pane layout constants
 const SECTION_LABEL_SIZE: f32 = 11.0;
 const ROW_TITLE_SIZE: f32 = 12.0;
