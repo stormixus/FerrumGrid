@@ -395,7 +395,9 @@ async fn fetch_foreign_keys(
              JOIN pg_namespace sn ON sn.oid = sc.relnamespace \
              JOIN pg_class tc ON tc.oid = con.confrelid \
              JOIN pg_namespace tn ON tn.oid = tc.relnamespace \
-             WHERE con.contype = 'f' AND sn.nspname = ANY($1::text[])",
+             WHERE con.contype = 'f' \
+               AND sn.nspname = ANY($1::text[]) \
+               AND tn.nspname = ANY($1::text[])",
             &[&schemas],
         )
         .await

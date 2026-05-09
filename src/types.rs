@@ -44,6 +44,8 @@ pub enum BackupFormat {
 }
 
 impl BackupFormat {
+    pub const BACKUP_TAB_OPTIONS: [Self; 4] = [Self::SqlOnly, Self::Custom, Self::Plain, Self::Tar];
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Custom => "Custom archive",
@@ -632,6 +634,14 @@ mod backup_info_tests {
         assert_ne!(BackupFormat::SqlOnly, BackupFormat::Plain);
         assert_eq!(BackupFormat::SqlOnly.extension(), BackupFormat::Plain.extension());
         assert_ne!(BackupFormat::SqlOnly.label(), BackupFormat::Plain.label());
+    }
+
+    #[test]
+    fn backup_tab_options_include_built_in_engine() {
+        assert_eq!(BackupFormat::BACKUP_TAB_OPTIONS[0], BackupFormat::SqlOnly);
+        assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Custom));
+        assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Plain));
+        assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Tar));
     }
 
     #[test]

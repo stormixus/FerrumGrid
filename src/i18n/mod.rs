@@ -243,10 +243,12 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("backup_format", "Format");
     en.insert("backup_custom_archive", "Custom archive (.dump)");
     en.insert("backup_plain_sql", "Plain SQL (.sql)");
+    en.insert("backup_builtin_sql", "Built-in SQL (.sql)");
     en.insert("backup_running_label", "Backing Up...");
     en.insert("backup_running_status", "Backing up {0}...");
     en.insert("backup_run", "Run Backup");
     en.insert("backup_pg_dump_running", "pg_dump is running");
+    en.insert("backup_builtin_running", "Built-in SQL backup is running");
     en.insert("backup_tar_archive", "Tar archive");
     en.insert("backup_recent", "Recent FerrumGrid Backups");
     en.insert("backup_no_session", "No backups in this session");
@@ -938,10 +940,12 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("backup_format", "형식");
     ko.insert("backup_custom_archive", "커스텀 아카이브 (.dump)");
     ko.insert("backup_plain_sql", "Plain SQL (.sql)");
+    ko.insert("backup_builtin_sql", "내장 SQL (.sql)");
     ko.insert("backup_running_label", "백업 중...");
     ko.insert("backup_running_status", "{0} 백업 중...");
     ko.insert("backup_run", "백업 실행");
     ko.insert("backup_pg_dump_running", "pg_dump 실행 중");
+    ko.insert("backup_builtin_running", "내장 SQL 백업 실행 중");
     ko.insert("backup_tar_archive", "Tar 아카이브");
     ko.insert("backup_recent", "최근 FerrumGrid 백업");
     ko.insert("backup_no_session", "이번 세션에 백업 없음");
@@ -1639,10 +1643,12 @@ fn insert_recent_ui_ja(ja: &mut Translation) {
     ja.insert("backup_format", "フォーマット");
     ja.insert("backup_custom_archive", "カスタムアーカイブ (.dump)");
     ja.insert("backup_plain_sql", "プレーンSQL (.sql)");
+    ja.insert("backup_builtin_sql", "組み込みSQL (.sql)");
     ja.insert("backup_running_label", "バックアップ中...");
     ja.insert("backup_running_status", "{0} をバックアップ中...");
     ja.insert("backup_run", "バックアップ実行");
     ja.insert("backup_pg_dump_running", "pg_dump 実行中");
+    ja.insert("backup_builtin_running", "組み込みSQLバックアップ実行中");
     ja.insert("backup_tar_archive", "Tarアーカイブ");
     ja.insert("backup_recent", "最近の FerrumGrid バックアップ");
     ja.insert("backup_no_session", "このセッションにバックアップはありません");
@@ -2223,10 +2229,12 @@ fn insert_recent_ui_zh(zh: &mut Translation) {
     zh.insert("backup_format", "格式");
     zh.insert("backup_custom_archive", "自定义归档 (.dump)");
     zh.insert("backup_plain_sql", "纯SQL (.sql)");
+    zh.insert("backup_builtin_sql", "内置SQL (.sql)");
     zh.insert("backup_running_label", "备份中...");
     zh.insert("backup_running_status", "正在备份 {0}...");
     zh.insert("backup_run", "运行备份");
     zh.insert("backup_pg_dump_running", "pg_dump 运行中");
+    zh.insert("backup_builtin_running", "内置SQL备份运行中");
     zh.insert("backup_tar_archive", "Tar归档");
     zh.insert("backup_recent", "最近的 FerrumGrid 备份");
     zh.insert("backup_no_session", "本次会话中无备份");
@@ -2834,6 +2842,7 @@ fn insert_recent_ui_es(es: &mut Translation) {
     es.insert("backup_format", "Formato");
     es.insert("backup_custom_archive", "Archivo personalizado (.dump)");
     es.insert("backup_plain_sql", "SQL plano (.sql)");
+    es.insert("backup_builtin_sql", "SQL integrado (.sql)");
     es.insert("backup_running_label", "Realizando copia de seguridad...");
     es.insert(
         "backup_running_status",
@@ -2841,6 +2850,7 @@ fn insert_recent_ui_es(es: &mut Translation) {
     );
     es.insert("backup_run", "Ejecutar copia de seguridad");
     es.insert("backup_pg_dump_running", "pg_dump en ejecución");
+    es.insert("backup_builtin_running", "Copia SQL integrada en ejecución");
     es.insert("backup_tar_archive", "Archivo Tar");
     es.insert(
         "backup_recent",
@@ -3251,10 +3261,12 @@ fn insert_recent_ui_fr(fr: &mut Translation) {
     fr.insert("backup_format", "Format");
     fr.insert("backup_custom_archive", "Archive personnalisée (.dump)");
     fr.insert("backup_plain_sql", "SQL simple (.sql)");
+    fr.insert("backup_builtin_sql", "SQL intégré (.sql)");
     fr.insert("backup_running_label", "Sauvegarde en cours...");
     fr.insert("backup_running_status", "Sauvegarde de {0} en cours...");
     fr.insert("backup_run", "Lancer la sauvegarde");
     fr.insert("backup_pg_dump_running", "pg_dump en cours d'exécution");
+    fr.insert("backup_builtin_running", "Sauvegarde SQL intégrée en cours");
     fr.insert("backup_tar_archive", "Archive Tar");
     fr.insert("backup_recent", "Sauvegardes récentes de FerrumGrid");
     fr.insert("backup_no_session", "Aucune sauvegarde dans cette session");
@@ -3644,10 +3656,12 @@ fn insert_recent_ui_de(de: &mut Translation) {
     de.insert("backup_format", "Format");
     de.insert("backup_custom_archive", "Benutzerdefiniertes Archiv (.dump)");
     de.insert("backup_plain_sql", "Einfaches SQL (.sql)");
+    de.insert("backup_builtin_sql", "Integriertes SQL (.sql)");
     de.insert("backup_running_label", "Sicherung läuft...");
     de.insert("backup_running_status", "{0} wird gesichert...");
     de.insert("backup_run", "Sicherung starten");
     de.insert("backup_pg_dump_running", "pg_dump wird ausgeführt");
+    de.insert("backup_builtin_running", "Integrierte SQL-Sicherung läuft");
     de.insert("backup_tar_archive", "Tar-Archiv");
     de.insert("backup_recent", "Aktuelle FerrumGrid-Sicherungen");
     de.insert("backup_no_session", "Keine Sicherungen in dieser Sitzung");

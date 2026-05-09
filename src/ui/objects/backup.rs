@@ -242,9 +242,9 @@ fn render_backup_repository_card(
                         .size(11.0)
                         .strong(),
                 );
-                backup_format_button(ui, &mut state.backup_format, BackupFormat::Custom);
-                backup_format_button(ui, &mut state.backup_format, BackupFormat::Plain);
-                backup_format_button(ui, &mut state.backup_format, BackupFormat::Tar);
+                for format in BackupFormat::BACKUP_TAB_OPTIONS {
+                    backup_format_button(ui, &mut state.backup_format, format);
+                }
             });
 
             ui.add_space(theme::SPACE_LG);
@@ -277,7 +277,7 @@ fn render_backup_repository_card(
                 if state.backup_running {
                     ui.spinner();
                     ui.label(
-                        RichText::new(t("backup_pg_dump_running"))
+                        RichText::new(backup_running_detail(state.backup_format))
                             .color(theme::text_muted())
                             .size(11.0),
                     );
@@ -297,7 +297,7 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
         BackupFormat::Custom => t("backup_custom_archive"),
         BackupFormat::Plain => t("backup_plain_sql"),
         BackupFormat::Tar => t("backup_tar_archive"),
-        BackupFormat::SqlOnly => format.label().to_string(),
+        BackupFormat::SqlOnly => t("backup_builtin_sql"),
     };
     let button = egui::Button::new(RichText::new(label).color(if selected {
         theme::text_primary()
@@ -321,6 +321,15 @@ fn backup_format_button(ui: &mut egui::Ui, value: &mut BackupFormat, format: Bac
 
     if ui.add(button).clicked() {
         *value = format;
+    }
+}
+
+fn backup_running_detail(format: BackupFormat) -> String {
+    match format {
+        BackupFormat::SqlOnly => t("backup_builtin_running"),
+        BackupFormat::Custom | BackupFormat::Plain | BackupFormat::Tar => {
+            t("backup_pg_dump_running")
+        }
     }
 }
 
