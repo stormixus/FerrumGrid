@@ -2,6 +2,14 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.1] - 2026-05-09
+
+### Fixed
+
+- Backup tab now exposes the built-in SQL backup engine (`BackupFormat::SqlOnly`) as a selectable `.sql` format.
+- Built-in SQL backup progress text no longer reports `pg_dump` while the native engine is running.
+- Schema-scoped built-in SQL backups now emit only foreign keys whose source and target schemas are both included in the dump.
+
 ## [0.3.0] - 2026-05-09
 
 ### Added
