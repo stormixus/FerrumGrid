@@ -1,45 +1,148 @@
+<div align="center">
+
+<img src="assets/app-icon-dark.svg#gh-dark-mode-only" width="128" alt="FerrumGrid"/>
+<img src="assets/app-icon-light.svg#gh-light-mode-only" width="128" alt="FerrumGrid"/>
+
 # FerrumGrid
 
-A fast, native PostgreSQL desktop client built with Rust and egui.
+**A native PostgreSQL desktop client, forged in Rust.**
+Fast like the metal it's named after. Beautiful like the tools you wish you had.
 
-<!-- TODO: Add screenshot GIF here -->
-<!-- ![FerrumGrid Screenshot](docs/screenshot.png) -->
+[![Release](https://img.shields.io/github/v/release/stormixus/FerrumGrid?style=for-the-badge&color=10b981&labelColor=171718)](https://github.com/stormixus/FerrumGrid/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge&labelColor=171718)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.75+-orange?style=for-the-badge&logo=rust&labelColor=171718)](https://www.rust-lang.org/)
+[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-supported-8b5cf6?style=for-the-badge&labelColor=171718)](#download)
+
+[**Download**](#download) · [**Quick Start**](#quick-start) · [**Why FerrumGrid?**](#why-ferrumgrid) · [**Roadmap**](#roadmap)
+
+<!-- TODO: replace with hero gif/screenshot at docs/hero.png -->
+
+</div>
+
+---
+
+## Why FerrumGrid?
+
+PostgreSQL deserves a client that doesn't feel like a 2008 Java applet or a wrapped Chrome tab. FerrumGrid is built from scratch in Rust with a Supabase-inspired design language — every pixel, every keystroke, every query is tuned for the developers who actually live in the database.
+
+- ⚡ **Native, not wrapped** — no Electron, no JVM, no web view. A single statically-linked Rust binary.
+- 🎨 **Designed, not assembled** — coherent dark/light themes, typography that actually breathes, an icon set drawn instead of stolen.
+- 🔐 **Encrypted vault** — credentials sealed with Argon2id + ChaCha20-Poly1305. Your `.env` files thank you.
+- 🧠 **Built for keyboard wizards** — Command Palette (⌘K), multi-tab editor, instant tree navigation.
 
 ## Features
 
-- **Query Editor** with syntax highlighting, auto-completion, and multi-tab support
-- **Data Grid** with inline editing, sorting, filtering, and CSV/TSV export
-- **Schema Browser** with tree navigation for tables, views, functions, and roles
-- **ER Diagram** for visualizing table relationships and foreign keys
-- **Backup & Restore** via pg_dump/pg_restore integration
-- **Vault** for encrypted credential storage
-- **Dark & Light themes** with a Supabase-inspired design system
-- **macOS native** with traffic lights, Dock menu, and system font support
-- **i18n** with English, Korean, and Chinese support
+<table>
+<tr>
+<td width="50%">
 
-## Install
+**Query & Edit**
+- SQL editor with syntax highlighting, multi-tab, history
+- Inline cell editing with type-aware coloring (numbers, JSON, UUIDs, dates)
+- Add Row / Delete Row with auto-generated INSERT / DELETE
+- Multi-format export: CSV, JSON, SQL INSERT
 
-### Build from source
+</td>
+<td width="50%">
 
-Prerequisites: [Rust toolchain](https://rustup.rs/) (1.75+)
+**Explore**
+- Schema browser: tables, views, materialized views, functions, roles
+- Context-aware info panel for every object type
+- Drag tables from the tree directly into the editor
+- ER diagram with live FK relationships and zoom-to-fit
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Operate**
+- Built-in **SQL backup engine** — no `pg_dump` dependency
+- Streams DDL + `COPY ... TO STDOUT` for partitioned tables, identity columns, schema-scoped FKs
+- Table Designer with proper ALTER diff (ADD/DROP COLUMN, TYPE, NOT NULL, DEFAULT)
+- Encrypted credential Vault (Argon2id + ChaCha20-Poly1305)
+
+</td>
+<td width="50%">
+
+**Polish**
+- Command Palette (⌘K) — every action one search away
+- Dark / Light themes with unified emerald accent
+- 7-language i18n (English, Korean, Chinese, more)
+- Native macOS chrome (traffic lights, Dock menu, system fonts)
+
+</td>
+</tr>
+</table>
+
+## Download
+
+Latest release: **[v0.3.1](https://github.com/stormixus/FerrumGrid/releases/latest)**
+
+| Platform | Installer | Archive |
+|---|---|---|
+| 🍎 **macOS** Apple Silicon | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.1-aarch64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-aarch64-apple-darwin.tar.xz) |
+| 🍎 **macOS** Intel | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.1-x86_64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-apple-darwin.tar.xz) |
+| 🐧 **Linux** x86_64 | — | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-unknown-linux-gnu.tar.xz) |
+| 🪟 **Windows** x64 | [.msi](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-pc-windows-msvc.msi) | [.zip](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-pc-windows-msvc.zip) |
+
+Or, one-shot install via shell:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-installer.sh | sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-installer.ps1 | iex"
+```
+
+> **ARM64 Linux is not supported** in prebuilt releases — build from source via `cargo build --release` on the target machine.
+
+## Quick Start
 
 ```bash
 git clone https://github.com/stormixus/FerrumGrid.git
 cd FerrumGrid
-cargo build --release
+cargo run --release
 ```
 
-The binary will be at `target/release/ferrumgrid`.
-
-### macOS
+**Linux build deps** (Debian / Ubuntu):
 
 ```bash
-cargo build --release
-# Run directly
-./target/release/ferrumgrid
+sudo apt install libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev \
+                 libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
 
-<!-- TODO: Add Homebrew tap and .dmg download -->
+Then connect to a database — FerrumGrid will remember it (encrypted) for next time.
+
+## Stack
+
+Built on the shoulders of giants:
+
+- **[egui](https://github.com/emilk/egui)** — immediate-mode GUI in pure Rust
+- **[tokio-postgres](https://github.com/sfackler/rust-postgres)** — async PostgreSQL driver
+- **[tokio](https://tokio.rs/)** — async runtime
+- **[ChaCha20-Poly1305](https://github.com/RustCrypto/AEADs)** + **[Argon2](https://github.com/RustCrypto/password-hashes)** — vault crypto
+- **No Electron. No JVM. No web view.** Just a single statically-linked native binary.
+
+## How does it compare?
+
+|  | **FerrumGrid** | DBeaver | pgAdmin | TablePlus |
+|---|---|---|---|---|
+| Engine | Native Rust | JVM | Web (Python) | Native (closed) |
+| Open source | ✅ MIT | Partial | ✅ | ❌ |
+| Price | Free | Free | Free | Paid tiers |
+| PostgreSQL-first | ✅ | Multi-DB | ✅ | Multi-DB |
+
+## Roadmap
+
+> _Tentative — these are ideas under consideration, not commitments. See [CHANGELOG.md](CHANGELOG.md) for what actually shipped._
+
+- AI Assist: natural-language → SQL with schema context
+- Saved snippets library + cross-connection sharing
+- Plugin API for custom export formats and view renderers
+- Homebrew tap (`brew install --cask ferrumgrid`)
+- Linux ARM64 prebuilt artifacts (pending GTK3 cross-compile story)
 
 ## Development
 
@@ -50,7 +153,7 @@ cargo clippy         # Lint
 cargo run            # Run in debug mode
 ```
 
-## Architecture
+Project layout:
 
 ```
 src/
@@ -71,15 +174,20 @@ src/
     vault.rs         # Credential vault UI
 ```
 
-## Why FerrumGrid?
+Design system tokens are defined in [DESIGN.md](DESIGN.md).
 
-| | FerrumGrid | DBeaver | pgAdmin |
-|---|---|---|---|
-| Price | Free | Free | Free |
-| Speed | Native (Rust) | Java | Web-based |
-| UI Quality | Supabase-inspired | Complex | Dated |
-| Open Source | Yes | Partial | Yes |
+## Contributing
+
+PRs welcome. Open an issue first for non-trivial changes.
+The codebase keeps a tight diff-discipline — small, atomic commits with `cargo test` + `cargo clippy` clean.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+[MIT](LICENSE) — © 2026 Stormix
+
+<div align="center">
+
+**Built with 🦀 in Seoul.**
+If FerrumGrid saved you from another DBeaver crash, [⭐ star the repo](https://github.com/stormixus/FerrumGrid).
+
+</div>
