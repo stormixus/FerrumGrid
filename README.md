@@ -1,21 +1,19 @@
 <div align="center">
 
-<img src="assets/app-icon-dark.svg#gh-dark-mode-only" width="128" alt="FerrumGrid"/>
-<img src="assets/app-icon-light.svg#gh-light-mode-only" width="128" alt="FerrumGrid"/>
+<img src="assets/app-icon.png#gh-dark-mode-only" width="128" alt="FerrumGrid"/>
+<img src="assets/app-icon-light.png#gh-light-mode-only" width="128" alt="FerrumGrid"/>
 
 # FerrumGrid
 
 **A native PostgreSQL desktop client, forged in Rust.**
-Fast like the metal it's named after. Beautiful like the tools you wish you had.
+Fast like the metal it's named after. Sexy like the tools you wish you had. Built with a stunning grid-structured interface.
 
-[![Release](https://img.shields.io/github/v/release/stormixus/FerrumGrid?style=for-the-badge&color=10b981&labelColor=171718)](https://github.com/stormixus/FerrumGrid/releases/latest)
+[![Release](https://img.shields.io/github/v/release/stormixus/FerrumGrid?style=for-the-badge&color=2ecba7&labelColor=171718)](https://github.com/stormixus/FerrumGrid/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge&labelColor=171718)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange?style=for-the-badge&logo=rust&labelColor=171718)](https://www.rust-lang.org/)
 [![Platforms](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-supported-8b5cf6?style=for-the-badge&labelColor=171718)](#download)
 
 [**Download**](#download) · [**Quick Start**](#quick-start) · [**Why FerrumGrid?**](#why-ferrumgrid) · [**Roadmap**](#roadmap)
-
-<!-- TODO: replace with hero gif/screenshot at docs/hero.png -->
 
 </div>
 
@@ -77,12 +75,12 @@ PostgreSQL deserves a client that doesn't feel like a 2008 Java applet or a wrap
 
 ## Download
 
-Latest release: **[v0.3.1](https://github.com/stormixus/FerrumGrid/releases/latest)**
+Latest release: **[v0.3.2](https://github.com/stormixus/FerrumGrid/releases/latest)**
 
 | Platform | Installer | Archive |
 |---|---|---|
-| 🍎 **macOS** Apple Silicon | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.1-aarch64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-aarch64-apple-darwin.tar.xz) |
-| 🍎 **macOS** Intel | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.1-x86_64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-apple-darwin.tar.xz) |
+| 🍎 **macOS** Apple Silicon | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.2-aarch64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-aarch64-apple-darwin.tar.xz) |
+| 🍎 **macOS** Intel | [.dmg](https://github.com/stormixus/FerrumGrid/releases/latest/download/FerrumGrid-0.3.2-x86_64-apple-darwin.dmg) | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-apple-darwin.tar.xz) |
 | 🐧 **Linux** x86_64 | — | [.tar.xz](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-unknown-linux-gnu.tar.xz) |
 | 🪟 **Windows** x64 | [.msi](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-pc-windows-msvc.msi) | [.zip](https://github.com/stormixus/FerrumGrid/releases/latest/download/ferrumgrid-x86_64-pc-windows-msvc.zip) |
 

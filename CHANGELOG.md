@@ -2,6 +2,13 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.2] - 2026-05-22
+
+### Added
+
+- Upgraded application icon set to a gorgeous, grid-structured 3D glassmorphic "F" shape. Replaced the old monotone icon with perfectly matched dark mode and light mode grid blocks featuring emerald green and teal neon-glow rounded squares.
+- Updated `generate-icns.sh` packaging tool to compile AppIcon assets directly from high-resolution raw PNG templates.
+
 ## [0.3.1] - 2026-05-09
 
 ### Fixed
