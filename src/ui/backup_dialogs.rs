@@ -311,17 +311,13 @@ fn render_step_indicator(ui: &mut egui::Ui, current_step: usize) {
             ui.horizontal(|ui| {
                 // Circle Badge
                 let rect = ui.allocate_space(egui::vec2(20.0, 20.0)).1;
-                let bg_color = if is_active {
-                    theme::accent_color_dim()
-                } else if is_past {
+                let bg_color = if is_active || is_past {
                     theme::accent_color_dim()
                 } else {
                     theme::bg_light()
                 };
 
-                let stroke_color = if is_active {
-                    theme::accent_color()
-                } else if is_past {
+                let stroke_color = if is_active || is_past {
                     theme::accent_color()
                 } else {
                     theme::border_default()
@@ -448,10 +444,8 @@ fn render_step_scope(
             }).response;
 
         let response = ui.interact(response.rect, response.id, egui::Sense::click());
-        if response.clicked() {
-            if wizard.schema_scope.is_none() {
-                wizard.schema_scope = Some(schemas.first().cloned().unwrap_or_else(|| "public".to_string()));
-            }
+        if response.clicked() && wizard.schema_scope.is_none() {
+            wizard.schema_scope = Some(schemas.first().cloned().unwrap_or_else(|| "public".to_string()));
         }
 
         if is_schema {

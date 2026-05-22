@@ -34,9 +34,13 @@ pub const TEXT_DISABLED: Color32 = Color32::from_rgb(77, 77, 77);
 pub const ACCENT_EMERALD: Color32 = Color32::from_rgb(62, 207, 142);
 pub const ACCENT_EMERALD_LIGHT: Color32 = Color32::from_rgb(92, 230, 167);
 pub const ACCENT_EMERALD_DIM: Color32 = Color32::from_rgb(22, 78, 55);
+#[allow(dead_code)]
 pub const ACCENT_COPPER: Color32 = ACCENT_EMERALD;
+#[allow(dead_code)]
 pub const ACCENT_COPPER_LIGHT: Color32 = ACCENT_EMERALD_LIGHT;
+#[allow(dead_code)]
 pub const ACCENT_COPPER_DIM: Color32 = ACCENT_EMERALD_DIM;
+#[allow(dead_code)]
 pub const ACCENT_TEAL: Color32 = Color32::from_rgb(0, 197, 115);
 
 // Dynamic Accent Color Support
@@ -65,6 +69,7 @@ const LIGHT_ACCENT_RED_SOFT: Color32 = Color32::from_rgb(180, 82, 82);
 pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(36, 36, 36);
 pub const BORDER_DEFAULT: Color32 = Color32::from_rgb(46, 46, 46);
 pub const BORDER_STRONG: Color32 = Color32::from_rgb(54, 54, 54);
+#[allow(dead_code)]
 pub const BORDER_GLOW: Color32 = ACCENT_EMERALD;
 
 // ---------------------------------------------------------------------------
@@ -116,6 +121,7 @@ const LIGHT_TEXT_DISABLED: Color32 = Color32::from_rgb(168, 176, 190);
 const LIGHT_BORDER_SUBTLE: Color32 = Color32::from_rgb(226, 231, 238);
 const LIGHT_BORDER_DEFAULT: Color32 = Color32::from_rgb(205, 212, 224);
 const LIGHT_BORDER_STRONG: Color32 = Color32::from_rgb(176, 186, 202);
+#[allow(dead_code)]
 const LIGHT_BORDER_GLOW: Color32 = Color32::from_rgb(62, 207, 142);
 
 pub fn is_dark() -> bool {

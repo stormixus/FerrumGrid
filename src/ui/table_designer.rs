@@ -985,6 +985,22 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
     });
 }
 
+pub fn apply_fk_info(state: &mut AppState, foreign_keys: &[crate::ui::er_diagram::ForeignKey]) {
+    for col in &mut state.table_designer.columns {
+        for fk in foreign_keys {
+            if fk.source_table == state.table_designer.table_name
+                && fk.source_schema == state.table_designer.schema
+                && fk.source_column == col.name
+            {
+                col.is_foreign_key = true;
+                col.fk_ref_schema.clone_from(&fk.target_schema);
+                col.fk_ref_table.clone_from(&fk.target_table);
+                col.fk_ref_column.clone_from(&fk.target_column);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod alter_ddl_tests {
     use super::*;
@@ -1076,21 +1092,5 @@ mod alter_ddl_tests {
         let td = designer(orig, current);
         let ddl = generate_alter_ddl(&td, "public.users");
         assert!(ddl.contains("DROP DEFAULT"));
-    }
-}
-
-pub fn apply_fk_info(state: &mut AppState, foreign_keys: &[crate::ui::er_diagram::ForeignKey]) {
-    for col in &mut state.table_designer.columns {
-        for fk in foreign_keys {
-            if fk.source_table == state.table_designer.table_name
-                && fk.source_schema == state.table_designer.schema
-                && fk.source_column == col.name
-            {
-                col.is_foreign_key = true;
-                col.fk_ref_schema.clone_from(&fk.target_schema);
-                col.fk_ref_table.clone_from(&fk.target_table);
-                col.fk_ref_column.clone_from(&fk.target_column);
-            }
-        }
     }
 }

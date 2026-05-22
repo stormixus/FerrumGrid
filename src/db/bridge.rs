@@ -84,6 +84,7 @@ pub enum DbCommand {
         request: BackupRequest,
     },
     RunRestore {
+        #[allow(dead_code)]
         conn_id: ConnectionId,
         config: ConnectionConfig,
         file_path: std::path::PathBuf,
@@ -193,6 +194,7 @@ pub enum DbResponse {
         error: String,
     },
     BackupProgress {
+        #[allow(dead_code)]
         conn_id: ConnectionId,
         progress: f32,
         current_table: String,
@@ -201,6 +203,7 @@ pub enum DbResponse {
         file_path: std::path::PathBuf,
     },
     RestoreFailed {
+        #[allow(dead_code)]
         file_path: std::path::PathBuf,
         error: String,
     },

@@ -79,7 +79,7 @@ fn sample_pairs() -> Vec<(MockCellValue, MockCellValue)> {
         (MockCellValue::Null, MockCellValue::Null),
         (MockCellValue::Bool(true), MockCellValue::Bool(true)),
         (MockCellValue::Int(42), MockCellValue::Int(42)),
-        (MockCellValue::Float(3.14), MockCellValue::Float(3.14)),
+        (MockCellValue::Float(3.1), MockCellValue::Float(3.1)),
         (
             MockCellValue::Text("hello".to_string()),
             MockCellValue::Text("hello".to_string()),

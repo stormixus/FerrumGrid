@@ -46,6 +46,7 @@ pub enum BackupFormat {
 }
 
 impl BackupFormat {
+    #[allow(dead_code)]
     pub const BACKUP_TAB_OPTIONS: [Self; 5] = [Self::Fgb, Self::SqlOnly, Self::Custom, Self::Plain, Self::Tar];
 
     pub fn label(self) -> &'static str {
