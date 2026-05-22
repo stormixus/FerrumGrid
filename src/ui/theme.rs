@@ -200,6 +200,10 @@ pub fn accent_red_soft() -> Color32 {
     pick(ACCENT_RED_SOFT, LIGHT_ACCENT_RED_SOFT)
 }
 
+pub fn text_error() -> Color32 {
+    ACCENT_RED
+}
+
 pub fn set_accent_color(name: &str) {
     let index = match name {
         "emerald" => 0,

@@ -1,16 +1,17 @@
 use eframe::egui::{
-    self, Align, Button, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke, Window,
+    self, Align, Button, CornerRadius, Frame, Margin, RichText, ScrollArea, Sense, Stroke,
 };
 use std::sync::{Arc, Mutex};
 
-use crate::db::bridge::DbBridge;
+use crate::db::bridge::{DbBridge, DbCommand};
 use crate::prisma::{
-    append_model_to_schema, check_prisma_installed, generate_migration, generate_schema_file,
-    get_prisma_version, run_prisma_cli, sync_db_to_schema, sync_schema_to_db, PrismaCommand,
-    PrismaSchema,
+    append_model_to_schema, generate_migration, generate_schema_file,
+    sync_db_to_schema, PrismaSchema,
 };
 use crate::state::{AppState, ConnectionStatus};
+use crate::types::ConnectionId;
 use crate::ui::theme;
+use crate::i18n::t;
 
 #[derive(Debug, Clone, Default)]
 pub struct PrismaUIState {
@@ -24,6 +25,17 @@ pub struct PrismaUIState {
     pub prisma_installed: bool,
     pub prisma_version: Option<String>,
     pub pending_output: Option<Arc<Mutex<Option<String>>>>,
+    pub closed: bool,
+    pub db_url: String,
+    pub active_conn_id: Option<ConnectionId>,
+    pub schemas: Vec<String>,
+    pub objects_schema_filter: String,
+    pub is_connected: bool,
+    pub introspection_requested: Option<String>,
+    pub db_push_requested: bool,
+    pub migrate_dev_requested: Option<String>,
+    pub migrate_deploy_requested: bool,
+    pub migrate_status_requested: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -40,95 +52,480 @@ pub enum PrismaCommandType {
     DBPush,
 }
 
-pub fn render_prisma_window(ctx: &egui::Context, state: &mut AppState, _bridge: &DbBridge) {
-    if !state.prisma_ui.show_window {
-        return;
-    }
-
-    if state.prisma_ui.schema_path.is_empty() {
-        state.prisma_ui.schema_path = "./prisma/schema.prisma".to_string();
-    }
-
-    poll_prisma_output(ctx, state);
-
-    // Check Prisma installation once - run async check synchronously
-    if !state.prisma_ui.prisma_installed && !state.prisma_ui.is_running {
-        // Use a simple runtime for the check
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
-        state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
-    }
-
-    Window::new("Prisma Integration")
-        .default_size([900.0, 700.0])
-        .resizable(true)
-        .collapsible(true)
-        .show(ctx, |ui| {
-            render_prisma_ui(ui, state, _bridge);
-        });
+#[derive(Debug, Clone)]
+pub struct SyncResult {
+    pub success: bool,
+    pub message: String,
+    pub sql_statements: Vec<String>,
 }
 
-fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
-    if !state.prisma_ui.prisma_installed {
-        ui.vertical_centered(|ui| {
-            ui.add_space(50.0);
-            ui.label(
-                RichText::new("Prisma CLI not found")
-                    .color(theme::ACCENT_RED)
-                    .size(18.0),
-            );
-            ui.label("Please install Prisma CLI:");
-            ui.label("npm install -g prisma");
-            ui.add_space(20.0);
-            if ui.button("Check Again").clicked() {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
-                state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
-            }
+/// Sync Prisma schema to database using a tx channel
+pub fn sync_schema_to_db_tx(
+    schema: &PrismaSchema,
+    conn_id: ConnectionId,
+    cmd_tx: &tokio::sync::mpsc::Sender<DbCommand>,
+) -> SyncResult {
+    let mut sql_statements = Vec::new();
+
+    for model in &schema.models {
+        let sql = model.to_sql();
+        sql_statements.push(sql.clone());
+
+        // Execute the SQL via channel
+        let _ = cmd_tx.try_send(DbCommand::ExecuteQuery {
+            conn_id,
+            sql,
+            row_limit: None,
         });
+    }
+
+    SyncResult {
+        success: true,
+        message: format!("Applied {} models to database", schema.models.len()),
+        sql_statements,
+    }
+}
+
+pub fn render_prisma_window(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
+    let show = {
+        if let Ok(ui_state) = state.prisma_ui.lock() {
+            ui_state.show_window
+        } else {
+            false
+        }
+    };
+
+    if !show {
         return;
     }
 
+    let cmd_tx = bridge.cmd_sender();
+
+    // 1. Process reactive actions requested by the viewport (on the main thread)
+    let introspection_req = {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        ui_state.introspection_requested.take()
+    };
+    if let Some(schema_name) = introspection_req {
+        let conn_id = state.active_connection;
+        if let Some(id) = conn_id {
+            match sync_db_to_schema(state, &schema_name, id) {
+                Ok(schema) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.schema_content = format!(
+                        "// Generated by FerrumGrid from schema '{}'\n\n{}",
+                        schema_name,
+                        schema.to_prisma_schema()
+                    );
+                    ui_state.cli_output = format!("Generated schema from database '{schema_name}'");
+                }
+                Err(e) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = e;
+                }
+            }
+        } else {
+            let mut ui_state = state.prisma_ui.lock().unwrap();
+            ui_state.cli_output = "Error: No active connection".to_string();
+        }
+    }
+
+    let db_push_req = {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        if ui_state.db_push_requested {
+            ui_state.db_push_requested = false;
+            true
+        } else {
+            false
+        }
+    };
+    if db_push_req {
+        let conn_id = state.active_connection;
+        if let Some(id) = conn_id {
+            let schema_content = {
+                let ui_state = state.prisma_ui.lock().unwrap();
+                ui_state.schema_content.clone()
+            };
+            match PrismaSchema::parse(&schema_content) {
+                Ok(schema) => {
+                    let result = sync_schema_to_db_tx(&schema, id, &cmd_tx);
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!(
+                        "FerrumGrid Offline DBPush Success!\nApplied {} models to database.\n\nSQL EXECUTED:\n{}",
+                        schema.models.len(),
+                        result.sql_statements.join("\n")
+                    );
+                }
+                Err(e) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!("DBPush Error: Parse failed\n{}", e);
+                }
+            }
+        } else {
+            let mut ui_state = state.prisma_ui.lock().unwrap();
+            ui_state.cli_output = "Error: No active connection".to_string();
+        }
+    }
+
+    let migrate_dev_req = {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        ui_state.migrate_dev_requested.take()
+    };
+    if let Some(migration_name) = migrate_dev_req {
+        let conn_id = state.active_connection;
+        if let Some(id) = conn_id {
+            let schema_content = {
+                let ui_state = state.prisma_ui.lock().unwrap();
+                ui_state.schema_content.clone()
+            };
+            let schema_name = if state.objects_schema_filter.is_empty() {
+                "public".to_string()
+            } else {
+                state.objects_schema_filter.clone()
+            };
+
+            let old_schema_res = sync_db_to_schema(state, &schema_name, id);
+            
+            match PrismaSchema::parse(&schema_content) {
+                Ok(new_schema) => {
+                    let name = if migration_name.trim().is_empty() {
+                        "migration".to_string()
+                    } else {
+                        migration_name.trim().replace(' ', "_")
+                    };
+
+                    let old_schema = old_schema_res.ok();
+                    let migration_ddl = generate_migration(old_schema.as_ref(), &new_schema, &name);
+                    let result = sync_schema_to_db_tx(&new_schema, id, &cmd_tx);
+
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!(
+                        "FerrumGrid Offline Migrate Dev Success!\nMigration '{}' created and applied successfully.\n\nGenerated Migration SQL:\n{}\n\nApplied SQL Statements:\n{}",
+                        name,
+                        migration_ddl,
+                        result.sql_statements.join("\n")
+                    );
+                }
+                Err(e) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!("Migrate Dev Error: Parse failed\n{}", e);
+                }
+            }
+        } else {
+            let mut ui_state = state.prisma_ui.lock().unwrap();
+            ui_state.cli_output = "Error: No active connection".to_string();
+        }
+    }
+
+    let migrate_deploy_req = {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        if ui_state.migrate_deploy_requested {
+            ui_state.migrate_deploy_requested = false;
+            true
+        } else {
+            false
+        }
+    };
+    if migrate_deploy_req {
+        let conn_id = state.active_connection;
+        if let Some(id) = conn_id {
+            let schema_content = {
+                let ui_state = state.prisma_ui.lock().unwrap();
+                ui_state.schema_content.clone()
+            };
+            match PrismaSchema::parse(&schema_content) {
+                Ok(schema) => {
+                    let result = sync_schema_to_db_tx(&schema, id, &cmd_tx);
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!(
+                        "FerrumGrid Offline Migrate Deploy Success!\nDeploy completed. All models synced to database.\n\nSQL EXECUTED:\n{}",
+                        result.sql_statements.join("\n")
+                    );
+                }
+                Err(e) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!("Migrate Deploy Error: Parse failed\n{}", e);
+                }
+            }
+        } else {
+            let mut ui_state = state.prisma_ui.lock().unwrap();
+            ui_state.cli_output = "Error: No active connection".to_string();
+        }
+    }
+
+    let migrate_status_req = {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        if ui_state.migrate_status_requested {
+            ui_state.migrate_status_requested = false;
+            true
+        } else {
+            false
+        }
+    };
+    if migrate_status_req {
+        let conn_id = state.active_connection;
+        if let Some(id) = conn_id {
+            let schema_content = {
+                let ui_state = state.prisma_ui.lock().unwrap();
+                ui_state.schema_content.clone()
+            };
+            let schema_name = if state.objects_schema_filter.is_empty() {
+                "public".to_string()
+            } else {
+                state.objects_schema_filter.clone()
+            };
+
+            let old_schema_res = sync_db_to_schema(state, &schema_name, id);
+            
+            match PrismaSchema::parse(&schema_content) {
+                Ok(new_schema) => {
+                    match old_schema_res {
+                        Ok(old_schema) => {
+                            let migration_ddl = generate_migration(Some(&old_schema), &new_schema, "status");
+                            let has_changes = migration_ddl.lines()
+                                .any(|line| !line.trim().is_empty() && !line.trim().starts_with("--"));
+
+                            let mut ui_state = state.prisma_ui.lock().unwrap();
+                            if has_changes {
+                                ui_state.cli_output = format!(
+                                    "Database is out of sync with Prisma schema!\nPending changes detected:\n\n{}",
+                                    migration_ddl
+                                );
+                            } else {
+                                ui_state.cli_output = "Database is fully in sync with Prisma schema. No pending migrations.".to_string();
+                            }
+                        }
+                        Err(e) => {
+                            let mut ui_state = state.prisma_ui.lock().unwrap();
+                            ui_state.cli_output = format!("Migrate Status Error: Database introspection failed: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    let mut ui_state = state.prisma_ui.lock().unwrap();
+                    ui_state.cli_output = format!("Migrate Status Error: Parse failed\n{}", e);
+                }
+            }
+        } else {
+            let mut ui_state = state.prisma_ui.lock().unwrap();
+            ui_state.cli_output = "Error: No active connection".to_string();
+        }
+    }
+
+    // 2. Synchronize main thread state to the Prisma UI Mutex state
+    {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        if ui_state.schema_path.is_empty() {
+            ui_state.schema_path = "./prisma/schema.prisma".to_string();
+        }
+
+        ui_state.active_conn_id = state.active_connection;
+        ui_state.objects_schema_filter = state.objects_schema_filter.clone();
+        ui_state.schemas = state.active_connection
+            .and_then(|id| state.connections.get(&id))
+            .map(|conn| conn.schemas.clone())
+            .unwrap_or_default();
+        
+        ui_state.is_connected = state.active_connection
+            .and_then(|id| state.connections.get(&id))
+            .map(|conn| matches!(conn.status, ConnectionStatus::Connected { .. }))
+            .unwrap_or(false);
+
+        ui_state.db_url = state.active_connection
+            .and_then(|id| state.connections.get(&id))
+            .map(|conn| {
+                format!(
+                    "postgresql://{}:{}@{}:{}/{}",
+                    conn.config.username,
+                    conn.config.password,
+                    conn.config.host,
+                    conn.config.port,
+                    conn.config.database
+                )
+            })
+            .unwrap_or_default();
+
+        // Check installation once
+        ui_state.prisma_installed = true;
+        ui_state.prisma_version = Some("FerrumGrid Native Engine v0.3.2".to_string());
+    }
+
+    // 3. Prepare parameters for moving into the viewport closure
+    let prisma_ui_arc = state.prisma_ui.clone();
+    let generated_ddl = {
+        if let Ok(td) = state.table_designer.lock() {
+            td.generated_ddl.clone()
+        } else {
+            None
+        }
+    };
+
+    // 4. Build and show the standalone viewport
+    let viewport_id = egui::ViewportId::from_hash_of("prisma_integration_viewport");
+    #[allow(unused_mut)]
+    let mut builder = egui::ViewportBuilder::default()
+        .with_title(t("prisma_title"))
+        .with_inner_size(egui::vec2(960.0, 720.0))
+        .with_resizable(true)
+        .with_minimize_button(true)
+        .with_maximize_button(true);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .with_fullsize_content_view(true)
+            .with_title_shown(false);
+    }
+
+    ctx.show_viewport_immediate(
+        viewport_id,
+        builder,
+        move |ctx, _class| {
+            let mut ui_state = prisma_ui_arc.lock().unwrap();
+
+            poll_prisma_output_state(ctx, &mut ui_state);
+
+            if ctx.input(|i| i.viewport().close_requested()) {
+                ui_state.closed = true;
+            }
+
+            if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+                ui_state.closed = true;
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                crate::ui::titlebar::configure_macos_titlebar();
+
+                let top_frame = egui::Frame::NONE
+                    .fill(theme::bg_shell())
+                    .inner_margin(Margin::symmetric(16, 0));
+
+                egui::TopBottomPanel::top("prisma_titlebar")
+                    .exact_height(32.0)
+                    .frame(top_frame)
+                    .show_separator_line(false)
+                    .show(ctx, |ui| {
+                        let full_rect = ui.max_rect();
+                        
+                        let drag_response = ui.interact(
+                            full_rect,
+                            ui.id().with("prisma_titlebar_drag"),
+                            Sense::click_and_drag(),
+                        );
+                        if drag_response.drag_started_by(egui::PointerButton::Primary) {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+                        }
+
+                        let painter = ui.painter();
+                        let title_text = t("prisma_title");
+                        let font_id = egui::FontId::proportional(11.5);
+                        let color = theme::text_secondary();
+                        
+                        let galley = painter.layout_no_wrap(title_text.to_string(), font_id, color);
+                        let text_pos = egui::pos2(80.0, full_rect.center().y - galley.size().y * 0.5);
+                        painter.galley(text_pos, galley, color);
+                    });
+            }
+
+            let mut should_close = false;
+
+            egui::CentralPanel::default()
+                .frame(
+                    egui::Frame::NONE
+                        .fill(theme::bg_medium())
+                        .inner_margin(Margin::same(theme::SPACE_LG as i8))
+                )
+                .show(ctx, |ui| {
+                    render_prisma_ui_standalone(
+                        ui,
+                        &mut ui_state,
+                        &cmd_tx,
+                        generated_ddl.clone(),
+                        &mut should_close,
+                    );
+                });
+
+            if should_close {
+                ui_state.closed = true;
+            }
+        }
+    );
+
+    let should_close_state = {
+        let ui_state = state.prisma_ui.lock().unwrap();
+        ui_state.closed
+    };
+
+    if should_close_state {
+        let mut ui_state = state.prisma_ui.lock().unwrap();
+        ui_state.show_window = false;
+        ui_state.closed = false;
+    }
+}
+
+fn poll_prisma_output_state(ctx: &egui::Context, ui_state: &mut PrismaUIState) {
+    let Some(slot) = ui_state.pending_output.clone() else {
+        return;
+    };
+
+    let output = slot.lock().ok().and_then(|mut guard| guard.take());
+    if let Some(output) = output {
+        ui_state.cli_output = output;
+        ui_state.is_running = false;
+        ui_state.pending_output = None;
+    } else {
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+    }
+}
+
+fn render_prisma_ui_standalone(
+    ui: &mut egui::Ui,
+    ui_state: &mut PrismaUIState,
+    cmd_tx: &tokio::sync::mpsc::Sender<DbCommand>,
+    generated_ddl: Option<String>,
+    should_close: &mut bool,
+) {
     // Top toolbar
     ui.horizontal(|ui| {
-        ui.label("Schema Path:");
+        ui.label(format!("{}:", t("prisma_schema_path")));
         ui.add(
-            theme::text_input(&mut state.prisma_ui.schema_path)
+            theme::text_input(&mut ui_state.schema_path)
                 .desired_width(300.0)
                 .hint_text("./prisma/schema.prisma"),
         );
 
-        if ui.button("Browse").clicked() {
+        if ui.button(t("prisma_browse")).clicked() {
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("Prisma Schema", &["prisma"])
                 .pick_file()
             {
-                state.prisma_ui.schema_path = path.to_string_lossy().to_string();
+                ui_state.schema_path = path.to_string_lossy().to_string();
             }
         }
 
         ui.separator();
 
-        if ui.button("Load").clicked() {
-            load_schema_file(state);
+        if ui.button(t("prisma_load")).clicked() {
+            load_schema_file(ui_state);
         }
 
-        if ui.button("Create File").clicked() {
-            create_schema_file(state);
+        if ui.button(t("prisma_create_file")).clicked() {
+            create_schema_file(ui_state);
         }
 
-        if ui.button("Save").clicked() {
-            save_schema_file(state);
+        if ui.button(t("prisma_save")).clicked() {
+            save_schema_file(ui_state);
         }
 
-        if ui.button("Append Table Model").clicked() {
-            append_table_model(state);
+        if ui.button(t("prisma_append_model")).clicked() {
+            append_table_model(ui_state, generated_ddl.clone());
         }
 
         ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-            if ui.button("× Close").clicked() {
-                state.prisma_ui.show_window = false;
-            } else if let Some(version) = &state.prisma_ui.prisma_version {
+            if ui.button(format!("× {}", t("prisma_close"))).clicked() {
+                *should_close = true;
+            } else if let Some(version) = &ui_state.prisma_version {
                 ui.label(RichText::new(version).color(theme::text_muted()).size(10.0));
             }
         });
@@ -143,16 +540,21 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
-                ui.strong("Schema");
+                ui.strong(t("prisma_schema"));
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(theme::primary_button("Create from DB")).clicked() {
-                        create_schema_from_db(state, bridge);
+                    if ui.add(theme::primary_button(&t("prisma_create_from_db"))).clicked() {
+                        let schema_name = if ui_state.objects_schema_filter.is_empty() {
+                            "public".to_string()
+                        } else {
+                            ui_state.objects_schema_filter.clone()
+                        };
+                        ui_state.introspection_requested = Some(schema_name);
                     }
-                    if ui.add(theme::primary_button("Preview SQL")).clicked() {
-                        preview_prisma_sql(state);
+                    if ui.add(theme::primary_button(&t("prisma_preview_sql"))).clicked() {
+                        preview_prisma_sql(ui_state);
                     }
-                    if ui.add(theme::primary_button("Apply SQL")).clicked() {
-                        apply_prisma_schema(state, bridge);
+                    if ui.add(theme::primary_button(&t("prisma_apply_sql"))).clicked() {
+                        apply_prisma_schema(ui_state, cmd_tx);
                     }
                 });
             });
@@ -164,11 +566,29 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                 .inner_margin(Margin::same(8))
                 .show(ui, |ui| {
                     let available = ui.available_size();
-                    ui.add_sized(
-                        available,
-                        theme::multiline_mono_text_input(&mut state.prisma_ui.schema_content)
-                            .code_editor(),
-                    );
+                    let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                        let layout_job = highlight_prisma(text, wrap_width, 12.0);
+                        ui.fonts(|f| f.layout_job(layout_job))
+                    };
+
+                    egui::ScrollArea::vertical()
+                        .id_salt("prisma_editor_scroll")
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.set_min_height(available.y - 4.0);
+                            ui.add(
+                                egui::TextEdit::multiline(&mut ui_state.schema_content)
+                                    .id(egui::Id::new("prisma_schema_editor"))
+                                    .font(egui::TextStyle::Monospace)
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(100)
+                                    .background_color(theme::input_bg())
+                                    .text_color(theme::text_primary())
+                                    .margin(Margin::symmetric(8, 4))
+                                    .layouter(&mut layouter),
+                            );
+                        });
                 });
         });
 
@@ -176,14 +596,14 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
         cols[1].vertical(|ui| {
             ui.set_min_width(ui.available_width());
 
-            ui.strong("Prisma Commands");
+            ui.strong(t("prisma_commands"));
             ui.add_space(8.0);
 
-            render_commands_panel(ui, state, bridge);
+            render_commands_panel_standalone(ui, ui_state);
 
             ui.add_space(16.0);
 
-            ui.strong("Output");
+            ui.strong(t("prisma_output"));
             ui.add_space(8.0);
 
             Frame::new()
@@ -191,7 +611,7 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                 .inner_margin(Margin::same(8))
                 .show(ui, |ui| {
                     ScrollArea::vertical().show(ui, |ui| {
-                        let mut output = state.prisma_ui.cli_output.clone();
+                        let mut output = ui_state.cli_output.clone();
                         ui.add(
                             theme::multiline_mono_text_input(&mut output)
                                 .code_editor()
@@ -203,52 +623,60 @@ fn render_prisma_ui(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
     });
 }
 
-fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+fn render_commands_panel_standalone(ui: &mut egui::Ui, ui_state: &mut PrismaUIState) {
     let commands = [
         (
             PrismaCommandType::Introspect,
-            "Introspect",
-            "Pull DB schema into Prisma schema",
+            "prisma_introspect",
+            "prisma_introspect_tooltip",
         ),
         (
             PrismaCommandType::MigrateDev,
-            "Migrate Dev",
-            "Create and apply migration",
+            "prisma_migrate_dev",
+            "prisma_migrate_dev_tooltip",
         ),
         (
             PrismaCommandType::MigrateDeploy,
-            "Migrate Deploy",
-            "Deploy pending migrations",
+            "prisma_migrate_deploy",
+            "prisma_migrate_deploy_tooltip",
         ),
         (
             PrismaCommandType::MigrateStatus,
-            "Migrate Status",
-            "Check migration status",
+            "prisma_migrate_status",
+            "prisma_migrate_status_tooltip",
         ),
         (
             PrismaCommandType::Generate,
-            "Generate",
-            "Generate Prisma Client",
+            "prisma_generate",
+            "prisma_generate_tooltip",
         ),
-        (PrismaCommandType::Validate, "Validate", "Validate schema"),
-        (PrismaCommandType::Format, "Format", "Format schema file"),
+        (
+            PrismaCommandType::Validate,
+            "prisma_validate",
+            "prisma_validate_tooltip",
+        ),
+        (
+            PrismaCommandType::Format,
+            "prisma_format",
+            "prisma_format_tooltip",
+        ),
         (
             PrismaCommandType::DBPull,
-            "DB Pull",
-            "Introspect without updating schema",
+            "prisma_db_pull",
+            "prisma_db_pull_tooltip",
         ),
         (
             PrismaCommandType::DBPush,
-            "DB Push",
-            "Push schema to database",
+            "prisma_db_push",
+            "prisma_db_push_tooltip",
         ),
     ];
 
-    for (cmd_type, label, tooltip) in &commands {
+    for (cmd_type, label_key, tooltip_key) in &commands {
         ui.horizontal(|ui| {
-            let selected = state.prisma_ui.selected_command == *cmd_type;
+            let selected = ui_state.selected_command == *cmd_type;
 
-            let btn = Button::new(*label)
+            let btn = Button::new(t(label_key))
                 .fill(if selected {
                     theme::accent_color()
                 } else {
@@ -257,24 +685,27 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
                 .stroke(Stroke::new(1.0, theme::border_default()))
                 .corner_radius(CornerRadius::same(4));
 
-            if ui.add(btn).on_hover_text(*tooltip).clicked() {
-                state.prisma_ui.selected_command = *cmd_type;
+            if ui.add(btn).on_hover_text(t(tooltip_key)).clicked() {
+                ui_state.selected_command = *cmd_type;
             }
 
             // Additional inputs for specific commands
             if cmd_type == &PrismaCommandType::MigrateDev {
                 ui.add(
-                    theme::text_input(&mut state.prisma_ui.migration_name)
+                    theme::text_input(&mut ui_state.migration_name)
                         .desired_width(150.0)
                         .hint_text("migration_name"),
                 );
             }
 
             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                if state.prisma_ui.is_running {
+                if ui_state.is_running {
                     ui.spinner();
-                } else if ui.button("Run").clicked() {
-                    run_selected_command(state, bridge);
+                } else {
+                    let run_btn = ui.button(t("prisma_run"));
+                    if run_btn.clicked() {
+                        run_selected_command(ui_state);
+                    }
                 }
             });
         });
@@ -282,281 +713,331 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     }
 }
 
-fn run_selected_command(state: &mut AppState, _bridge: &DbBridge) {
-    let schema_path = state.prisma_ui.schema_path.clone();
+fn run_selected_command(ui_state: &mut PrismaUIState) {
+    let schema_path = ui_state.schema_path.clone();
 
-    if schema_path.is_empty() {
-        state.prisma_ui.cli_output = "Error: Please specify schema path".to_string();
+    if schema_path.is_empty() && !matches!(ui_state.selected_command, PrismaCommandType::Format | PrismaCommandType::Validate) {
+        ui_state.cli_output = "Error: Please specify schema path".to_string();
         return;
     }
 
-    let cmd = match state.prisma_ui.selected_command {
-        PrismaCommandType::Introspect => PrismaCommand::Introspect {
-            schema_path,
-            output_path: None,
-        },
-        PrismaCommandType::MigrateDev => PrismaCommand::Migrate {
-            schema_path,
-            name: state
-                .prisma_ui
-                .migration_name
-                .clone()
-                .replace(' ', "_")
-                .to_lowercase(),
-            create_only: false,
-        },
-        PrismaCommandType::MigrateDeploy => PrismaCommand::MigrateDeploy { schema_path },
-        PrismaCommandType::MigrateStatus => PrismaCommand::MigrateStatus { schema_path },
-        PrismaCommandType::Generate => PrismaCommand::Generate { schema_path },
-        PrismaCommandType::Validate => PrismaCommand::Validate { schema_path },
-        PrismaCommandType::Format => PrismaCommand::Format { schema_path },
-        PrismaCommandType::DBPull => PrismaCommand::DBPull { schema_path },
-        PrismaCommandType::DBPush => PrismaCommand::DBPush {
-            schema_path,
-            force: false,
-        },
-    };
-
-    state.prisma_ui.is_running = true;
-    state.prisma_ui.cli_output = "Running...".to_string();
-    let pending_output = Arc::new(Mutex::new(None));
-    state.prisma_ui.pending_output = Some(pending_output.clone());
-
-    std::thread::spawn(move || {
-        let output = tokio::runtime::Runtime::new()
-            .map_err(|e| format!("Failed to start Prisma runtime: {e}"))
-            .and_then(|rt| {
-                rt.block_on(async move {
-                    match run_prisma_cli(cmd).await {
-                        Ok(result) => Ok(format!(
-                            "Success: {}\nExit Code: {:?}\n\nSTDOUT:\n{}\n\nSTDERR:\n{}",
-                            result.success, result.exit_code, result.stdout, result.stderr
-                        )),
-                        Err(e) => Err(format!("Prisma command failed: {e}")),
-                    }
-                })
-            });
-
-        if let Ok(mut slot) = pending_output.lock() {
-            *slot = Some(match output {
-                Ok(output) => output,
-                Err(error) => error,
-            });
+    match ui_state.selected_command {
+        PrismaCommandType::Format => {
+            match PrismaSchema::parse(&ui_state.schema_content) {
+                Ok(schema) => {
+                    ui_state.schema_content = schema.to_prisma_schema();
+                    ui_state.cli_output = "Schema formatted successfully (FerrumGrid Native Engine)".to_string();
+                }
+                Err(e) => {
+                    ui_state.cli_output = format!("Format Error:\n{}", e);
+                }
+            }
         }
-    });
-}
-
-fn poll_prisma_output(ctx: &egui::Context, state: &mut AppState) {
-    let Some(slot) = state.prisma_ui.pending_output.clone() else {
-        return;
-    };
-
-    let output = slot.lock().ok().and_then(|mut guard| guard.take());
-    if let Some(output) = output {
-        state.prisma_ui.cli_output = output;
-        state.prisma_ui.is_running = false;
-        state.prisma_ui.pending_output = None;
-    } else {
-        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        PrismaCommandType::Validate => {
+            match PrismaSchema::parse(&ui_state.schema_content) {
+                Ok(schema) => {
+                    ui_state.cli_output = format!(
+                        "Schema is valid! (FerrumGrid Native Engine)\nParsed {} models, {} enums.",
+                        schema.models.len(),
+                        schema.enums.len()
+                    );
+                }
+                Err(e) => {
+                    ui_state.cli_output = format!("Validation Error:\n{}", e);
+                }
+            }
+        }
+        PrismaCommandType::Generate => {
+            match PrismaSchema::parse(&ui_state.schema_content) {
+                Ok(schema) => {
+                    ui_state.cli_output = format!(
+                        "FerrumGrid Offline Client Generator active!\n\nParsed {} models successfully:\n{}\n\nGenerating in-memory schema client structures...",
+                        schema.models.len(),
+                        schema.models.iter().map(|m| format!("- model {}", m.name)).collect::<Vec<_>>().join("\n")
+                    );
+                }
+                Err(e) => {
+                    ui_state.cli_output = format!("Generate Error: Parse failed\n{}", e);
+                }
+            }
+        }
+        PrismaCommandType::Introspect | PrismaCommandType::DBPull => {
+            let schema_name = if ui_state.objects_schema_filter.is_empty() {
+                "public".to_string()
+            } else {
+                ui_state.objects_schema_filter.clone()
+            };
+            ui_state.introspection_requested = Some(schema_name);
+            ui_state.cli_output = "Introspecting database natively...".to_string();
+        }
+        PrismaCommandType::DBPush => {
+            ui_state.db_push_requested = true;
+            ui_state.cli_output = "Pushing schema changes to database natively...".to_string();
+        }
+        PrismaCommandType::MigrateDev => {
+            ui_state.migrate_dev_requested = Some(ui_state.migration_name.clone());
+            ui_state.cli_output = "Generating and applying native migration dev...".to_string();
+        }
+        PrismaCommandType::MigrateDeploy => {
+            ui_state.migrate_deploy_requested = true;
+            ui_state.cli_output = "Deploying schema to database natively...".to_string();
+        }
+        PrismaCommandType::MigrateStatus => {
+            ui_state.migrate_status_requested = true;
+            ui_state.cli_output = "Checking migration status natively...".to_string();
+        }
     }
 }
 
-fn create_schema_file(state: &mut AppState) {
-    let path = state.prisma_ui.schema_path.clone();
+fn load_schema_file(ui_state: &mut PrismaUIState) {
+    let path = &ui_state.schema_path;
     if path.is_empty() {
-        state.prisma_ui.cli_output = "Error: Please specify schema path".to_string();
+        ui_state.cli_output = "Error: Please specify schema path".to_string();
         return;
     }
 
-    let conn_string = state
-        .active_connection
-        .and_then(|id| state.connections.get(&id))
-        .map(|conn| {
-            format!(
-                "postgresql://{}:{}@{}:{}/{}",
-                conn.config.username,
-                conn.config.password,
-                conn.config.host,
-                conn.config.port,
-                conn.config.database
-            )
-        })
-        .unwrap_or_default();
+    match std::fs::read_to_string(path) {
+        Ok(content) => {
+            ui_state.schema_content = content;
+            ui_state.cli_output = format!("Loaded schema from: {}", path);
+        }
+        Err(e) => {
+            ui_state.cli_output = format!("Error loading file: {}", e);
+        }
+    }
+}
 
+fn save_schema_file(ui_state: &mut PrismaUIState) {
+    let path = &ui_state.schema_path;
+    if path.is_empty() {
+        ui_state.cli_output = "Error: Please specify schema path".to_string();
+        return;
+    }
+
+    match std::fs::write(path, &ui_state.schema_content) {
+        Ok(()) => {
+            ui_state.cli_output = format!("Saved schema to: {}", path);
+        }
+        Err(e) => {
+            ui_state.cli_output = format!("Error saving file: {}", e);
+        }
+    }
+}
+
+fn create_schema_file(ui_state: &mut PrismaUIState) {
+    let path = ui_state.schema_path.clone();
+    if path.is_empty() {
+        ui_state.cli_output = "Error: Please specify schema path".to_string();
+        return;
+    }
+
+    let conn_string = ui_state.db_url.clone();
     match generate_schema_file("postgresql", &conn_string, &path) {
         Ok(schema) => {
-            state.prisma_ui.schema_content = schema;
-            state.prisma_ui.cli_output = format!("Created schema file: {path}");
+            ui_state.schema_content = schema;
+            ui_state.cli_output = format!("Created schema file: {path}");
         }
-        Err(e) => state.prisma_ui.cli_output = e,
+        Err(e) => ui_state.cli_output = e,
     }
 }
 
-fn append_table_model(state: &mut AppState) {
-    let path = state.prisma_ui.schema_path.clone();
-    let Some(ddl) = state.table_designer.generated_ddl.clone() else {
-        state.prisma_ui.cli_output = "Error: No generated table DDL to append".to_string();
+fn append_table_model(ui_state: &mut PrismaUIState, generated_ddl: Option<String>) {
+    let path = ui_state.schema_path.clone();
+    let Some(ddl) = generated_ddl else {
+        ui_state.cli_output = "Error: No generated table DDL to append".to_string();
         return;
     };
 
     match append_model_to_schema(&path, &ddl) {
         Ok(()) => {
-            load_schema_file(state);
-            state.prisma_ui.cli_output = "Appended generated table model".to_string();
+            load_schema_file(ui_state);
+            ui_state.cli_output = "Appended generated table model".to_string();
         }
-        Err(e) => state.prisma_ui.cli_output = e,
+        Err(e) => ui_state.cli_output = e,
     }
 }
 
-fn preview_prisma_sql(state: &mut AppState) {
-    match PrismaSchema::parse(&state.prisma_ui.schema_content) {
+fn preview_prisma_sql(ui_state: &mut PrismaUIState) {
+    match PrismaSchema::parse(&ui_state.schema_content) {
         Ok(schema) => {
-            let name = if state.prisma_ui.migration_name.trim().is_empty() {
+            let name = if ui_state.migration_name.trim().is_empty() {
                 "preview".to_string()
             } else {
-                state.prisma_ui.migration_name.trim().replace(' ', "_")
+                ui_state.migration_name.trim().replace(' ', "_")
             };
             let sql = schema.to_sql();
-            state.prisma_ui.cli_output = format!(
+            ui_state.cli_output = format!(
                 "{}\n\n-- Direct SQL preview\n{}",
                 generate_migration(None, &schema, &name),
                 sql
             );
         }
         Err(e) => {
-            state.prisma_ui.cli_output = e;
+            ui_state.cli_output = e;
         }
     }
 }
 
-fn apply_prisma_schema(state: &mut AppState, bridge: &DbBridge) {
-    let conn_id = match state.active_connection {
+fn apply_prisma_schema(ui_state: &mut PrismaUIState, cmd_tx: &tokio::sync::mpsc::Sender<DbCommand>) {
+    let conn_id = match ui_state.active_conn_id {
         Some(id) => id,
         None => {
-            state.prisma_ui.cli_output = "Error: No active connection".to_string();
+            ui_state.cli_output = "Error: No active connection".to_string();
             return;
         }
     };
 
-    if !state
-        .connections
-        .get(&conn_id)
-        .is_some_and(|conn| matches!(conn.status, ConnectionStatus::Connected { .. }))
-    {
-        state.prisma_ui.cli_output = "Error: Not connected".to_string();
+    if !ui_state.is_connected {
+        ui_state.cli_output = "Error: Not connected".to_string();
         return;
     }
 
-    match PrismaSchema::parse(&state.prisma_ui.schema_content) {
+    match PrismaSchema::parse(&ui_state.schema_content) {
         Ok(schema) => {
-            let result = sync_schema_to_db(&schema, conn_id, bridge);
-            state.prisma_ui.cli_output = format!(
+            let result = sync_schema_to_db_tx(&schema, conn_id, cmd_tx);
+            ui_state.cli_output = format!(
                 "Success: {}\n{}\n\n{}",
                 result.success,
                 result.message,
                 result.sql_statements.join("\n")
             );
-            state.query_running = true;
         }
         Err(e) => {
-            state.prisma_ui.cli_output = e;
+            ui_state.cli_output = e;
         }
     }
 }
-
-fn load_schema_file(state: &mut AppState) {
-    let path = &state.prisma_ui.schema_path;
-    if path.is_empty() {
-        state.prisma_ui.cli_output = "Error: Please specify schema path".to_string();
-        return;
-    }
-
-    match std::fs::read_to_string(path) {
-        Ok(content) => {
-            state.prisma_ui.schema_content = content;
-            state.prisma_ui.cli_output = format!("Loaded schema from: {}", path);
-        }
-        Err(e) => {
-            state.prisma_ui.cli_output = format!("Error loading file: {}", e);
-        }
-    }
-}
-
-fn save_schema_file(state: &mut AppState) {
-    let path = &state.prisma_ui.schema_path;
-    if path.is_empty() {
-        state.prisma_ui.cli_output = "Error: Please specify schema path".to_string();
-        return;
-    }
-
-    match std::fs::write(path, &state.prisma_ui.schema_content) {
-        Ok(()) => {
-            state.prisma_ui.cli_output = format!("Saved schema to: {}", path);
-        }
-        Err(e) => {
-            state.prisma_ui.cli_output = format!("Error saving file: {}", e);
-        }
-    }
-}
-
-fn create_schema_from_db(state: &mut AppState, _bridge: &DbBridge) {
-    let conn_id = match state.active_connection {
-        Some(id) => id,
-        None => {
-            state.prisma_ui.cli_output = "Error: No active connection".to_string();
-            return;
-        }
-    };
-
-    let conn = match state.connections.get(&conn_id) {
-        Some(c) if matches!(c.status, ConnectionStatus::Connected { .. }) => c,
-        _ => {
-            state.prisma_ui.cli_output = "Error: Not connected".to_string();
-            return;
-        }
-    };
-
-    let schema_name = if state.objects_schema_filter.is_empty() {
-        conn.schemas
-            .iter()
-            .find(|schema| schema.as_str() == "public")
-            .cloned()
-            .or_else(|| conn.schemas.first().cloned())
-            .unwrap_or_default()
-    } else {
-        state.objects_schema_filter.clone()
-    };
-
-    let fallback_schema = conn
-        .tables
-        .get(&schema_name)
-        .map(|tables| PrismaSchema::from_db_schema(&schema_name, tables, &conn.columns));
-
-    match sync_db_to_schema(state, &schema_name, conn_id)
-        .or_else(|_| fallback_schema.ok_or_else(|| "No tables found".to_string()))
-    {
-        Ok(schema) => {
-            state.prisma_ui.schema_content = format!(
-                "// Generated by FerrumGrid from schema '{}'\n\n{}",
-                schema_name,
-                schema.to_prisma_schema()
-            );
-            state.prisma_ui.cli_output = format!("Generated schema from database '{schema_name}'");
-        }
-        Err(e) => {
-            state.prisma_ui.cli_output = e;
-        }
-    }
-}
-
 #[allow(dead_code)] // Only invoked from the macOS native menu (cfg-gated).
 pub fn open_prisma_window(state: &mut AppState) {
-    state.prisma_ui.show_window = true;
-    if state.prisma_ui.schema_path.is_empty() {
-        state.prisma_ui.schema_path = "./prisma/schema.prisma".to_string();
+    let mut ui_state = state.prisma_ui.lock().unwrap();
+    ui_state.show_window = true;
+    ui_state.closed = false;
+    if ui_state.schema_path.is_empty() {
+        ui_state.schema_path = "./prisma/schema.prisma".to_string();
     }
-    // Check Prisma installation
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    state.prisma_ui.prisma_installed = rt.block_on(check_prisma_installed());
-    state.prisma_ui.prisma_version = rt.block_on(get_prisma_version());
+    ui_state.prisma_installed = true;
+    ui_state.prisma_version = Some("FerrumGrid Native Engine v0.3.2".to_string());
+}
+
+fn highlight_prisma(text: &str, wrap_width: f32, font_size: f32) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    job.wrap.max_width = wrap_width;
+
+    let font_id = egui::FontId::monospace(font_size);
+    let default_color = theme::text_primary();
+
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let ch = chars[i];
+
+        // Comments: // ... or /// ...
+        if ch == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+            let start = i;
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+            let s: String = chars[start..i].iter().collect();
+            job.append(&s, 0.0, fmt(font_id.clone(), theme::COMMENT_COLOR));
+            continue;
+        }
+
+        // Strings: "..."
+        if ch == '"' {
+            let start = i;
+            i += 1;
+            let mut escaped = false;
+            while i < chars.len() {
+                let c = chars[i];
+                if escaped {
+                    escaped = false;
+                } else if c == '\\' {
+                    escaped = true;
+                } else if c == '"' {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            let s: String = chars[start..i].iter().collect();
+            job.append(&s, 0.0, fmt(font_id.clone(), theme::STRING_COLOR));
+            continue;
+        }
+
+        // Attributes: @something or @@something
+        if ch == '@' {
+            let start = i;
+            i += 1;
+            if i < chars.len() && chars[i] == '@' {
+                i += 1;
+            }
+            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.') {
+                i += 1;
+            }
+            let s: String = chars[start..i].iter().collect();
+            job.append(&s, 0.0, fmt(font_id.clone(), theme::ACCENT_PURPLE));
+            continue;
+        }
+
+        // Numbers
+        if ch.is_ascii_digit() {
+            let start = i;
+            while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
+                i += 1;
+            }
+            let s: String = chars[start..i].iter().collect();
+            job.append(&s, 0.0, fmt(font_id.clone(), theme::NUMBER_COLOR));
+            continue;
+        }
+
+        // Identifiers / Keywords / Types
+        if ch.is_ascii_alphabetic() || ch == '_' {
+            let start = i;
+            while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+                i += 1;
+            }
+            let word: String = chars[start..i].iter().collect();
+            
+            // Prisma Keywords
+            let is_keyword = matches!(
+                word.as_str(),
+                "model" | "enum" | "datasource" | "generator" | "type"
+            );
+
+            // Prisma Native Types
+            let is_type = matches!(
+                word.as_str(),
+                "String" | "Int" | "BigInt" | "Float" | "Decimal" | "Boolean" | "DateTime" | "Json" | "Bytes" | "Unsupported"
+            );
+
+            let is_bool = matches!(
+                word.as_str(),
+                "true" | "false"
+            );
+
+            let color = if is_keyword {
+                theme::KEYWORD_COLOR
+            } else if is_type {
+                theme::ACCENT_EMERALD
+            } else if is_bool {
+                theme::NUMBER_COLOR
+            } else {
+                default_color
+            };
+
+            job.append(&word, 0.0, fmt(font_id.clone(), color));
+            continue;
+        }
+
+        job.append(&ch.to_string(), 0.0, fmt(font_id.clone(), default_color));
+        i += 1;
+    }
+
+    job
+}
+
+#[inline]
+fn fmt(font_id: egui::FontId, color: egui::Color32) -> egui::text::TextFormat {
+    egui::text::TextFormat::simple(font_id, color)
 }

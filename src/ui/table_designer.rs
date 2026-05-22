@@ -5,7 +5,9 @@ use eframe::egui::{
 
 use crate::db::bridge::{DbBridge, DbCommand};
 use crate::state::AppState;
+use crate::types::ConnectionId;
 use crate::ui::theme;
+use crate::i18n::t;
 
 const PG_TYPES: &[&str] = &[
     "INTEGER",
@@ -56,6 +58,10 @@ pub struct TableDesignerState {
     pub show_ddl_preview: bool,
     pub editing_table: Option<(String, String)>,
     pub original_columns: Vec<ColumnDef>,
+    pub closed: bool,
+    pub last_error: Option<String>,
+    pub status_message: Option<String>,
+    pub query_running: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,163 +117,265 @@ impl Default for IndexDef {
 }
 
 pub fn render_table_designer(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
-    if !state.table_designer.show {
-        return;
-    }
-
-    if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
-        if state.table_designer.show_ddl_preview {
-            state.table_designer.show_ddl_preview = false;
+    let show = {
+        if let Ok(td) = state.table_designer.lock() {
+            td.show
         } else {
-            state.table_designer.show = false;
+            false
         }
+    };
+
+    if !show {
         return;
     }
 
-    if !state.table_designer.columns.is_empty() && !state.table_designer.show_ddl_preview {
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-            let sel = state.table_designer.selected_column.map_or(
-                state.table_designer.columns.len() - 1,
-                |c| c.saturating_sub(1),
-            );
-            state.table_designer.selected_column = Some(sel);
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-            let max = state.table_designer.columns.len() - 1;
-            let sel = state.table_designer.selected_column.map_or(0, |c| (c + 1).min(max));
-            state.table_designer.selected_column = Some(sel);
-        }
+    let is_editing = {
+        let td = state.table_designer.lock().unwrap();
+        td.editing_table.is_some()
+    };
+
+    let td_arc = state.table_designer.clone();
+    let active_conn_id = state.active_connection;
+    let schemas = active_conn_id
+        .and_then(|id| state.connections.get(&id))
+        .map(|conn| conn.schemas.clone())
+        .unwrap_or_default();
+    let cmd_tx = bridge.cmd_sender();
+
+    let viewport_id = egui::ViewportId::from_hash_of("table_designer_viewport");
+    #[allow(unused_mut)]
+    let mut builder = egui::ViewportBuilder::default()
+        .with_title(if is_editing { t("table_designer_edit") } else { t("table_designer_new") })
+        .with_inner_size(egui::vec2(920.0, 720.0))
+        .with_resizable(true)
+        .with_minimize_button(true)
+        .with_maximize_button(true);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .with_fullsize_content_view(true)
+            .with_title_shown(false);
     }
 
-    let mut open = state.table_designer.show;
-    let mut should_close = false;
+    ctx.show_viewport_immediate(
+        viewport_id,
+        builder,
+        move |ctx, _class| {
+            let mut td = td_arc.lock().unwrap();
 
-    Window::new(if state.table_designer.editing_table.is_some() {
-        "Edit Table"
-    } else {
-        "Create Table"
-    })
-    .default_size([900.0, 700.0])
-    .resizable(true)
-    .collapsible(false)
-    .open(&mut open)
-    .show(ctx, |ui| {
-        render_designer_ui(ui, state, bridge, &mut should_close);
-    });
+            if ctx.input(|i| i.viewport().close_requested()) {
+                td.closed = true;
+            }
 
-    if should_close {
-        open = false;
+            if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+                if td.show_ddl_preview {
+                    td.show_ddl_preview = false;
+                } else {
+                    td.closed = true;
+                }
+            }
+
+            if !td.columns.is_empty() && !td.show_ddl_preview {
+                if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+                    let sel = td.selected_column.map_or(
+                        td.columns.len() - 1,
+                        |c| c.saturating_sub(1),
+                    );
+                    td.selected_column = Some(sel);
+                }
+                if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+                    let max = td.columns.len() - 1;
+                    let sel = td.selected_column.map_or(0, |c| (c + 1).min(max));
+                    td.selected_column = Some(sel);
+                }
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                crate::ui::titlebar::configure_macos_titlebar();
+
+                let top_frame = egui::Frame::NONE
+                    .fill(theme::bg_shell())
+                    .inner_margin(Margin::symmetric(16, 0));
+
+                egui::TopBottomPanel::top("designer_titlebar")
+                    .exact_height(32.0)
+                    .frame(top_frame)
+                    .show_separator_line(false)
+                    .show(ctx, |ui| {
+                        let full_rect = ui.max_rect();
+                        
+                        let drag_response = ui.interact(
+                            full_rect,
+                            ui.id().with("designer_titlebar_drag"),
+                            Sense::click_and_drag(),
+                        );
+                        if drag_response.drag_started_by(egui::PointerButton::Primary) {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+                        }
+
+                        let painter = ui.painter();
+                        let title_text = if is_editing { t("table_designer_edit") } else { t("table_designer_new") };
+                        let font_id = egui::FontId::proportional(11.5);
+                        let color = theme::text_secondary();
+                        
+                        let galley = painter.layout_no_wrap(title_text.to_string(), font_id, color);
+                        let text_pos = egui::pos2(80.0, full_rect.center().y - galley.size().y * 0.5);
+                        painter.galley(text_pos, galley, color);
+                    });
+            }
+
+            let mut should_close = false;
+
+            egui::CentralPanel::default()
+                .frame(
+                    egui::Frame::NONE
+                        .fill(theme::bg_medium())
+                        .inner_margin(Margin::same(theme::SPACE_LG as i8))
+                )
+                .show(ctx, |ui| {
+                    render_designer_ui(
+                        ui,
+                        &mut td,
+                        &schemas,
+                        active_conn_id,
+                        &cmd_tx,
+                        &mut should_close,
+                    );
+                });
+
+            if should_close {
+                td.closed = true;
+            }
+        }
+    );
+
+    let should_close_state = {
+        let td = state.table_designer.lock().unwrap();
+        td.closed
+    };
+
+    if should_close_state {
+        let mut td = state.table_designer.lock().unwrap();
+        td.show = false;
+        td.closed = false;
     }
-    state.table_designer.show = open;
 }
 
 fn render_designer_ui(
     ui: &mut Ui,
-    state: &mut AppState,
-    bridge: &DbBridge,
+    td: &mut TableDesignerState,
+    schemas: &[String],
+    active_conn_id: Option<ConnectionId>,
+    cmd_tx: &tokio::sync::mpsc::Sender<DbCommand>,
     should_close: &mut bool,
 ) {
-    let conn = state
-        .active_connection
-        .and_then(|id| state.connections.get(&id));
-    let schemas = conn.map(|c| c.schemas.clone()).unwrap_or_default();
-
     ui.horizontal(|ui| {
-        ui.label("Schema:");
+        ui.label(t("table_designer_schema_label"));
         ComboBox::from_id_salt("td_schema")
             .width(150.0)
-            .selected_text(&state.table_designer.schema)
+            .selected_text(&td.schema)
             .show_ui(ui, |ui| {
-                for schema in &schemas {
+                for schema in schemas {
                     if ui
-                        .selectable_label(&state.table_designer.schema == schema, schema)
+                        .selectable_label(&td.schema == schema, schema)
                         .clicked()
                     {
-                        state.table_designer.schema.clone_from(schema);
+                        td.schema.clone_from(schema);
                     }
                 }
             });
 
         ui.add_space(20.0);
 
-        ui.label("Table Name:");
+        ui.label(t("table_designer_table_name_label"));
         let name_edit = ui.add(
-            theme::text_input(&mut state.table_designer.table_name)
+            theme::text_input(&mut td.table_name)
                 .desired_width(200.0)
                 .hint_text("table_name"),
         );
         if name_edit.lost_focus() {
-            state.table_designer.table_name = sanitize_identifier(&state.table_designer.table_name);
+            td.table_name = sanitize_identifier(&td.table_name);
         }
 
         ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-            if ui.add(primary_button("Apply DDL")).clicked() {
-                apply_ddl(state, bridge);
+            if ui.add(primary_button(&t("table_designer_apply_ddl"))).clicked() {
+                apply_ddl(td, active_conn_id, cmd_tx);
                 *should_close = true;
             }
 
             ui.add_space(8.0);
 
-            if ui.add(primary_button("Generate DDL")).clicked() {
-                state.table_designer.generated_ddl = Some(generate_ddl(state));
-                state.table_designer.show_ddl_preview = true;
+            if ui.add(primary_button(&t("table_designer_generate_ddl"))).clicked() {
+                td.generated_ddl = Some(generate_ddl(td));
+                td.show_ddl_preview = true;
             }
 
             ui.add_space(8.0);
 
-            if ui.button("Cancel").clicked() {
+            if ui.button(t("table_designer_cancel")).clicked() {
                 *should_close = true;
             }
         });
     });
+
+    if let Some(ref err) = td.last_error {
+        ui.add_space(4.0);
+        ui.colored_label(theme::text_error(), format!("{} {}", t("table_designer_error"), err));
+    }
+    if let Some(ref msg) = td.status_message {
+        ui.add_space(4.0);
+        ui.colored_label(theme::text_secondary(), msg);
+    }
 
     ui.separator();
 
     ui.columns(2, |cols| {
         cols[0].vertical(|ui| {
             ui.set_min_width(ui.available_width());
-            render_columns_panel(ui, state);
+            render_columns_panel(ui, td);
         });
 
         cols[1].vertical(|ui| {
             ui.set_min_width(ui.available_width());
-            if let Some(selected) = state.table_designer.selected_column {
-                render_column_detail(ui, state, selected, &schemas);
+            if let Some(selected) = td.selected_column {
+                render_column_detail(ui, td, selected, schemas);
             } else {
-                render_indexes_panel(ui, state);
+                render_indexes_panel(ui, td);
             }
         });
     });
 
-    if state.table_designer.show_ddl_preview {
-        let mut ddl_preview_open = state.table_designer.show_ddl_preview;
+    if td.show_ddl_preview {
+        let mut ddl_preview_open = td.show_ddl_preview;
         let mut should_close_ddl_preview = false;
 
-        Window::new("Generated DDL")
+        Window::new(t("table_designer_generated_ddl"))
             .default_size([600.0, 400.0])
             .resizable(true)
             .collapsible(false)
             .open(&mut ddl_preview_open)
             .show(ui.ctx(), |ui| {
-                if let Some(ref ddl) = state.table_designer.generated_ddl {
+                if let Some(ref ddl) = td.generated_ddl {
                     ui.add_sized(
                         ui.available_size(),
                         theme::multiline_mono_text_input(&mut ddl.clone()).code_editor(),
                     );
                 }
                 ui.horizontal(|ui| {
-                    if ui.add(primary_button("Apply")).clicked() {
-                        apply_ddl(state, bridge);
+                    if ui.add(primary_button(&t("table_designer_apply"))).clicked() {
+                        apply_ddl(td, active_conn_id, cmd_tx);
                     }
-                    if ui.button("Copy to Clipboard").clicked() {
-                        if let Some(ref ddl) = state.table_designer.generated_ddl {
+                    if ui.button(t("table_designer_copy_clipboard")).clicked() {
+                        if let Some(ref ddl) = td.generated_ddl {
                             ui.ctx().output_mut(|o| {
                                 o.commands
                                     .push(egui::output::OutputCommand::CopyText(ddl.clone()));
                             });
                         }
                     }
-                    if ui.button("Close").clicked() {
+                    if ui.button(t("table_designer_close")).clicked() {
                         should_close_ddl_preview = true;
                     }
                 });
@@ -276,11 +384,11 @@ fn render_designer_ui(
         if should_close_ddl_preview {
             ddl_preview_open = false;
         }
-        state.table_designer.show_ddl_preview = ddl_preview_open;
+        td.show_ddl_preview = ddl_preview_open;
     }
 }
 
-fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
+fn render_columns_panel(ui: &mut Ui, td: &mut TableDesignerState) {
     Frame::new()
         .fill(theme::bg_dark())
         .inner_margin(Margin::same(8))
@@ -288,13 +396,13 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
-                ui.strong("Columns");
+                ui.strong(t("table_designer_columns"));
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                     if ui.add(small_button("+")).clicked() {
                         let col = ColumnDef::default();
-                        state.table_designer.columns.push(col);
-                        state.table_designer.selected_column =
-                            Some(state.table_designer.columns.len() - 1);
+                        td.columns.push(col);
+                        td.selected_column =
+                            Some(td.columns.len() - 1);
                     }
                 });
             });
@@ -306,10 +414,10 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                 .show(ui, |ui| {
                     let mut to_delete = None;
                     let mut selection_changed = false;
-                    let mut new_selection = state.table_designer.selected_column;
+                    let mut new_selection = td.selected_column;
 
-                    for (idx, col) in state.table_designer.columns.iter().enumerate() {
-                        let is_selected = state.table_designer.selected_column == Some(idx);
+                    for (idx, col) in td.columns.iter().enumerate() {
+                        let is_selected = td.selected_column == Some(idx);
                         let mut frame = Frame::new()
                             .inner_margin(Margin::same(6))
                             .corner_radius(CornerRadius::same(4));
@@ -357,7 +465,7 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                         }
 
                         response.context_menu(|ui| {
-                            if ui.button("Delete").clicked() {
+                            if ui.button(t("table_designer_delete")).clicked() {
                                 to_delete = Some(idx);
                                 ui.close_menu();
                             }
@@ -365,29 +473,29 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                     }
 
                     if let Some(idx) = to_delete {
-                        state.table_designer.columns.remove(idx);
-                        if state.table_designer.selected_column == Some(idx) {
-                            state.table_designer.selected_column = None;
-                        } else if let Some(sel) = state.table_designer.selected_column {
+                        td.columns.remove(idx);
+                        if td.selected_column == Some(idx) {
+                            td.selected_column = None;
+                        } else if let Some(sel) = td.selected_column {
                             if sel > idx {
-                                state.table_designer.selected_column = Some(sel - 1);
+                                td.selected_column = Some(sel - 1);
                             }
                         }
                     }
 
                     if selection_changed {
-                        state.table_designer.selected_column = new_selection;
+                        td.selected_column = new_selection;
                     }
                 });
         });
 }
 
-fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: &[String]) {
-    if idx >= state.table_designer.columns.len() {
+fn render_column_detail(ui: &mut Ui, td: &mut TableDesignerState, idx: usize, schemas: &[String]) {
+    if idx >= td.columns.len() {
         return;
     }
 
-    let col = &mut state.table_designer.columns[idx];
+    let col = &mut td.columns[idx];
 
     Frame::new()
         .fill(theme::bg_dark())
@@ -396,10 +504,10 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
-                ui.strong("Column Properties");
+                ui.strong(t("table_designer_col_properties"));
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                     if ui.button("×").clicked() {
-                        state.table_designer.selected_column = None;
+                        td.selected_column = None;
                     }
                 });
             });
@@ -410,14 +518,14 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                 .num_columns(2)
                 .spacing([8.0, 8.0])
                 .show(ui, |ui| {
-                    ui.label("Name:");
+                    ui.label(t("table_designer_col_name"));
                     let name_edit = ui.add(theme::text_input(&mut col.name).desired_width(180.0));
                     if name_edit.lost_focus() {
                         col.name = sanitize_identifier(&col.name);
                     }
                     ui.end_row();
 
-                    ui.label("Data Type:");
+                    ui.label(t("table_designer_col_type"));
                     ComboBox::from_id_salt("col_type")
                         .width(180.0)
                         .selected_text(&col.data_type)
@@ -434,7 +542,7 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                     ui.end_row();
 
                     if needs_length(&col.data_type) {
-                        ui.label("Length:");
+                        ui.label(t("table_designer_col_length"));
                         ui.add(
                             theme::text_input(col.length.get_or_insert_with(String::new))
                                 .desired_width(80.0)
@@ -443,24 +551,24 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
                         ui.end_row();
                     }
 
-                    ui.label("Default:");
+                    ui.label(t("table_designer_col_default"));
                     ui.add(theme::text_input(&mut col.default_value).desired_width(180.0));
                     ui.end_row();
 
                     ui.label("");
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut col.is_nullable, "Nullable");
-                        ui.checkbox(&mut col.is_primary_key, "Primary Key");
-                        ui.checkbox(&mut col.is_unique, "Unique");
+                        ui.checkbox(&mut col.is_nullable, t("table_designer_col_nullable"));
+                        ui.checkbox(&mut col.is_primary_key, t("table_designer_col_pk"));
+                        ui.checkbox(&mut col.is_unique, t("table_designer_col_unique"));
                     });
                     ui.end_row();
 
                     ui.label("");
-                    ui.checkbox(&mut col.is_foreign_key, "Foreign Key");
+                    ui.checkbox(&mut col.is_foreign_key, t("table_designer_col_fk"));
                     ui.end_row();
 
                     if col.is_foreign_key {
-                        ui.label("References:");
+                        ui.label(t("table_designer_col_references"));
                         ui.horizontal(|ui| {
                             ComboBox::from_id_salt("fk_schema")
                                 .width(100.0)
@@ -493,9 +601,8 @@ fn render_column_detail(ui: &mut Ui, state: &mut AppState, idx: usize, schemas: 
         });
 }
 
-fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
-    let column_names: Vec<String> = state
-        .table_designer
+fn render_indexes_panel(ui: &mut Ui, td: &mut TableDesignerState) {
+    let column_names: Vec<String> = td
         .columns
         .iter()
         .filter(|col| !col.name.is_empty())
@@ -509,11 +616,11 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
             ui.set_min_width(ui.available_width());
 
             ui.horizontal(|ui| {
-                ui.strong("Indexes");
+                ui.strong(t("table_designer_indexes"));
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                     if ui.add(small_button("+")).clicked() {
                         let idx = IndexDef::default();
-                        state.table_designer.indexes.push(idx);
+                        td.indexes.push(idx);
                     }
                 });
             });
@@ -525,20 +632,20 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                 .show(ui, |ui| {
                     let mut to_delete = None;
 
-                    for (idx, index) in state.table_designer.indexes.iter_mut().enumerate() {
+                    for (idx, index) in td.indexes.iter_mut().enumerate() {
                         Frame::new()
                             .fill(theme::bg_medium())
                             .inner_margin(Margin::same(6))
                             .corner_radius(CornerRadius::same(4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label("Name:");
+                                    ui.label(t("table_designer_idx_name"));
                                     ui.add(
                                         theme::text_input(&mut index.name)
                                             .desired_width(130.0)
                                             .hint_text("idx_name"),
                                     );
-                                    ui.checkbox(&mut index.is_unique, "Unique");
+                                    ui.checkbox(&mut index.is_unique, t("table_designer_idx_unique"));
                                     ComboBox::from_id_salt(format!("idx_type_{idx}"))
                                         .width(96.0)
                                         .selected_text(&index.index_type)
@@ -561,7 +668,7 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                                     ui.with_layout(
                                         egui::Layout::right_to_left(Align::Center),
                                         |ui| {
-                                            if ui.button("Delete").clicked() {
+                                            if ui.button(t("table_designer_idx_delete")).clicked() {
                                                 to_delete = Some(idx);
                                             }
                                         },
@@ -571,7 +678,7 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                                 ui.add_space(4.0);
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(
-                                        RichText::new("Columns:")
+                                        RichText::new(t("table_designer_idx_columns"))
                                             .color(theme::text_muted())
                                             .size(10.0),
                                     );
@@ -590,7 +697,7 @@ fn render_indexes_panel(ui: &mut Ui, state: &mut AppState) {
                     }
 
                     if let Some(idx) = to_delete {
-                        state.table_designer.indexes.remove(idx);
+                        td.indexes.remove(idx);
                     }
                 });
         });
@@ -610,11 +717,9 @@ fn sanitize_identifier(name: &str) -> String {
         .replace(|c: char| !c.is_alphanumeric() && c != '_', "")
 }
 
-fn generate_ddl(state: &AppState) -> String {
-    let td = &state.table_designer;
-
+fn generate_ddl(td: &TableDesignerState) -> String {
     if td.table_name.is_empty() || td.schema.is_empty() {
-        return "-- Please specify schema and table name".to_string();
+        return t("table_designer_specify_schema_table");
     }
 
     let table_ref = format!(
@@ -704,7 +809,7 @@ fn generate_create_ddl(td: &TableDesignerState, table_ref: &str) -> String {
     }
 
     if defs.is_empty() {
-        return "-- Add at least one column before generating DDL".to_string();
+        return t("table_designer_add_column_before_ddl");
     }
 
     format!(
@@ -790,7 +895,7 @@ fn generate_alter_ddl(td: &TableDesignerState, table_ref: &str) -> String {
     }
 
     if statements.is_empty() {
-        "-- No changes detected".to_string()
+        t("table_designer_no_changes")
     } else {
         statements.join("\n") + "\n"
     }
@@ -856,40 +961,44 @@ fn type_chip(ui: &mut Ui, label: &str, color: Color32) {
     );
 }
 
-fn apply_ddl(state: &mut AppState, bridge: &DbBridge) {
-    let conn_id = match state.active_connection {
+fn apply_ddl(
+    td: &mut TableDesignerState,
+    active_conn_id: Option<ConnectionId>,
+    cmd_tx: &tokio::sync::mpsc::Sender<DbCommand>,
+) {
+    let conn_id = match active_conn_id {
         Some(id) => id,
         None => {
-            state.last_error = Some("No active connection".to_string());
+            td.last_error = Some(t("objects_no_active_connection"));
             return;
         }
     };
 
-    let ddl = state
-        .table_designer
+    let ddl = td
         .generated_ddl
         .clone()
-        .unwrap_or_else(|| generate_ddl(state));
+        .unwrap_or_else(|| generate_ddl(td));
 
     if ddl.trim_start().starts_with("--") {
-        state.table_designer.generated_ddl = Some(ddl.clone());
-        state.table_designer.show_ddl_preview = true;
-        state.last_error = Some(ddl.trim_start_matches('-').trim().to_string());
+        td.generated_ddl = Some(ddl.clone());
+        td.show_ddl_preview = true;
+        td.last_error = Some(ddl.trim_start_matches('-').trim().to_string());
         return;
     }
 
-    let schema = state.table_designer.schema.clone();
-    state.table_designer.generated_ddl = Some(ddl.clone());
-    state.status_message = format!(
-        "Applying DDL to {schema}.{}",
-        state.table_designer.table_name
-    );
-    state.query_running = true;
+    let schema = td.schema.clone();
+    td.generated_ddl = Some(ddl.clone());
+    td.status_message = Some(format!(
+        "{} {schema}.{}",
+        t("table_designer_applying_ddl"),
+        td.table_name
+    ));
+    td.query_running = true;
 
     // Plan v7 Phase 2b — 2-step NOTIFY DDL (pre_drop → 1s ack → DDL → post_drop).
     // table_oid 는 editing_table 의 경우 향후 metadata 에서 회수 가능 (현재는 None).
     // 자동 ListTables refresh 는 connection_task 가 수행.
-    bridge.send(DbCommand::ApplyDdlWithInvalidation {
+    let _ = cmd_tx.try_send(DbCommand::ApplyDdlWithInvalidation {
         conn_id,
         sql: ddl,
         table_oid: None,
@@ -898,13 +1007,15 @@ fn apply_ddl(state: &mut AppState, bridge: &DbBridge) {
 }
 
 pub fn open_for_new_table(state: &mut AppState) {
-    state.table_designer = TableDesignerState {
+    let schema = state
+        .active_connection
+        .and_then(|id| state.connections.get(&id))
+        .and_then(|c| c.schemas.first().cloned())
+        .unwrap_or_default();
+
+    *state.table_designer.lock().unwrap() = TableDesignerState {
         show: true,
-        schema: state
-            .active_connection
-            .and_then(|id| state.connections.get(&id))
-            .and_then(|c| c.schemas.first().cloned())
-            .unwrap_or_default(),
+        schema,
         table_name: String::new(),
         columns: vec![ColumnDef::default()],
         indexes: Vec::new(),
@@ -913,11 +1024,15 @@ pub fn open_for_new_table(state: &mut AppState) {
         show_ddl_preview: false,
         editing_table: None,
         original_columns: Vec::new(),
+        closed: false,
+        last_error: None,
+        status_message: None,
+        query_running: false,
     };
 }
 
 pub fn open_for_new_table_with_schema(state: &mut AppState, schema: &str) {
-    state.table_designer = TableDesignerState {
+    *state.table_designer.lock().unwrap() = TableDesignerState {
         show: true,
         schema: schema.to_string(),
         table_name: String::new(),
@@ -928,6 +1043,10 @@ pub fn open_for_new_table_with_schema(state: &mut AppState, schema: &str) {
         show_ddl_preview: false,
         editing_table: None,
         original_columns: Vec::new(),
+        closed: false,
+        last_error: None,
+        status_message: None,
+        query_running: false,
     };
 }
 
@@ -966,7 +1085,7 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
         .collect();
 
     let original_columns = column_defs.clone();
-    state.table_designer = TableDesignerState {
+    *state.table_designer.lock().unwrap() = TableDesignerState {
         show: true,
         schema: schema.to_string(),
         table_name: table.to_string(),
@@ -977,6 +1096,10 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
         show_ddl_preview: false,
         editing_table: Some((schema.to_string(), table.to_string())),
         original_columns,
+        closed: false,
+        last_error: None,
+        status_message: None,
+        query_running: false,
     };
 
     bridge.send(crate::db::bridge::DbCommand::ListForeignKeys {
@@ -986,10 +1109,13 @@ pub fn open_for_existing_table(state: &mut AppState, schema: &str, table: &str, 
 }
 
 pub fn apply_fk_info(state: &mut AppState, foreign_keys: &[crate::ui::er_diagram::ForeignKey]) {
-    for col in &mut state.table_designer.columns {
+    let mut td = state.table_designer.lock().unwrap();
+    let table_name = td.table_name.clone();
+    let schema = td.schema.clone();
+    for col in &mut td.columns {
         for fk in foreign_keys {
-            if fk.source_table == state.table_designer.table_name
-                && fk.source_schema == state.table_designer.schema
+            if fk.source_table == table_name
+                && fk.source_schema == schema
                 && fk.source_column == col.name
             {
                 col.is_foreign_key = true;
