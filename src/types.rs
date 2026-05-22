@@ -41,10 +41,12 @@ pub enum BackupFormat {
     /// FerrumGrid built-in SQL backup engine — does NOT shell out to `pg_dump`.
     /// Streams DDL + COPY data directly via tokio-postgres.
     SqlOnly,
+    /// FerrumGrid proprietary binary backup engine (.fgb).
+    Fgb,
 }
 
 impl BackupFormat {
-    pub const BACKUP_TAB_OPTIONS: [Self; 4] = [Self::SqlOnly, Self::Custom, Self::Plain, Self::Tar];
+    pub const BACKUP_TAB_OPTIONS: [Self; 5] = [Self::Fgb, Self::SqlOnly, Self::Custom, Self::Plain, Self::Tar];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -52,6 +54,7 @@ impl BackupFormat {
             Self::Plain => "Plain SQL",
             Self::Tar => "Tar archive",
             Self::SqlOnly => "SQL (built-in)",
+            Self::Fgb => "FerrumGrid Backup (.fgb)",
         }
     }
 
@@ -61,21 +64,22 @@ impl BackupFormat {
             Self::Plain => "sql",
             Self::Tar => "tar",
             Self::SqlOnly => "sql",
+            Self::Fgb => "fgb",
         }
     }
 
     /// pg_dump `--format` flag value.
     ///
-    /// **Caller contract**: never invoked for `SqlOnly` — the dispatcher in
-    /// `crate::db::backup::run_backup` routes `SqlOnly` to the built-in engine
-    /// before this method is reached. Returns `""` for `SqlOnly` defensively
-    /// (passing it to pg_dump would fail anyway).
+    /// **Caller contract**: never invoked for `SqlOnly` or `Fgb` — the dispatcher in
+    /// `crate::db::backup::run_backup` routes them to their respective engines
+    /// before this method is reached. Returns `""` defensively.
     pub fn pg_dump_format(self) -> &'static str {
         match self {
             Self::Custom => "custom",
             Self::Plain => "plain",
             Self::Tar => "tar",
             Self::SqlOnly => "",
+            Self::Fgb => "",
         }
     }
 }
@@ -203,7 +207,7 @@ pub struct BackupRequest {
     pub format: BackupFormat,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BackupRecord {
     pub conn_id: ConnectionId,
     pub connection_name: String,
@@ -638,7 +642,8 @@ mod backup_info_tests {
 
     #[test]
     fn backup_tab_options_include_built_in_engine() {
-        assert_eq!(BackupFormat::BACKUP_TAB_OPTIONS[0], BackupFormat::SqlOnly);
+        assert_eq!(BackupFormat::BACKUP_TAB_OPTIONS[0], BackupFormat::Fgb);
+        assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::SqlOnly));
         assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Custom));
         assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Plain));
         assert!(BackupFormat::BACKUP_TAB_OPTIONS.contains(&BackupFormat::Tar));

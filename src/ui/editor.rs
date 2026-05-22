@@ -158,7 +158,7 @@ fn render_tab(
     let bg = if selected {
         theme::bg_dark()
     } else if resp.hovered() {
-        theme::with_alpha(theme::ACCENT_EMERALD, 18)
+        theme::with_alpha(theme::accent_color(), 18)
     } else {
         Color32::TRANSPARENT
     };
@@ -175,7 +175,7 @@ fn render_tab(
         ui.painter().rect_filled(
             line,
             CornerRadius::same(theme::RADIUS_SM),
-            theme::ACCENT_COPPER,
+            theme::accent_color(),
         );
     }
 
@@ -840,9 +840,9 @@ fn render_completion_item(ui: &mut egui::Ui, item: &CompletionItem, selected: bo
     let width = ui.available_width().max(360.0);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_EMERALD, 45)
+        theme::with_alpha(theme::accent_color(), 45)
     } else if response.hovered() {
-        theme::with_alpha(theme::ACCENT_EMERALD, 28)
+        theme::with_alpha(theme::accent_color(), 28)
     } else {
         Color32::TRANSPARENT
     };
@@ -961,7 +961,7 @@ fn collect_completions(state: &AppState, context: &CompletionContext) -> Vec<Com
                 schema,
                 "SCHEMA",
                 sql_ident(schema),
-                theme::ACCENT_EMERALD,
+                theme::accent_color(),
                 &context.fragment,
             );
         }
@@ -1017,7 +1017,7 @@ fn collect_completions(state: &AppState, context: &CompletionContext) -> Vec<Com
                         label: format!("{schema}.{table_name}.{}", column.name),
                         detail: "COLUMN",
                         insert_text,
-                        color: theme::ACCENT_COPPER_LIGHT,
+                        color: theme::accent_color_light(),
                     });
                 }
             }
@@ -1103,8 +1103,8 @@ fn trim_completion_items(mut items: Vec<CompletionItem>) -> Vec<CompletionItem> 
 fn table_type_completion_color(table_type: &str) -> Color32 {
     match table_type {
         "VIEW" => theme::ACCENT_BLUE,
-        "MATERIALIZED VIEW" => theme::ACCENT_EMERALD,
-        _ => theme::ACCENT_COPPER,
+        "MATERIALIZED VIEW" => theme::accent_color_light(),
+        _ => theme::accent_color(),
     }
 }
 
@@ -1426,7 +1426,7 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
                             );
                             ui.label(
                                 RichText::new(format!("{}ms", entry.duration_ms))
-                                    .color(theme::ACCENT_COPPER)
+                                    .color(theme::accent_color())
                                     .size(9.5),
                             );
                             ui.label(

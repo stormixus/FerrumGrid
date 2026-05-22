@@ -11,7 +11,21 @@ pub fn render_panels(
     bridge: &DbBridge,
     settings: &mut crate::storage::settings::AppSettings,
 ) {
-    settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance);
+    // Only apply the appearance if no draft preview is active to prevent overwriting the interactive preview.
+    // Also, only run it when the system theme or accent color has actually changed to save frame overhead.
+    if state.settings_draft.is_none() {
+        let current_accent = theme::accent_color_name();
+        let current_dark = theme::is_dark();
+        let system_dark = !matches!(ctx.system_theme(), Some(egui::Theme::Light));
+        let target_dark = match settings.appearance.as_str() {
+            "light" => false,
+            "dark" => true,
+            _ => system_dark,
+        };
+        if current_accent != settings.accent_color || current_dark != target_dark {
+            settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance, &settings.accent_color);
+        }
+    }
     titlebar::render_titlebar(ctx, state, settings);
     render_main_toolbar(ctx, state);
     render_status_bar(ctx, state);
@@ -371,7 +385,7 @@ fn render_workspace_tab(
                 sw: 0,
                 se: 0,
             },
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     }
 
@@ -487,17 +501,17 @@ fn workspace_tab_icon_svg(view: MainView) -> &'static str {
 
 fn workspace_tab_color(view: MainView) -> Color32 {
     match view {
-        MainView::Connection => theme::ACCENT_GREEN,
-        MainView::Table => theme::ACCENT_COPPER,
+        MainView::Connection => theme::accent_color(),
+        MainView::Table => theme::accent_color(),
         MainView::View => theme::ACCENT_BLUE,
-        MainView::MaterializedView => theme::ACCENT_TEAL,
+        MainView::MaterializedView => theme::accent_color(),
         MainView::Function => theme::ACCENT_YELLOW,
-        MainView::User => theme::ACCENT_COPPER_LIGHT,
+        MainView::User => theme::accent_color_light(),
         MainView::Query => theme::ACCENT_BLUE,
-        MainView::Data => theme::ACCENT_TEAL,
+        MainView::Data => theme::accent_color(),
         MainView::Backup => theme::text_muted(),
-        MainView::Automation => theme::ACCENT_TEAL,
-        MainView::Model => theme::ACCENT_GREEN,
+        MainView::Automation => theme::accent_color_light(),
+        MainView::Model => theme::accent_color(),
         MainView::BI => theme::ACCENT_RED,
     }
 }
@@ -1140,12 +1154,12 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
             ] {
                 let selected = state.tree_panel_tab == tab;
                 let text_color = if selected {
-                    theme::ACCENT_EMERALD
+                    theme::accent_color()
                 } else {
                     theme::text_muted()
                 };
                 let bg = if selected {
-                    theme::with_alpha(theme::ACCENT_EMERALD, 30)
+                    theme::with_alpha(theme::accent_color(), 30)
                 } else {
                     Color32::TRANSPARENT
                 };

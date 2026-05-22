@@ -60,7 +60,7 @@ pub(super) fn render_connection_info(ui: &mut egui::Ui, state: &AppState) {
         };
         metric_chip(ui, &label, color);
         if conn.config.use_tls {
-            metric_chip(ui, &t("info_view_ssl"), theme::ACCENT_EMERALD);
+            metric_chip(ui, &t("info_view_ssl"), theme::accent_color());
         }
     });
 
@@ -90,7 +90,7 @@ pub(super) fn render_connection_info(ui: &mut egui::Ui, state: &AppState) {
             metric_chip(
                 ui,
                 &tf("info_view_tables_n", &[&total_tables.to_string()]),
-                theme::ACCENT_COPPER,
+                theme::accent_color(),
             );
         }
         let total_functions: usize = conn.functions.values().map(|f| f.len()).sum();
@@ -105,7 +105,7 @@ pub(super) fn render_connection_info(ui: &mut egui::Ui, state: &AppState) {
             metric_chip(
                 ui,
                 &tf("info_view_roles_n", &[&conn.roles.len().to_string()]),
-                theme::ACCENT_COPPER_LIGHT,
+                theme::accent_color_light(),
             );
         }
     });
@@ -220,7 +220,7 @@ pub(super) fn render_table_kind_info(
         metric_chip(
             ui,
             &tf(count_label, &[&total.to_string()]),
-            theme::ACCENT_COPPER,
+            theme::accent_color(),
         );
         if !state.objects_search.is_empty() {
             metric_chip(
@@ -286,9 +286,9 @@ pub(super) fn render_function_info(ui: &mut egui::Ui, state: &AppState) {
             );
             ui.add_space(theme::SPACE_SM);
             ui.horizontal_wrapped(|ui| {
-                metric_chip(ui, &func.kind, theme::ACCENT_COPPER);
+                metric_chip(ui, &func.kind, theme::accent_color());
                 metric_chip(ui, &func.language, theme::ACCENT_BLUE);
-                metric_chip(ui, &func.return_type, theme::ACCENT_EMERALD);
+                metric_chip(ui, &func.return_type, theme::accent_color());
             });
             ui.add_space(theme::SPACE_LG);
             info_section_label(ui, &t("objects_signature"));
@@ -393,10 +393,10 @@ pub(super) fn render_role_info(ui: &mut egui::Ui, state: &AppState) {
                     metric_chip(ui, "CREATEDB", theme::ACCENT_BLUE);
                 }
                 if role.can_create_role {
-                    metric_chip(ui, "CREATEROLE", theme::ACCENT_COPPER);
+                    metric_chip(ui, "CREATEROLE", theme::accent_color());
                 }
                 if role.can_replicate {
-                    metric_chip(ui, "REPLICATION", theme::ACCENT_EMERALD);
+                    metric_chip(ui, "REPLICATION", theme::accent_color());
                 }
             });
             if let Some(valid_until) = &role.valid_until {
@@ -416,7 +416,7 @@ pub(super) fn render_role_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &tf("info_view_roles_n", &[&conn.roles.len().to_string()]),
-            theme::ACCENT_COPPER_LIGHT,
+            theme::accent_color_light(),
         );
     });
 
@@ -483,7 +483,7 @@ pub(super) fn render_query_info(ui: &mut egui::Ui, state: &AppState) {
             metric_chip(
                 ui,
                 &tf("info_view_query_last_rows", &[&result.rows.len().to_string()]),
-                theme::ACCENT_EMERALD,
+                theme::accent_color(),
             );
             metric_chip(
                 ui,
@@ -496,7 +496,7 @@ pub(super) fn render_query_info(ui: &mut egui::Ui, state: &AppState) {
             metric_chip(
                 ui,
                 &format!("{} ms", result.execution_time_ms),
-                theme::ACCENT_GREEN,
+                theme::accent_color(),
             );
             if state.current_result_truncated {
                 metric_chip(ui, &t("info_view_query_truncated"), theme::ACCENT_YELLOW);
@@ -600,7 +600,7 @@ pub(super) fn render_automation_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &format!("{}: {}", t("info_view_automation_total"), total),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     });
 
@@ -622,7 +622,7 @@ pub(super) fn render_automation_info(ui: &mut egui::Ui, state: &AppState) {
         };
         ui.label(
             RichText::new(tf("info_view_automation_draft_ready", &[&label]))
-                .color(theme::ACCENT_EMERALD)
+                .color(theme::accent_color())
                 .strong()
                 .size(12.0),
         );
@@ -680,7 +680,7 @@ pub(super) fn render_model_info(ui: &mut egui::Ui, state: &mut AppState, bridge:
         metric_chip(
             ui,
             &tf("info_view_model_cards_n", &[&card_count.to_string()]),
-            theme::ACCENT_GREEN,
+            theme::accent_color(),
         );
         let fk_count = state.er_diagram.foreign_keys.len();
         if fk_count > 0 {
@@ -743,7 +743,7 @@ pub(super) fn render_bi_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &tf("info_view_bi_total_rows", &[&result.rows.len().to_string()]),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
         metric_chip(
             ui,
@@ -753,7 +753,7 @@ pub(super) fn render_bi_info(ui: &mut egui::Ui, state: &AppState) {
         metric_chip(
             ui,
             &tf("info_view_bi_text_cols", &[&text_cols.len().to_string()]),
-            theme::ACCENT_COPPER,
+            theme::accent_color(),
         );
     });
 

@@ -33,8 +33,8 @@ pub fn render_vault_window(ctx: &egui::Context, state: &mut AppState) {
 fn render_header(ui: &mut egui::Ui, state: &AppState) {
     ui.horizontal(|ui| {
         egui::Frame::new()
-            .fill(theme::with_alpha(theme::ACCENT_TEAL, 24))
-            .stroke(Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 96)))
+            .fill(theme::with_alpha(theme::accent_color(), 24))
+            .stroke(Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 96)))
             .corner_radius(CornerRadius::same(theme::RADIUS_MD))
             .inner_margin(Margin::same(theme::SPACE_MD as i8))
             .show(ui, |ui| {

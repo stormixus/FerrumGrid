@@ -187,7 +187,7 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
     ui.add_space(theme::SPACE_SM);
 
     ui.horizontal_wrapped(|ui| {
-        metric_chip(ui, &context.table_type.to_lowercase(), theme::ACCENT_COPPER);
+        metric_chip(ui, &context.table_type.to_lowercase(), theme::accent_color());
         metric_chip(
             ui,
             &tf("data_info_columns_n", &[&context.columns.len().to_string()]),
@@ -196,7 +196,7 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
         metric_chip(
             ui,
             &tf("data_info_indexes_n", &[&context.indexes.len().to_string()]),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
         metric_chip(
             ui,
@@ -204,7 +204,7 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
                 "data_info_relations_n",
                 &[&context.relations.len().to_string()],
             ),
-            theme::ACCENT_GREEN,
+            theme::accent_color(),
         );
     });
 
@@ -295,7 +295,7 @@ pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoCo
                             fk.target_table,
                             fk.target_column
                         ))
-                        .color(theme::ACCENT_EMERALD)
+                        .color(theme::accent_color())
                         .monospace()
                         .size(10.0),
                     );
@@ -321,7 +321,7 @@ pub(super) fn render_info_table_indexes(ui: &mut egui::Ui, indexes: &[IndexInfo]
             if index.is_primary {
                 Some(("PK".to_string(), theme::ACCENT_YELLOW))
             } else if index.is_unique {
-                Some(("UNIQUE".to_string(), theme::ACCENT_EMERALD))
+                Some(("UNIQUE".to_string(), theme::accent_color()))
             } else {
                 None
             },
@@ -365,7 +365,7 @@ pub(super) fn render_info_table_relations(ui: &mut egui::Ui, context: &TableInfo
                 } else {
                     t("data_info_relation_in")
                 },
-                theme::ACCENT_GREEN,
+                theme::accent_color(),
             )),
         );
     }
@@ -386,7 +386,7 @@ pub(super) fn render_info_table_rules_and_triggers(
             metric_chip(
                 ui,
                 &tf("data_info_rules_n", &[&rules.len().to_string()]),
-                theme::ACCENT_COPPER_LIGHT,
+                theme::accent_color_light(),
             );
         }
         if !triggers.is_empty() {

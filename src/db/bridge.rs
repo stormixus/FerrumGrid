@@ -83,6 +83,11 @@ pub enum DbCommand {
     RunBackup {
         request: BackupRequest,
     },
+    RunRestore {
+        conn_id: ConnectionId,
+        config: ConnectionConfig,
+        file_path: std::path::PathBuf,
+    },
     /// Plan v7 Phase 4b — Automation 의 즉시 실행 (Run Now 버튼) 또는 background
     /// scheduler (runner.rs) 가 due task 발견 시 발사.
     ExecuteAutomation {
@@ -185,6 +190,18 @@ pub enum DbResponse {
     },
     BackupFailed {
         conn_id: ConnectionId,
+        error: String,
+    },
+    BackupProgress {
+        conn_id: ConnectionId,
+        progress: f32,
+        current_table: String,
+    },
+    RestoreCompleted {
+        file_path: std::path::PathBuf,
+    },
+    RestoreFailed {
+        file_path: std::path::PathBuf,
         error: String,
     },
     /// Plan v7 Phase 4b — `ExecuteAutomation` 의 응답. `conn_id` 는 future
@@ -612,9 +629,21 @@ async fn dispatch_loop(
                 let ctx = ctx.clone();
                 tokio::spawn(async move {
                     let conn_id = request.conn_id;
-                    let response = match crate::db::backup::run_backup(request).await {
+                    let response = match crate::db::backup::run_backup(request, resp_tx.clone(), ctx.clone()).await {
                         Ok(record) => DbResponse::BackupCompleted { record },
                         Err(error) => DbResponse::BackupFailed { conn_id, error },
+                    };
+                    let _ = resp_tx.send(response);
+                    ctx.request_repaint();
+                });
+            }
+            DbCommand::RunRestore { conn_id: _, config, file_path } => {
+                let resp_tx = resp_tx.clone();
+                let ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let response = match crate::db::backup_fgb::run_fgb_restore(&config, &file_path).await {
+                        Ok(()) => DbResponse::RestoreCompleted { file_path },
+                        Err(error) => DbResponse::RestoreFailed { file_path, error },
                     };
                     let _ = resp_tx.send(response);
                     ctx.request_repaint();

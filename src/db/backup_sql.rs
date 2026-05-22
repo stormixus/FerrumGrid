@@ -34,12 +34,19 @@ use std::time::Instant;
 use futures_util::StreamExt;
 use tokio_postgres::Client;
 
+use eframe::egui;
+
+use crate::db::bridge::DbResponse;
 use crate::db::connection::connect_any;
 use crate::db::transfer::dependency_order;
 use crate::types::{BackupRecord, BackupRequest, ForeignKey};
 
 /// Entry point. Mirrors the pg_dump-based `run_backup` contract.
-pub async fn run_sql_backup(request: BackupRequest) -> Result<BackupRecord, String> {
+pub async fn run_sql_backup(
+    request: BackupRequest,
+    resp_tx: std::sync::mpsc::Sender<DbResponse>,
+    ctx: egui::Context,
+) -> Result<BackupRecord, String> {
     fs::create_dir_all(&request.output_dir)
         .map_err(|err| format!("Backup folder is not writable: {err}"))?;
 
@@ -55,7 +62,7 @@ pub async fn run_sql_backup(request: BackupRequest) -> Result<BackupRecord, Stri
     let file_path = request.output_dir.join(file_name);
 
     // Wrap the actual work so we can clean up the partial file on any error.
-    match write_backup(&request, &file_path, &completed_at).await {
+    match write_backup(&request, &file_path, &completed_at, resp_tx, ctx).await {
         Ok(()) => {}
         Err(err) => {
             let _ = fs::remove_file(&file_path);
@@ -82,7 +89,16 @@ async fn write_backup(
     request: &BackupRequest,
     file_path: &std::path::Path,
     completed_at: &str,
+    resp_tx: std::sync::mpsc::Sender<DbResponse>,
+    ctx: egui::Context,
 ) -> Result<(), String> {
+    let _ = resp_tx.send(DbResponse::BackupProgress {
+        conn_id: request.conn_id,
+        progress: 0.01,
+        current_table: "Connecting & Resolving Schemas...".to_string(),
+    });
+    ctx.request_repaint();
+
     let client = connect_any(&request.config)
         .await
         .map_err(|e| format!("Failed to connect: {e}"))?;
@@ -128,24 +144,42 @@ async fn write_backup(
         all_tables.extend(tables);
     }
 
+    let total_all_tables = all_tables.len();
+
     // 2. CREATE TABLE for each table.
-    for table in &all_tables {
+    for (idx, table) in all_tables.iter().enumerate() {
+        let progress = 0.05 + (idx as f32 / total_all_tables.max(1) as f32) * 0.05; // 5% to 10%
+        let _ = resp_tx.send(DbResponse::BackupProgress {
+            conn_id: request.conn_id,
+            progress,
+            current_table: format!("DDL: {}.{}", table.schema, table.name),
+        });
+        ctx.request_repaint();
+
         let ddl = build_create_table(&client, table).await?;
         writeln!(file, "{ddl}").map_err(io_err)?;
         writeln!(file).map_err(io_err)?;
     }
 
     // 3. PK / UNIQUE / CHECK constraints (after CREATE TABLE).
-    for table in &all_tables {
+    for (idx, table) in all_tables.iter().enumerate() {
+        let progress = 0.10 + (idx as f32 / total_all_tables.max(1) as f32) * 0.05; // 10% to 15%
+        let _ = resp_tx.send(DbResponse::BackupProgress {
+            conn_id: request.conn_id,
+            progress,
+            current_table: format!("Constraints: {}.{}", table.schema, table.name),
+        });
+        ctx.request_repaint();
+
         let constraints = fetch_table_constraints(&client, &table.schema, &table.name).await?;
-        for c in constraints {
+        for con in constraints {
             writeln!(
                 file,
                 "ALTER TABLE {}.{} ADD CONSTRAINT {} {};",
                 quote_ident(&table.schema),
                 quote_ident(&table.name),
-                quote_ident(&c.name),
-                c.def
+                quote_ident(&con.name),
+                con.def
             )
             .map_err(io_err)?;
         }
@@ -153,7 +187,15 @@ async fn write_backup(
     writeln!(file).map_err(io_err)?;
 
     // 4. Indexes (excluding constraint-backing).
-    for table in &all_tables {
+    for (idx, table) in all_tables.iter().enumerate() {
+        let progress = 0.15 + (idx as f32 / total_all_tables.max(1) as f32) * 0.05; // 15% to 20%
+        let _ = resp_tx.send(DbResponse::BackupProgress {
+            conn_id: request.conn_id,
+            progress,
+            current_table: format!("Indexes: {}.{}", table.schema, table.name),
+        });
+        ctx.request_repaint();
+
         let indexes = fetch_table_indexes(&client, &table.schema, &table.name).await?;
         for (_name, def) in indexes {
             writeln!(file, "{def};").map_err(io_err)?;
@@ -172,7 +214,8 @@ async fn write_backup(
     let ordered = dependency_order(&table_pairs, &foreign_keys)
         .map_err(|e| format!("Dependency cycle in tables: {e}"))?;
 
-    for (schema, table) in &ordered {
+    let total_ordered = ordered.len();
+    for (idx, (schema, table)) in ordered.iter().enumerate() {
         // Resolve column list for this table by looking up its TableRef.
         let oid = all_tables
             .iter()
@@ -180,11 +223,28 @@ async fn write_backup(
             .map(|t| t.oid)
             .ok_or_else(|| format!("Lost table reference: {schema}.{table}"))?;
 
+        let progress = 0.20 + (idx as f32 / total_ordered.max(1) as f32) * 0.75; // 20% to 95%
+        let _ = resp_tx.send(DbResponse::BackupProgress {
+            conn_id: request.conn_id,
+            progress,
+            current_table: format!("Data: {schema}.{table}"),
+        });
+        ctx.request_repaint();
+
         dump_table_data(&client, &mut file, schema, table, oid).await?;
     }
 
     // 7. FK constraints (after data so loads succeed even with mid-graph cycles).
-    for fk in &foreign_keys {
+    let total_fks = foreign_keys.len();
+    for (idx, fk) in foreign_keys.iter().enumerate() {
+        let progress = 0.95 + (idx as f32 / total_fks.max(1) as f32) * 0.05; // 95% to 100%
+        let _ = resp_tx.send(DbResponse::BackupProgress {
+            conn_id: request.conn_id,
+            progress,
+            current_table: format!("FK: {}.{} -> {}.{}", fk.source_schema, fk.source_table, fk.target_schema, fk.target_table),
+        });
+        ctx.request_repaint();
+
         let def = fetch_fk_def(&client, &fk.source_schema, &fk.source_table, &fk.name).await?;
         writeln!(
             file,

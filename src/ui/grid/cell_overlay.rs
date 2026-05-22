@@ -37,14 +37,14 @@ pub(super) fn cell_overlay_null_toggle(
     );
     let hovered = response.hovered();
     let fill = if checked {
-        theme::with_alpha(theme::ACCENT_EMERALD, if hovered { 52 } else { 34 })
+        theme::with_alpha(theme::accent_color(), if hovered { 52 } else { 34 })
     } else if hovered {
         theme::bg_light()
     } else {
         theme::bg_medium()
     };
     let stroke = if checked {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
         theme::border_default()
     };
@@ -62,7 +62,7 @@ pub(super) fn cell_overlay_null_toggle(
         "NULL",
         egui::FontId::proportional(9.5),
         if checked {
-            theme::ACCENT_EMERALD
+            theme::accent_color()
         } else {
             theme::text_muted()
         },

@@ -1,17 +1,14 @@
 use eframe::egui::IconData;
-use resvg::usvg::TreeParsing;
-use resvg::{tiny_skia, usvg};
 
-const SIZE: u32 = 256;
-const APP_ICON_DARK_SVG: &[u8] = include_bytes!("../assets/app-icon-dark.svg");
-const APP_ICON_LIGHT_SVG: &[u8] = include_bytes!("../assets/app-icon-light.svg");
+const APP_ICON_PNG: &[u8] = include_bytes!("../assets/app-icon.png");
+const APP_ICON_LIGHT_PNG: &[u8] = include_bytes!("../assets/app-icon-light.png");
 
 pub fn icon_for_dark_mode(is_dark: bool) -> IconData {
-    render_icon(if is_dark {
-        APP_ICON_DARK_SVG
+    if is_dark {
+        load_png_icon(APP_ICON_PNG)
     } else {
-        APP_ICON_LIGHT_SVG
-    })
+        load_png_icon(APP_ICON_LIGHT_PNG)
+    }
 }
 
 pub fn startup_dark_mode(appearance: &str) -> bool {
@@ -45,26 +42,15 @@ fn system_prefers_dark() -> Option<bool> {
     None
 }
 
-fn render_icon(svg: &[u8]) -> IconData {
-    let tree = usvg::Tree::from_data(svg, &usvg::Options::default())
-        .expect("embedded app-icon SVG must parse");
-    let svg_size = tree.size.to_int_size();
-    let mut pixmap = tiny_skia::Pixmap::new(SIZE, SIZE).expect("non-zero icon size");
-    let transform = tiny_skia::Transform::from_scale(
-        SIZE as f32 / svg_size.width() as f32,
-        SIZE as f32 / svg_size.height() as f32,
-    );
-    resvg::Tree::from_usvg(&tree).render(transform, &mut pixmap.as_mut());
-
-    let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
-    for pixel in pixmap.pixels() {
-        let demul = pixel.demultiply();
-        rgba.extend_from_slice(&[demul.red(), demul.green(), demul.blue(), demul.alpha()]);
-    }
-
+fn load_png_icon(bytes: &[u8]) -> IconData {
+    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+        .expect("embedded app-icon PNG must parse")
+        .into_rgba8();
+    let width = img.width();
+    let height = img.height();
     IconData {
-        rgba,
-        width: SIZE,
-        height: SIZE,
+        rgba: img.into_raw(),
+        width,
+        height,
     }
 }

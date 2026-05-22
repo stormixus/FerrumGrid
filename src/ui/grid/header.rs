@@ -35,7 +35,7 @@ fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, activ
         let cg = ui.painter().layout_no_wrap(
             n.to_string(),
             egui::FontId::monospace(10.0),
-            if active { theme::ACCENT_EMERALD } else { theme::text_disabled() },
+            if active { theme::accent_color() } else { theme::text_disabled() },
         );
         cg.rect.width() + 8.0
     });
@@ -58,7 +58,7 @@ fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, activ
 
     // Count
     if let Some(n) = count {
-        let count_color = if active { theme::ACCENT_EMERALD } else { theme::text_disabled() };
+        let count_color = if active { theme::accent_color() } else { theme::text_disabled() };
         let cg = ui.painter().layout_no_wrap(
             n.to_string(),
             egui::FontId::monospace(10.0),
@@ -135,7 +135,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                 );
                 ui.label(
                     egui::RichText::new(format!("{} ms", exec_ms))
-                        .color(theme::ACCENT_EMERALD)
+                        .color(theme::accent_color())
                         .monospace()
                         .size(11.0),
                 );
@@ -210,7 +210,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     row_count,
                     if row_count == 1 { "row" } else { "rows" }
                 ),
-                theme::ACCENT_EMERALD,
+                theme::accent_color(),
             );
             result_meta_chip(
                 ui,
@@ -221,7 +221,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                 ),
                 theme::ACCENT_BLUE,
             );
-            result_meta_chip(ui, &format!("{exec_ms}ms"), theme::ACCENT_COPPER);
+            result_meta_chip(ui, &format!("{exec_ms}ms"), theme::accent_color());
 
             if truncated {
                 result_meta_chip_svg(

@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod backup_fgb;
 pub mod backup_sql;
 pub mod begin_detect;
 pub mod bridge;

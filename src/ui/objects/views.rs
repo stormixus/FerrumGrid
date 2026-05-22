@@ -17,7 +17,7 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::Table => (
             t("objects_tables_title"),
             t("objects_tables_subtitle"),
-            theme::ACCENT_COPPER,
+            theme::accent_color(),
         ),
         MainView::View => (
             t("objects_views_title"),
@@ -27,7 +27,7 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::MaterializedView => (
             t("objects_materialized_title"),
             t("objects_materialized_subtitle"),
-            theme::ACCENT_TEAL,
+            theme::accent_color(),
         ),
         MainView::Function => (
             t("objects_functions_title"),
@@ -37,7 +37,7 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::User => (
             t("objects_users_title"),
             t("objects_users_subtitle"),
-            theme::ACCENT_COPPER_LIGHT,
+            theme::accent_color_light(),
         ),
         MainView::Backup => (
             t("objects_backup_title"),
@@ -47,12 +47,12 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::Automation => (
             t("objects_automation_title"),
             t("objects_automation_subtitle"),
-            theme::ACCENT_TEAL,
+            theme::accent_color(),
         ),
         MainView::Model => (
             t("objects_model_title"),
             t("objects_model_subtitle"),
-            theme::ACCENT_GREEN,
+            theme::accent_color(),
         ),
         MainView::BI => (
             t("objects_bi_title"),
@@ -62,7 +62,7 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::Connection => (
             t("objects_connections_title"),
             t("objects_connections_subtitle"),
-            theme::ACCENT_GREEN,
+            theme::accent_color(),
         ),
         MainView::Query => (
             t("objects_query_title"),
@@ -72,7 +72,7 @@ pub(super) fn view_copy(view: MainView) -> (String, String, Color32) {
         MainView::Data => (
             t("objects_data_title"),
             t("objects_data_subtitle"),
-            theme::ACCENT_TEAL,
+            theme::accent_color(),
         ),
     }
 }
@@ -99,7 +99,7 @@ pub(super) fn view_icon(view: MainView) -> (&'static str, &'static str) {
 pub(super) fn table_type_color(table_type: &str) -> Color32 {
     match table_type {
         "VIEW" => theme::ACCENT_BLUE,
-        "MATERIALIZED VIEW" => theme::ACCENT_TEAL,
-        _ => theme::ACCENT_COPPER,
+        "MATERIALIZED VIEW" => theme::accent_color(),
+        _ => theme::accent_color(),
     }
 }

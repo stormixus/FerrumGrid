@@ -107,7 +107,7 @@ pub fn render_table(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) 
                                 let color = if is_deleted {
                                     theme::ACCENT_RED
                                 } else if is_inserted {
-                                    theme::ACCENT_EMERALD
+                                    theme::accent_color()
                                 } else {
                                     theme::text_disabled()
                                 };

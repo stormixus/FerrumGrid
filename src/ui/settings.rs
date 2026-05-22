@@ -36,7 +36,7 @@ fn text_color() -> Color32 {
 }
 
 fn active_accent() -> Color32 {
-    theme::ACCENT_EMERALD
+    theme::accent_color()
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -185,15 +185,16 @@ pub fn render_settings_window(
     match close_action {
         CloseAction::None => false,
         CloseAction::Cancel => {
-            settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance);
+            settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance, &settings.accent_color);
             set_language(Language::from_code(&settings.language));
             state.settings_draft = None;
             state.show_settings_dialog = false;
+            ctx.request_repaint();
             false
         }
         CloseAction::RestoreDefaults => {
             let mut defaults = storage::settings::AppSettings::default();
-            defaults.dark_mode = theme::apply_appearance(ctx, &defaults.appearance);
+            defaults.dark_mode = theme::apply_appearance(ctx, &defaults.appearance, &defaults.accent_color);
             state.settings_draft = Some(defaults);
             ctx.request_repaint();
             false
@@ -205,7 +206,7 @@ pub fn render_settings_window(
                 .take()
                 .unwrap_or_else(|| settings.clone());
             next.normalize();
-            next.dark_mode = theme::apply_appearance(ctx, &next.appearance);
+            next.dark_mode = theme::apply_appearance(ctx, &next.appearance, &next.accent_color);
             state.default_row_limit = next.default_row_limit;
             state.data_timezone = next.data_timezone.clone();
             set_language(Language::from_code(&next.language));
@@ -225,8 +226,9 @@ fn preview_draft_appearance(ctx: &egui::Context, state: &mut AppState) {
         return;
     };
 
-    let preview_dark_mode = theme::apply_appearance(ctx, &draft.appearance);
-    if draft.dark_mode != preview_dark_mode {
+    let prev_accent = theme::accent_color_name().to_string();
+    let preview_dark_mode = theme::apply_appearance(ctx, &draft.appearance, &draft.accent_color);
+    if draft.dark_mode != preview_dark_mode || prev_accent != draft.accent_color {
         draft.dark_mode = preview_dark_mode;
         ctx.request_repaint();
     }
@@ -1113,14 +1115,14 @@ fn render_updates_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
         ui.painter().rect_filled(
             badge_rect,
             CornerRadius::same(10),
-            theme::with_alpha(theme::ACCENT_EMERALD, 40),
+            theme::with_alpha(theme::accent_color(), 40),
         );
         ui.painter().text(
             badge_rect.center(),
             Align2::CENTER_CENTER,
             t("settings_badge_up_to_date"),
             FontId::proportional(10.0),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     });
 }
@@ -1250,12 +1252,12 @@ fn settings_toggle(ui: &mut egui::Ui, id: &str, value: &mut bool) {
     );
 
     let bg_color = if *value {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
         theme::bg_light()
     };
     let border_color = if *value {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
         theme::border_default()
     };
@@ -1292,17 +1294,17 @@ fn settings_chips(ui: &mut egui::Ui, id: &str, options: &[&str], selected: &mut 
         for (i, label) in options.iter().enumerate() {
             let is_selected = *selected == i;
             let bg = if is_selected {
-                theme::with_alpha(theme::ACCENT_EMERALD, 50)
+                theme::with_alpha(theme::accent_color(), 50)
             } else {
                 theme::bg_light()
             };
             let text_col = if is_selected {
-                theme::ACCENT_EMERALD
+                theme::accent_color()
             } else {
                 theme::text_secondary()
             };
             let border = if is_selected {
-                theme::ACCENT_EMERALD
+                theme::accent_color()
             } else {
                 theme::border_default()
             };

@@ -168,7 +168,7 @@ fn render_clipboard_import_prompt(ui: &mut egui::Ui, dialog: &mut ConnectionDial
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 egui::Frame::new()
-                    .fill(theme::with_alpha(theme::ACCENT_TEAL, 22))
+                    .fill(theme::with_alpha(theme::accent_color(), 22))
                     .corner_radius(CornerRadius::same(theme::RADIUS_MD))
                     .inner_margin(Margin::same(theme::SPACE_SM as i8))
                     .show(ui, |ui| {

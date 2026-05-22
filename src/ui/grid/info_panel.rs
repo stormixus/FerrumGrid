@@ -455,7 +455,7 @@ pub(super) fn info_action_button_frame(
         theme::bg_medium()
     };
     let stroke_color = if hovered {
-        theme::with_alpha(theme::ACCENT_EMERALD, 140)
+        theme::with_alpha(theme::accent_color(), 140)
     } else if enabled {
         theme::border_default()
     } else {
@@ -507,14 +507,14 @@ pub(super) fn info_toggle_control(
         egui::vec2(16.0, 16.0),
     );
     let box_fill = if *checked {
-        theme::with_alpha(theme::ACCENT_EMERALD, if hovered { 52 } else { 36 })
+        theme::with_alpha(theme::accent_color(), if hovered { 52 } else { 36 })
     } else if hovered {
         theme::bg_light()
     } else {
         theme::bg_medium()
     };
     let box_stroke = if *checked {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else if hovered {
         theme::border_strong()
     } else {
@@ -533,9 +533,9 @@ pub(super) fn info_toggle_control(
         let b = box_rect.center() + egui::vec2(-1.0, 4.0);
         let c = box_rect.right_center() + egui::vec2(-3.5, -4.5);
         ui.painter()
-            .line_segment([a, b], Stroke::new(1.8, theme::ACCENT_EMERALD));
+            .line_segment([a, b], Stroke::new(1.8, theme::accent_color()));
         ui.painter()
-            .line_segment([b, c], Stroke::new(1.8, theme::ACCENT_EMERALD));
+            .line_segment([b, c], Stroke::new(1.8, theme::accent_color()));
     }
     ui.painter().text(
         rect.left_center() + egui::vec2(24.0, 0.0),
@@ -583,7 +583,7 @@ fn dark_select_button(ui: &mut egui::Ui, selected_text: &str, width: f32) -> egu
         theme::input_bg()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -631,7 +631,7 @@ fn dark_select_option(
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), egui::Sense::click());
     let hovered = response.hovered();
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_EMERALD, 34)
+        theme::with_alpha(theme::accent_color(), 34)
     } else if hovered {
         theme::bg_light()
     } else {
@@ -647,7 +647,7 @@ fn dark_select_option(
         label,
         egui::FontId::proportional(12.0),
         if selected {
-            theme::ACCENT_EMERALD
+            theme::accent_color()
         } else {
             theme::text_secondary()
         },
@@ -656,7 +656,7 @@ fn dark_select_option(
         ui.painter().circle_filled(
             rect.right_center() - egui::vec2(11.0, 0.0),
             3.0,
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     }
     set_pointing_cursor_on_hover(ui, &response, true);

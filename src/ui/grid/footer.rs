@@ -117,7 +117,7 @@ fn render_data_query_preview(ui: &mut egui::Ui, sql: &str) {
         egui::Align2::CENTER_CENTER,
         "SQL",
         egui::FontId::proportional(10.5),
-        theme::ACCENT_EMERALD,
+        theme::accent_color(),
     );
 
     let text_rect = egui::Rect::from_min_max(

@@ -15,6 +15,7 @@ pub mod panels;
 pub mod settings;
 pub mod table_designer;
 pub mod migration_wizard;
+pub mod backup_dialogs;
 pub mod theme;
 pub mod titlebar;
 pub mod transfer_dialog;

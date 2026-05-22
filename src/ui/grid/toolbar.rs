@@ -48,7 +48,7 @@ pub fn result_toolbar_action_button(
                 icon_name,
                 12.0,
                 if enabled {
-                    theme::ACCENT_EMERALD
+                    theme::accent_color()
                 } else {
                     theme::text_disabled()
                 },
@@ -236,7 +236,7 @@ pub(super) fn result_toolbar_button_frame(
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };

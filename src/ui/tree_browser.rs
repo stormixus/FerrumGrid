@@ -275,7 +275,7 @@ fn render_saved_connection_row(
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(2.0, 1.0)),
             CornerRadius::same(theme::RADIUS_LG),
-            theme::with_alpha(theme::ACCENT_EMERALD, 18),
+            theme::with_alpha(theme::accent_color(), 18),
         );
     }
 
@@ -288,7 +288,7 @@ fn render_saved_connection_row(
         ui.painter().rect_stroke(
             rect.shrink2(egui::vec2(2.0, 1.0)),
             CornerRadius::same(theme::RADIUS_LG),
-            Stroke::new(1.0, theme::ACCENT_EMERALD),
+            Stroke::new(1.0, theme::accent_color()),
             egui::StrokeKind::Inside,
         );
     }
@@ -303,7 +303,7 @@ fn render_saved_connection_row(
                 rect.top() - 1.0
             };
             ui.painter()
-                .hline(rect.x_range(), y, Stroke::new(2.0, theme::ACCENT_EMERALD));
+                .hline(rect.x_range(), y, Stroke::new(2.0, theme::accent_color()));
 
             if ui.input(|input| input.pointer.any_released()) {
                 reorder_saved_connection(state, dragged_id, config.id, insert_after);
@@ -333,7 +333,7 @@ fn render_saved_connection_row(
                 egui::pos2(handle_x, y),
                 1.4,
                 if dragging_this {
-                    theme::ACCENT_EMERALD
+                    theme::accent_color()
                 } else {
                     theme::text_disabled()
                 },
@@ -1089,7 +1089,7 @@ fn mac_menu_item(
         ui.painter().rect_filled(
             rect.expand2(egui::vec2(6.0, 0.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_EMERALD, 46),
+            theme::with_alpha(theme::accent_color(), 46),
         );
     }
 
@@ -1099,7 +1099,7 @@ fn mac_menu_item(
         theme::text_disabled()
     };
     let aux_color = if hovered {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
         theme::text_muted()
     };
@@ -1129,7 +1129,7 @@ fn mac_menu_item(
             trailing,
             egui::FontId::proportional(17.0),
             if hovered {
-                theme::ACCENT_EMERALD
+                theme::accent_color()
             } else {
                 theme::text_secondary()
             },
@@ -1787,7 +1787,7 @@ fn render_table_node(
 
     let header_text = RichText::new(table_name)
         .color(if is_selected {
-            theme::ACCENT_EMERALD
+            theme::accent_color()
         } else {
             theme::text_primary()
         })
@@ -2353,7 +2353,7 @@ fn render_column_row(ui: &mut egui::Ui, col: &crate::types::ColumnInfo, depth: u
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(4.0, 1.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_EMERALD, 16),
+            theme::with_alpha(theme::accent_color(), 16),
         );
     }
 
@@ -2530,7 +2530,7 @@ fn render_leaf_row(
         ui.painter().rect_filled(
             rect.shrink2(egui::vec2(2.0, 1.0)),
             CornerRadius::same(theme::RADIUS_MD),
-            theme::with_alpha(theme::ACCENT_EMERALD, 16),
+            theme::with_alpha(theme::accent_color(), 16),
         );
     }
 
@@ -2577,8 +2577,8 @@ fn tree_icon_spec(icon_svg: &str) -> (&'static str, Color32, Color32) {
     match icon_svg {
         s if std::ptr::eq(s, icons_svg::DATABASE) => (
             "D",
-            theme::with_alpha(theme::ACCENT_EMERALD, 40),
-            theme::ACCENT_EMERALD,
+            theme::with_alpha(theme::accent_color(), 40),
+            theme::accent_color(),
         ),
         s if std::ptr::eq(s, icons_svg::SCHEMA) => (
             "S",
@@ -2587,8 +2587,8 @@ fn tree_icon_spec(icon_svg: &str) -> (&'static str, Color32, Color32) {
         ),
         s if std::ptr::eq(s, icons_svg::TABLE) => (
             "T",
-            theme::with_alpha(theme::ACCENT_EMERALD, 40),
-            theme::ACCENT_EMERALD,
+            theme::with_alpha(theme::accent_color(), 40),
+            theme::accent_color(),
         ),
         s if std::ptr::eq(s, icons_svg::VIEW) => (
             "V",
@@ -2779,11 +2779,11 @@ fn collapsing_node(
         ui.allocate_exact_size(egui::vec2(full_width, row_height), Sense::click());
 
     let bg = if spec.selected {
-        Some(theme::with_alpha(theme::ACCENT_EMERALD, 42))
+        Some(theme::with_alpha(theme::accent_color(), 42))
     } else if header_resp.is_pointer_button_down_on() {
         Some(theme::bg_elevated())
     } else if header_resp.hovered() {
-        Some(theme::with_alpha(theme::ACCENT_EMERALD, 20))
+        Some(theme::with_alpha(theme::accent_color(), 20))
     } else if spec.is_root {
         Some(theme::bg_dark())
     } else {
@@ -2806,7 +2806,7 @@ fn collapsing_node(
         ui.painter().rect_stroke(
             paint_rect,
             CornerRadius::same(theme::RADIUS_MD),
-            Stroke::new(1.0, theme::with_alpha(theme::ACCENT_EMERALD, 120)),
+            Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 120)),
             egui::StrokeKind::Inside,
         );
         let stripe =
@@ -2814,7 +2814,7 @@ fn collapsing_node(
         ui.painter().rect_filled(
             stripe,
             CornerRadius::same(theme::RADIUS_SM),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     }
 

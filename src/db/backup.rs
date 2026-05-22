@@ -8,11 +8,28 @@ use tokio::process::Command;
 
 use crate::types::{BackupFormat, BackupRecord, BackupRequest};
 
-pub async fn run_backup(request: BackupRequest) -> Result<BackupRecord, String> {
+use eframe::egui;
+use crate::db::bridge::DbResponse;
+
+pub async fn run_backup(
+    request: BackupRequest,
+    resp_tx: std::sync::mpsc::Sender<DbResponse>,
+    ctx: egui::Context,
+) -> Result<BackupRecord, String> {
     // Built-in SQL engine path — never invoke pg_dump for SqlOnly.
     if request.format == BackupFormat::SqlOnly {
-        return crate::db::backup_sql::run_sql_backup(request).await;
+        return crate::db::backup_sql::run_sql_backup(request, resp_tx, ctx).await;
     }
+    if request.format == BackupFormat::Fgb {
+        return crate::db::backup_fgb::run_fgb_backup(request, resp_tx, ctx).await;
+    }
+
+    let _ = resp_tx.send(DbResponse::BackupProgress {
+        conn_id: request.conn_id,
+        progress: 0.1,
+        current_table: "pg_dump".to_string(),
+    });
+    ctx.request_repaint();
 
     fs::create_dir_all(&request.output_dir)
         .map_err(|err| format!("Backup folder is not writable: {err}"))?;

@@ -1,6 +1,9 @@
 /target
 .omc/
 .claude/
+.antigravitycli/
+Mockups/
+PLAN-ui-mockup-match.md
 *.swp
 *.swo
 .DS_Store

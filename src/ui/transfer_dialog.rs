@@ -140,7 +140,7 @@ fn render_connection_pair(ui: &mut egui::Ui, state: &AppState) {
         );
         ui.label(
             RichText::new(format!("{} / {}", source_name, state.transfer.source_schema))
-                .color(theme::ACCENT_TEAL)
+                .color(theme::accent_color())
                 .size(12.0)
                 .strong(),
         );

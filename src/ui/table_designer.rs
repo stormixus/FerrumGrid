@@ -317,7 +317,7 @@ fn render_columns_panel(ui: &mut Ui, state: &mut AppState) {
                         if is_selected {
                             frame = frame
                                 .fill(theme::accent_copper_dim())
-                                .stroke(Stroke::new(1.0, theme::ACCENT_COPPER));
+                                .stroke(Stroke::new(1.0, theme::accent_color()));
                         } else {
                             frame = frame.fill(theme::bg_medium());
                         }

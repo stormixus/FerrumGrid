@@ -263,6 +263,9 @@ pub struct AppState {
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
     pub migration_wizard: MigrationWizardState,
+    pub show_backup_wizard: bool,
+    pub backup_wizard_state: Option<std::sync::Arc<std::sync::Mutex<BackupWizardState>>>,
+    pub restore_confirm_dialog: Option<RestoreConfirmState>,
 }
 
 /// US-J1 / US-L1 — Drop 다이얼로그의 active 상태.
@@ -427,6 +430,9 @@ impl Default for AppState {
             transfer: TransferState::default(),
             clipboard_tables: None,
             migration_wizard: MigrationWizardState::default(),
+            show_backup_wizard: false,
+            backup_wizard_state: None,
+            restore_confirm_dialog: None,
         }
     }
 }
@@ -850,3 +856,26 @@ impl ConnectionDialogState {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct BackupWizardState {
+    pub step: usize, // 0: Scope, 1: Format, 2: Run & Progress
+    pub schema_scope: Option<String>,
+    pub format: BackupFormat,
+    pub running: bool,
+    pub progress: f32,
+    pub current_table: String,
+    pub completed: bool,
+    pub error: Option<String>,
+    pub closed: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct RestoreConfirmState {
+    pub record: BackupRecord,
+    pub running: bool,
+    pub progress: f32,
+    pub completed: bool,
+    pub error: Option<String>,
+}
+

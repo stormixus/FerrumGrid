@@ -250,7 +250,7 @@ fn render_commands_panel(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
 
             let btn = Button::new(*label)
                 .fill(if selected {
-                    theme::ACCENT_COPPER
+                    theme::accent_color()
                 } else {
                     theme::bg_light()
                 })

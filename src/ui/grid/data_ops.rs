@@ -277,7 +277,7 @@ pub(crate) fn data_edit_summary(state: &AppState) -> Option<DataEditSummary> {
     let color = if blocked_reason.is_some() {
         theme::ACCENT_YELLOW
     } else {
-        theme::ACCENT_COPPER
+        theme::accent_color()
     };
 
     Some(DataEditSummary {

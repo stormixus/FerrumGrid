@@ -101,9 +101,9 @@ fn render_step_indicator(ui: &mut egui::Ui, current: MigrationStep) {
             let is_past = step_index(*step) < step_index(current);
 
             let color = if is_current {
-                theme::ACCENT_TEAL
+                theme::accent_color()
             } else if is_past {
-                theme::ACCENT_GREEN
+                theme::accent_color_light()
             } else {
                 theme::text_muted()
             };

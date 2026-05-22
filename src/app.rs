@@ -89,14 +89,14 @@ impl FerrumGridApp {
         // Initialize i18n system
         init_with_saved(Some(&settings.language));
 
-        settings.dark_mode = ui::theme::apply_appearance(&cc.egui_ctx, &settings.appearance);
+        settings.dark_mode = ui::theme::apply_appearance(&cc.egui_ctx, &settings.appearance, &settings.accent_color);
         cc.egui_ctx
             .send_viewport_cmd(egui::ViewportCommand::Icon(Some(Arc::new(
                 crate::app_icon::icon_for_dark_mode(settings.dark_mode),
             ))));
 
         #[cfg(target_os = "macos")]
-        configure_macos_titlebar();
+        crate::ui::titlebar::configure_macos_titlebar();
 
         let (saved_connections, vault) = match storage::connections::load_storage_state() {
             storage::connections::ConnectionStorageState::Empty => {
@@ -122,6 +122,8 @@ impl FerrumGridApp {
 
         let bridge = DbBridge::new(cc.egui_ctx.clone());
 
+        let backup_history = crate::storage::backups::load_backups();
+
         let should_show_connection_dialog = saved_connections.is_empty() && vault.is_unlocked();
         let app_state = AppState {
             default_row_limit: settings.default_row_limit,
@@ -130,6 +132,7 @@ impl FerrumGridApp {
             saved_connections,
             vault,
             query_history: history.clone(),
+            backup_history,
             ..Default::default()
         };
 
@@ -423,8 +426,16 @@ impl FerrumGridApp {
                             .and_then(|name| name.to_str())
                             .unwrap_or("backup")
                     );
+                    if let Some(ref wizard_lock) = self.state.backup_wizard_state {
+                        let mut wizard = wizard_lock.lock().unwrap();
+                        wizard.running = false;
+                        wizard.completed = true;
+                        wizard.error = None;
+                        wizard.progress = 1.0;
+                    }
                     self.state.backup_history.insert(0, record.clone());
-                    self.state.backup_history.truncate(20);
+                    self.state.backup_history.truncate(100);
+                    crate::storage::backups::save_backups(&self.state.backup_history);
                     self.toasts
                         .info(format!("Backup saved to {}", record.file_path.display()));
                 }
@@ -432,10 +443,45 @@ impl FerrumGridApp {
                     self.state.backup_running = false;
                     self.state.backup_last_error = Some(error.clone());
                     self.state.status_message = format!("Backup failed on {conn_id}");
+                    if let Some(ref wizard_lock) = self.state.backup_wizard_state {
+                        let mut wizard = wizard_lock.lock().unwrap();
+                        wizard.running = false;
+                        wizard.completed = true;
+                        wizard.error = Some(error.clone());
+                    }
                     self.toasts.error(format!("Backup failed: {error}"));
                     self.state
                         .diagnostics_panel
                         .push_backup_error(format!("Backup failed: {error}"));
+                }
+                DbResponse::BackupProgress {
+                    conn_id: _,
+                    progress,
+                    current_table,
+                } => {
+                    if let Some(ref wizard_lock) = self.state.backup_wizard_state {
+                        let mut wizard = wizard_lock.lock().unwrap();
+                        wizard.progress = progress;
+                        wizard.current_table = current_table;
+                    }
+                }
+                DbResponse::RestoreCompleted { file_path } => {
+                    if let Some(ref mut dialog) = self.state.restore_confirm_dialog {
+                        dialog.running = false;
+                        dialog.completed = true;
+                        dialog.error = None;
+                        dialog.progress = 1.0;
+                    }
+                    self.toasts
+                        .success(format!("Restore completed from {}", file_path.display()));
+                }
+                DbResponse::RestoreFailed { file_path: _, error } => {
+                    if let Some(ref mut dialog) = self.state.restore_confirm_dialog {
+                        dialog.running = false;
+                        dialog.completed = true;
+                        dialog.error = Some(error.clone());
+                    }
+                    self.toasts.error(format!("Restore failed: {}", error));
                 }
                 DbResponse::AutomationResult {
                     conn_id: _,
@@ -694,6 +740,8 @@ impl eframe::App for FerrumGridApp {
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
         ui::migration_wizard::render_migration_wizard(ctx, &mut self.state, bridge);
+        ui::backup_dialogs::render_backup_wizard(ctx, &mut self.state, bridge, &self.settings);
+        ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
@@ -773,19 +821,4 @@ fn show_main_window(ctx: &egui::Context) {
     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
 }
 
-#[cfg(target_os = "macos")]
-fn configure_macos_titlebar() {
-    use objc2::runtime::AnyObject;
 
-    unsafe {
-        let app: *mut AnyObject = objc2::msg_send![objc2::class!(NSApplication), sharedApplication];
-        let windows: *mut AnyObject = objc2::msg_send![app, windows];
-        let count: usize = objc2::msg_send![windows, count];
-        if count == 0 {
-            return;
-        }
-        let window: *mut AnyObject = objc2::msg_send![windows, objectAtIndex: 0usize];
-        let _: () = objc2::msg_send![window, setTitlebarAppearsTransparent: objc2::runtime::Bool::YES];
-        let _: () = objc2::msg_send![window, setTitleVisibility: 1i64]; // NSWindowTitleHidden
-    }
-}

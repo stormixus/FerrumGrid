@@ -111,7 +111,7 @@ pub(super) fn render_info_row_summary(ui: &mut egui::Ui, context: &SelectedRowCo
         metric_chip(
             ui,
             &tf("data_info_row_n", &[&(context.row_idx + 1).to_string()]),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
         metric_chip(
             ui,
@@ -189,7 +189,7 @@ pub(super) fn render_info_row_field(
     let data_timezone = state.data_timezone.clone();
 
     let stroke_color = if field.selected {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
         theme::border_subtle()
     };
@@ -218,7 +218,7 @@ pub(super) fn render_info_row_field(
                     tiny_badge(ui, "PK", theme::ACCENT_YELLOW);
                 }
                 if field.selected {
-                    tiny_badge(ui, &t("data_info_selected"), theme::ACCENT_EMERALD);
+                    tiny_badge(ui, &t("data_info_selected"), theme::accent_color());
                 }
             });
 
@@ -329,7 +329,7 @@ pub(super) fn render_info_row_field(
                             "info_relation_jump",
                             &t("data_relation_open"),
                             true,
-                            theme::ACCENT_EMERALD,
+                            theme::accent_color(),
                         );
                         if relation_resp.clicked() {
                             open_related_data(state, bridge, &fk, filter);
@@ -341,7 +341,7 @@ pub(super) fn render_info_row_field(
                     ui.add_space(theme::SPACE_XS);
                     ui.label(
                         RichText::new(t("data_info_dirty"))
-                            .color(theme::ACCENT_COPPER_LIGHT)
+                            .color(theme::accent_color_light())
                             .size(10.5),
                     );
                 }

@@ -200,7 +200,7 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
 
                                 let selected = visual_idx == state.command_palette_selected;
                                 let bg = if selected {
-                                    theme::with_alpha(theme::ACCENT_EMERALD, 16)
+                                    theme::with_alpha(theme::accent_color(), 16)
                                 } else {
                                     Color32::TRANSPARENT
                                 };

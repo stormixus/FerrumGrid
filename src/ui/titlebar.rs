@@ -79,10 +79,10 @@ pub fn render_titlebar(ctx: &egui::Context, state: &AppState, settings: &mut cra
                 let response = ui.interact(rect, ui.id().with(label), Sense::click());
 
                 if active {
-                    painter.rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), theme::with_alpha(theme::ACCENT_EMERALD, 40));
+                    painter.rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), theme::with_alpha(theme::accent_color(), 40));
                 }
                 let text_color = if active {
-                    theme::ACCENT_EMERALD
+                    theme::accent_color()
                 } else {
                     theme::text_muted()
                 };
@@ -104,7 +104,7 @@ pub fn render_titlebar(ctx: &egui::Context, state: &AppState, settings: &mut cra
                 if response.clicked() && settings.dark_mode != *is_dark {
                     settings.dark_mode = *is_dark;
                     settings.appearance = if *is_dark { "dark" } else { "light" }.to_string();
-                    theme::apply_appearance(ui.ctx(), &settings.appearance);
+                    theme::apply_appearance(ui.ctx(), &settings.appearance, &settings.accent_color);
                     crate::storage::settings::save_settings(settings);
                 }
             }
@@ -142,6 +142,23 @@ pub fn drag_region_rect(full: egui::Rect) -> egui::Rect {
         full
     }
 }
+
+#[cfg(target_os = "macos")]
+pub fn configure_macos_titlebar() {
+    use objc2::runtime::AnyObject;
+
+    unsafe {
+        let app: *mut AnyObject = objc2::msg_send![objc2::class!(NSApplication), sharedApplication];
+        let windows: *mut AnyObject = objc2::msg_send![app, windows];
+        let count: usize = objc2::msg_send![windows, count];
+        for i in 0..count {
+            let window: *mut AnyObject = objc2::msg_send![windows, objectAtIndex: i];
+            let _: () = objc2::msg_send![window, setTitlebarAppearsTransparent: objc2::runtime::Bool::YES];
+            let _: () = objc2::msg_send![window, setTitleVisibility: 1i64]; // NSWindowTitleHidden
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

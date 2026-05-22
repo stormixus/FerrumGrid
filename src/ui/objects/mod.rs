@@ -665,7 +665,7 @@ fn object_row_frame(
     }
 
     let fill = if response.hovered() {
-        theme::with_alpha(theme::ACCENT_TEAL, 14)
+        theme::with_alpha(theme::accent_color(), 14)
     } else {
         fill
     };
@@ -861,7 +861,7 @@ fn icon_button(ui: &mut egui::Ui, svg: &str, name: &str, tooltip: String) -> egu
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 150))
+        Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 150))
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -888,7 +888,7 @@ fn icon_button(ui: &mut egui::Ui, svg: &str, name: &str, tooltip: String) -> egu
                 svg,
                 name,
                 ICON_SIZE,
-                theme::ACCENT_TEAL,
+                theme::accent_color(),
             ));
         },
     );
@@ -908,7 +908,7 @@ fn schema_filter_button(ui: &mut egui::Ui, label: &str, width: f32) -> egui::Res
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::with_alpha(theme::ACCENT_TEAL, 140))
+        Stroke::new(1.0, theme::with_alpha(theme::accent_color(), 140))
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -963,7 +963,7 @@ fn schema_filter_option(ui: &mut egui::Ui, label: &str, selected: bool) -> egui:
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 28.0), Sense::click());
     let hovered = response.hovered();
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_TEAL, 28)
+        theme::with_alpha(theme::accent_color(), 28)
     } else if hovered {
         theme::bg_light()
     } else {
@@ -991,7 +991,7 @@ fn schema_filter_option(ui: &mut egui::Ui, label: &str, selected: bool) -> egui:
         ui.painter().circle_filled(
             rect.right_center() - egui::vec2(theme::SPACE_LG, 0.0),
             3.0,
-            theme::ACCENT_TEAL,
+            theme::accent_color(),
         );
     }
 

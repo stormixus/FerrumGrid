@@ -2,7 +2,7 @@ use eframe::egui::{
     self, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Stroke,
     TextStyle, Visuals,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
@@ -10,6 +10,7 @@ use std::sync::Arc;
 // ---------------------------------------------------------------------------
 
 static DARK_MODE: AtomicBool = AtomicBool::new(true);
+static ACCENT_INDEX: AtomicU8 = AtomicU8::new(0);
 
 // Background layers — DESIGN.md hierarchy:
 // Canvas (#171717) = main surface for all panels (unified look)
@@ -38,14 +39,27 @@ pub const ACCENT_COPPER_LIGHT: Color32 = ACCENT_EMERALD_LIGHT;
 pub const ACCENT_COPPER_DIM: Color32 = ACCENT_EMERALD_DIM;
 pub const ACCENT_TEAL: Color32 = Color32::from_rgb(0, 197, 115);
 
-// Semantic colors
+// Dynamic Accent Color Support
 pub const ACCENT_BLUE: Color32 = Color32::from_rgb(118, 156, 255);
-pub const ACCENT_GREEN: Color32 = Color32::from_rgb(62, 207, 142);
+pub const ACCENT_BLUE_LIGHT: Color32 = Color32::from_rgb(150, 180, 255);
+pub const ACCENT_BLUE_DIM: Color32 = Color32::from_rgb(25, 45, 80);
+
+pub const ACCENT_PURPLE: Color32 = Color32::from_rgb(181, 139, 247);
+pub const ACCENT_PURPLE_LIGHT: Color32 = Color32::from_rgb(205, 170, 255);
+pub const ACCENT_PURPLE_DIM: Color32 = Color32::from_rgb(45, 25, 75);
+
+pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
+pub const ACCENT_YELLOW_LIGHT: Color32 = Color32::from_rgb(255, 220, 120);
+pub const ACCENT_YELLOW_DIM: Color32 = Color32::from_rgb(70, 55, 20);
+
 pub const ACCENT_RED: Color32 = Color32::from_rgb(229, 72, 77);
+pub const ACCENT_RED_LIGHT: Color32 = Color32::from_rgb(255, 105, 110);
+pub const ACCENT_RED_DIM: Color32 = Color32::from_rgb(80, 20, 25);
+
+// Semantic colors
+pub const ACCENT_GREEN: Color32 = Color32::from_rgb(62, 207, 142);
 pub const ACCENT_RED_SOFT: Color32 = Color32::from_rgb(220, 150, 150);
 const LIGHT_ACCENT_RED_SOFT: Color32 = Color32::from_rgb(180, 82, 82);
-pub const ACCENT_YELLOW: Color32 = Color32::from_rgb(245, 204, 93);
-pub const ACCENT_PURPLE: Color32 = Color32::from_rgb(181, 139, 247);
 
 // Borders / separators
 pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(36, 36, 36);
@@ -169,15 +183,71 @@ pub fn border_strong() -> Color32 {
 }
 
 pub fn border_glow() -> Color32 {
-    pick(BORDER_GLOW, LIGHT_BORDER_GLOW)
+    pick(accent_color(), accent_color_light())
 }
 
 pub fn accent_copper_dim() -> Color32 {
-    pick(ACCENT_COPPER_DIM, Color32::from_rgb(220, 250, 235))
+    pick(accent_color_dim(), Color32::from_rgb(220, 250, 235))
 }
 
 pub fn accent_red_soft() -> Color32 {
     pick(ACCENT_RED_SOFT, LIGHT_ACCENT_RED_SOFT)
+}
+
+pub fn set_accent_color(name: &str) {
+    let index = match name {
+        "emerald" => 0,
+        "blue" => 1,
+        "purple" => 2,
+        "yellow" => 3,
+        "red" => 4,
+        _ => 0,
+    };
+    ACCENT_INDEX.store(index, Ordering::Relaxed);
+}
+
+pub fn accent_color_name() -> &'static str {
+    match ACCENT_INDEX.load(Ordering::Relaxed) {
+        0 => "emerald",
+        1 => "blue",
+        2 => "purple",
+        3 => "yellow",
+        4 => "red",
+        _ => "emerald",
+    }
+}
+
+pub fn accent_color() -> Color32 {
+    match ACCENT_INDEX.load(Ordering::Relaxed) {
+        0 => ACCENT_EMERALD,
+        1 => ACCENT_BLUE,
+        2 => ACCENT_PURPLE,
+        3 => ACCENT_YELLOW,
+        4 => ACCENT_RED,
+        _ => ACCENT_EMERALD,
+    }
+}
+
+pub fn accent_color_light() -> Color32 {
+    match ACCENT_INDEX.load(Ordering::Relaxed) {
+        0 => ACCENT_EMERALD_LIGHT,
+        1 => ACCENT_BLUE_LIGHT,
+        2 => ACCENT_PURPLE_LIGHT,
+        3 => ACCENT_YELLOW_LIGHT,
+        4 => ACCENT_RED_LIGHT,
+        _ => ACCENT_EMERALD_LIGHT,
+    }
+}
+
+pub fn accent_color_dim() -> Color32 {
+    match ACCENT_INDEX.load(Ordering::Relaxed) {
+        0 => ACCENT_EMERALD_DIM,
+        1 => ACCENT_BLUE_DIM,
+        2 => ACCENT_PURPLE_DIM,
+        3 => ACCENT_YELLOW_DIM,
+        4 => ACCENT_RED_DIM,
+        _ => ACCENT_EMERALD_DIM,
+    }
 }
 
 fn pick(dark: Color32, light: Color32) -> Color32 {
@@ -289,24 +359,31 @@ impl FerrumTheme {
         v.widgets.hovered.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — active (pressed)
-        v.widgets.active.bg_fill = ACCENT_COPPER_DIM;
-        v.widgets.active.weak_bg_fill = Color32::from_rgb(25, 64, 47);
-        v.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
+        v.widgets.active.bg_fill = accent_color_dim();
+        v.widgets.active.weak_bg_fill = match ACCENT_INDEX.load(Ordering::Relaxed) {
+            0 => Color32::from_rgb(25, 64, 47),
+            1 => Color32::from_rgb(20, 35, 60),
+            2 => Color32::from_rgb(35, 20, 55),
+            3 => Color32::from_rgb(50, 40, 20),
+            4 => Color32::from_rgb(60, 20, 25),
+            _ => Color32::from_rgb(25, 64, 47),
+        };
+        v.widgets.active.bg_stroke = Stroke::new(1.0, accent_color());
         v.widgets.active.fg_stroke = Stroke::new(2.0, Color32::WHITE);
         v.widgets.active.corner_radius = CornerRadius::same(RADIUS_MD);
 
         // Widgets — open
         v.widgets.open.bg_fill = BG_ELEVATED;
         v.widgets.open.weak_bg_fill = BG_ELEVATED;
-        v.widgets.open.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
+        v.widgets.open.bg_stroke = Stroke::new(1.0, accent_color());
         v.widgets.open.fg_stroke = Stroke::new(1.5, TEXT_PRIMARY);
         v.widgets.open.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.selection.bg_fill = Color32::from_rgba_unmultiplied(62, 207, 142, 38);
-        v.selection.stroke = Stroke::new(1.0, ACCENT_COPPER_LIGHT);
+        v.selection.bg_fill = with_alpha(accent_color(), 38);
+        v.selection.stroke = Stroke::new(1.0, accent_color_light());
 
         v.override_text_color = Some(TEXT_PRIMARY);
-        v.hyperlink_color = ACCENT_COPPER_LIGHT;
+        v.hyperlink_color = accent_color_light();
         v.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         v
@@ -355,23 +432,30 @@ impl FerrumTheme {
         v.widgets.hovered.fg_stroke = Stroke::new(1.5, text_primary());
         v.widgets.hovered.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.widgets.active.bg_fill = Color32::from_rgb(220, 250, 235);
-        v.widgets.active.weak_bg_fill = Color32::from_rgb(230, 252, 241);
-        v.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
+        v.widgets.active.bg_fill = accent_color_dim();
+        v.widgets.active.weak_bg_fill = match ACCENT_INDEX.load(Ordering::Relaxed) {
+            0 => Color32::from_rgb(230, 252, 241),
+            1 => Color32::from_rgb(225, 235, 255),
+            2 => Color32::from_rgb(240, 230, 255),
+            3 => Color32::from_rgb(255, 248, 220),
+            4 => Color32::from_rgb(255, 230, 235),
+            _ => Color32::from_rgb(230, 252, 241),
+        };
+        v.widgets.active.bg_stroke = Stroke::new(1.0, accent_color());
         v.widgets.active.fg_stroke = Stroke::new(2.0, text_primary());
         v.widgets.active.corner_radius = CornerRadius::same(RADIUS_MD);
 
         v.widgets.open.bg_fill = bg_elevated();
         v.widgets.open.weak_bg_fill = Color32::from_rgb(245, 248, 252);
-        v.widgets.open.bg_stroke = Stroke::new(1.0, ACCENT_COPPER);
+        v.widgets.open.bg_stroke = Stroke::new(1.0, accent_color());
         v.widgets.open.fg_stroke = Stroke::new(1.5, text_primary());
         v.widgets.open.corner_radius = CornerRadius::same(RADIUS_MD);
 
-        v.selection.bg_fill = Color32::from_rgba_unmultiplied(62, 207, 142, 38);
-        v.selection.stroke = Stroke::new(1.0, ACCENT_COPPER);
+        v.selection.bg_fill = with_alpha(accent_color(), 38);
+        v.selection.stroke = Stroke::new(1.0, accent_color());
 
         v.override_text_color = Some(text_primary());
-        v.hyperlink_color = ACCENT_COPPER;
+        v.hyperlink_color = accent_color();
         v.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         v
@@ -389,7 +473,9 @@ pub fn configure_fonts(ctx: &egui::Context, language: &str) {
     ctx.set_fonts(fonts);
 }
 
-pub fn apply_appearance(ctx: &egui::Context, appearance: &str) -> bool {
+pub fn apply_appearance(ctx: &egui::Context, appearance: &str, accent_name: &str) -> bool {
+    set_accent_color(accent_name);
+
     let use_dark = match appearance {
         "light" => false,
         "dark" => true,
@@ -523,7 +609,7 @@ fn install_font(
 pub fn primary_button(text: &str) -> egui::Button<'_> {
     egui::Button::new(egui::RichText::new(text).color(Color32::WHITE).size(12.5))
         .fill(BG_DARKEST)
-        .stroke(Stroke::new(1.0, ACCENT_EMERALD))
+        .stroke(Stroke::new(1.0, accent_color()))
         .corner_radius(CornerRadius::same(255))
         .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }
@@ -555,7 +641,7 @@ pub fn primary_icon_button(
             .size(12.5),
     )
     .fill(BG_DARKEST)
-    .stroke(Stroke::new(1.0, ACCENT_EMERALD))
+    .stroke(Stroke::new(1.0, accent_color()))
     .corner_radius(CornerRadius::same(255))
     .min_size(egui::vec2(0.0, BUTTON_HEIGHT))
 }

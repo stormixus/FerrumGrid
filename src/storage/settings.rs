@@ -259,6 +259,13 @@ impl AppSettings {
         if self.data_timezone.trim().is_empty() {
             self.data_timezone = "Asia/Seoul".to_string();
         }
+        if self.backup_directory.trim().is_empty() {
+            if let Some(dirs) = directories::ProjectDirs::from("com", "ferrumgrid", "FerrumGrid") {
+                let backups_path = dirs.data_dir().join("backups");
+                std::fs::create_dir_all(&backups_path).ok();
+                self.backup_directory = backups_path.display().to_string();
+            }
+        }
         // New fields
         if !matches!(self.density.as_str(), "compact" | "default" | "comfortable") {
             self.density = "default".to_string();

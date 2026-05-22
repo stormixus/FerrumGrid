@@ -224,8 +224,8 @@ fn paint_badges(painter: &egui::Painter, rect: egui::Rect) {
     let labels = ["PG", "SQL", "ER", "BI", "⌘"];
     let colors = [
         theme::ACCENT_BLUE,
-        theme::ACCENT_TEAL,
-        theme::ACCENT_EMERALD,
+        theme::accent_color_light(),
+        theme::accent_color(),
         theme::ACCENT_RED,
         theme::TEXT_MUTED,
     ];

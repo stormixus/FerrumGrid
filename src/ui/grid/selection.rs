@@ -101,14 +101,14 @@ pub(super) fn render_editable_cell(
         ui.painter().rect_filled(
             rect,
             CornerRadius::ZERO,
-            theme::with_alpha(theme::ACCENT_EMERALD, 16),
+            theme::with_alpha(theme::accent_color(), 16),
         );
     }
     if dirty {
         ui.painter().rect_filled(
             rect,
             CornerRadius::ZERO,
-            theme::with_alpha(theme::ACCENT_COPPER, 30),
+            theme::with_alpha(theme::accent_color(), 30),
         );
     } else if error.is_some() {
         ui.painter().rect_filled(
@@ -146,7 +146,7 @@ pub(super) fn render_editable_cell(
                     ui.painter().circle_filled(
                         ui.cursor().left_center() + egui::vec2(4.0, 0.0),
                         2.0,
-                        theme::ACCENT_COPPER,
+                        theme::accent_color(),
                     );
                     ui.add_space(8.0);
                 }
@@ -242,7 +242,7 @@ pub(super) fn render_readonly_data_cell(
         ui.painter().rect_filled(
             rect,
             CornerRadius::ZERO,
-            theme::with_alpha(theme::ACCENT_EMERALD, 16),
+            theme::with_alpha(theme::accent_color(), 16),
         );
     }
 
@@ -349,7 +349,7 @@ fn render_relation_jump_button(
         theme::bg_medium()
     };
     let stroke = if hovered {
-        Stroke::new(1.0, theme::ACCENT_EMERALD)
+        Stroke::new(1.0, theme::accent_color())
     } else {
         Stroke::new(1.0, theme::border_default())
     };
@@ -362,9 +362,9 @@ fn render_relation_jump_button(
         egui::StrokeKind::Inside,
     );
     let icon_color = if emphasized {
-        theme::ACCENT_EMERALD
+        theme::accent_color()
     } else {
-        theme::with_alpha(theme::ACCENT_EMERALD, 190)
+        theme::with_alpha(theme::accent_color(), 190)
     };
     let center = button_rect.center();
     let tip = egui::pos2(center.x + 3.0, center.y);

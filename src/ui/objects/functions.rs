@@ -69,12 +69,12 @@ fn render_function_row(ui: &mut egui::Ui, func: &FunctionInfo) -> Option<ObjectA
                 false,
             );
         });
-        cells.col(|ui| type_chip(ui, &func.return_type, theme::ACCENT_TEAL));
+        cells.col(|ui| type_chip(ui, &func.return_type, theme::accent_color()));
         cells.col(|ui| cell_label(ui, &func.language, theme::text_muted(), 11.0, false));
         cells.col(|ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = theme::SPACE_MD;
-                type_chip(ui, &func.kind, theme::ACCENT_COPPER);
+                type_chip(ui, &func.kind, theme::accent_color_light());
                 if ui.small_button("SQL").clicked() {
                     action = Some(ObjectAction::CopySql(format!(
                         "SELECT * FROM {}.{}({});",

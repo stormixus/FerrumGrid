@@ -370,7 +370,7 @@ pub(super) fn render_header_cell(
             if is_pk {
                 ui.label(
                     RichText::new("\u{25CF}PK")
-                        .color(theme::ACCENT_EMERALD)
+                        .color(theme::accent_color())
                         .size(9.0),
                 );
             }
@@ -416,12 +416,12 @@ fn render_sort_menu(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, 
         Some(DataSortDirection::Asc) => (
             crate::ui::icons_svg::SORT_ASC,
             "header_sort_asc",
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         ),
         Some(DataSortDirection::Desc) => (
             crate::ui::icons_svg::SORT_DESC,
             "header_sort_desc",
-            theme::ACCENT_COPPER_LIGHT,
+            theme::accent_color_light(),
         ),
         None => (
             crate::ui::icons_svg::SORT,
@@ -441,7 +441,7 @@ fn render_sort_menu(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, 
             crate::ui::icons_svg::SORT_ASC,
             "sort_menu_asc",
             &t("grid_sort_asc"),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
             true,
             direction == Some(DataSortDirection::Asc),
         )
@@ -455,7 +455,7 @@ fn render_sort_menu(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, 
             crate::ui::icons_svg::SORT_DESC,
             "sort_menu_desc",
             &t("grid_sort_desc"),
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
             true,
             direction == Some(DataSortDirection::Desc),
         )
@@ -560,7 +560,7 @@ fn sort_menu_item(
     let (rect, response) = ui.allocate_exact_size(egui::vec2(full_width, 30.0), sense);
     let hovered = enabled && response.hovered();
     let fill = if selected {
-        theme::with_alpha(theme::ACCENT_EMERALD, 26)
+        theme::with_alpha(theme::accent_color(), 26)
     } else if hovered {
         theme::bg_light()
     } else {
@@ -610,7 +610,7 @@ fn sort_menu_item(
         ui.painter().circle_filled(
             rect.right_center() - egui::vec2(13.0, 0.0),
             3.0,
-            theme::ACCENT_EMERALD,
+            theme::accent_color(),
         );
     }
 

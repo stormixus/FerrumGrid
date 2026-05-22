@@ -118,7 +118,7 @@ fn render_table_row(
                     crate::ui::icons_svg::PLAY,
                     "tbl_data",
                     &t("button_data"),
-                    theme::ACCENT_TEAL,
+                    theme::accent_color(),
                 )
                 .clicked()
                 {
@@ -134,7 +134,7 @@ fn render_table_row(
                         crate::ui::icons_svg::EDIT,
                         "tbl_design",
                         &t("button_design"),
-                        theme::ACCENT_COPPER,
+                        theme::accent_color_light(),
                     )
                     .clicked()
                 {

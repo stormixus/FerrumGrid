@@ -331,9 +331,9 @@ fn draw_card(
     let painter = ui.painter().with_clip_rect(params.canvas_rect);
     let hovered = response.hovered();
     let border_color = if params.selected {
-        theme::ACCENT_TEAL
+        theme::accent_color()
     } else if hovered {
-        theme::ACCENT_COPPER_LIGHT
+        theme::accent_color_light()
     } else {
         theme::border_default()
     };
@@ -542,8 +542,8 @@ fn table_type_label(table_type: &str) -> &'static str {
 fn table_type_color(table_type: &str) -> Color32 {
     match table_type {
         "VIEW" => theme::ACCENT_BLUE,
-        "MATERIALIZED VIEW" => theme::ACCENT_TEAL,
-        _ => theme::ACCENT_COPPER,
+        "MATERIALIZED VIEW" => theme::accent_color_light(),
+        _ => theme::accent_color(),
     }
 }
 
@@ -818,14 +818,14 @@ fn draw_foreign_keys(
 
         let selected_relation = selected_id.is_some_and(|id| id == source_id || id == target_id);
         let (color, stroke_width, label, font_size) = if selected_relation {
-            (theme::ACCENT_TEAL, 2.1, fk.name.as_str(), 9.5)
+            (theme::accent_color(), 2.1, fk.name.as_str(), 9.5)
         } else if selected_id.is_some() {
-            (theme::with_alpha(theme::ACCENT_TEAL, 36), 0.8, "", 9.5)
+            (theme::with_alpha(theme::accent_color(), 36), 0.8, "", 9.5)
         } else if dense {
-            (theme::with_alpha(theme::ACCENT_TEAL, 82), 0.95, fk.name.as_str(), 8.5)
+            (theme::with_alpha(theme::accent_color(), 82), 0.95, fk.name.as_str(), 8.5)
         } else {
             (
-                theme::with_alpha(theme::ACCENT_TEAL, 170),
+                theme::with_alpha(theme::accent_color(), 170),
                 1.35,
                 fk.name.as_str(),
                 9.5,
