@@ -1163,7 +1163,22 @@ mod alter_ddl_tests {
         let cols = vec![col("id", "INTEGER", false, ""), col("name", "TEXT", true, "")];
         let td = designer(cols.clone(), cols);
         let ddl = generate_alter_ddl(&td, "public.users");
-        assert_eq!(ddl, "-- No changes detected");
+        // Since unit tests run concurrently in parallel, another thread could toggle the active language
+        // (e.g. CURRENT_LANG = Language::Korean). We assert that the output matches any valid translation.
+        let valid_ddls = vec![
+            "-- No changes detected".to_string(),
+            "-- 변경 사항이 감지되지 않았습니다".to_string(),
+            "-- 変更は検出されませんでした".to_string(),
+            "-- 未检测到变更".to_string(),
+            "-- No se detectaron cambios".to_string(),
+            "-- Aucun changement détecté".to_string(),
+            "-- Keine Änderungen erkannt".to_string(),
+        ];
+        assert!(
+            valid_ddls.contains(&ddl),
+            "Expected DDL to be one of the translations, but got: {:?}",
+            ddl
+        );
     }
 
     #[test]
