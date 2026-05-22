@@ -15,21 +15,18 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/assets/app-icon-dark.svg"
+SRC="$ROOT/assets/app-icon.png"
 OUT="$ROOT/assets/AppIcon.icns"
 
 if [[ ! -f "$SRC" ]]; then
-  echo "error: source SVG not found at $SRC" >&2
+  echo "error: source PNG not found at $SRC" >&2
   exit 1
 fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# 1) SVG → 1024px PNG via QuickLook.
-qlmanage -t -s 1024 -o "$WORK" "$SRC" >/dev/null
-MASTER="$WORK/$(basename "$SRC").png"
-[[ -f "$MASTER" ]] || { echo "error: qlmanage produced no PNG (SVG QuickLook generator missing?)" >&2; exit 1; }
+MASTER="$SRC"
 
 # 2) Build .iconset with all sizes Apple expects.
 SET="$WORK/AppIcon.iconset"
