@@ -1,4 +1,6 @@
-use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke, Sense};
+use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
+#[cfg(target_os = "macos")]
+use eframe::egui::Sense;
 use std::path::PathBuf;
 
 use crate::db::bridge::{DbBridge, DbCommand};
@@ -91,6 +93,7 @@ pub fn render_backup_wizard(
     let cmd_tx = bridge.cmd_sender();
 
     let viewport_id = egui::ViewportId::from_hash_of("backup_wizard_viewport");
+    #[allow(unused_mut)]
     let mut builder = egui::ViewportBuilder::default()
         .with_title(translate("데이터베이스 백업 위자드", "Database Backup Wizard"))
         .with_inner_size(egui::vec2(550.0, 480.0))
