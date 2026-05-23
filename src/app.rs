@@ -636,6 +636,7 @@ impl FerrumGridApp {
 
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        let previous_dark_mode = self.settings.dark_mode;
         self.process_responses();
         self.state.diagnostics_panel.unsafe_ctid_active = self.settings.unsafe_ctid;
 
@@ -743,7 +744,6 @@ impl eframe::App for FerrumGridApp {
         ui::backup_dialogs::render_backup_wizard(ctx, &mut self.state, bridge, &self.settings);
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
-        let previous_dark_mode = self.settings.dark_mode;
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
             ui::theme::configure_fonts(ctx, &self.settings.language);
