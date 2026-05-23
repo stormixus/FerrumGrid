@@ -7,3 +7,5 @@ PLAN-ui-mockup-match.md
 *.swp
 *.swo
 .DS_Store
+__pycache__/
+*.pyc

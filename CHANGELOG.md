@@ -2,6 +2,17 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.6] - 2026-05-23
+
+### Added
+
+- Added dynamic macOS Dock app icon theme switching using native Cocoa `NSApplication` APIs.
+
+### Fixed
+
+- Fixed a bug where the light mode app icon had black corners by applying a perfect squircle mask.
+- Fixed a bug in the main update loop that prevented titlebar theme toggles from triggering app icon updates.
+
 ## [0.3.5] - 2026-05-23
 
 ### Changed
