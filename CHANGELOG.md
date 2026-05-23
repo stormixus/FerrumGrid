@@ -2,6 +2,24 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.5] - 2026-05-23
+
+### Changed
+
+- Reverted application icon set to the clean and minimalist 3D "F" style squircle design.
+
+## [0.3.4] - 2026-05-22
+
+### Fixed
+
+- Fixed layout misalignment in the about dialog.
+
+## [0.3.3] - 2026-05-22
+
+### Added
+
+- Added full internationalization (i18n) support for the Table Designer and Prisma Integration.
+
 ## [0.3.2] - 2026-05-22
 
 ### Added
