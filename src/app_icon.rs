@@ -32,7 +32,7 @@ pub fn update_macos_dock_icon(is_dark: bool) {
 
         let ns_data: *mut AnyObject = objc2::msg_send![
             objc2::class!(NSData),
-            dataWithBytes: png_bytes.as_ptr(),
+            dataWithBytes: png_bytes.as_ptr() as *const std::ffi::c_void,
             length: png_bytes.len()
         ];
         if ns_data.is_null() {
