@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 pub mod cli;
 pub mod parser;
 pub mod sync;
