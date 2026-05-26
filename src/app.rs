@@ -818,13 +818,13 @@ impl FerrumGridApp {
     fn render_update_bubble(&mut self, ctx: &egui::Context) {
         let status = &self.update_check.status;
         
-        let show = match status {
+        let show = matches!(
+            status,
             crate::updater::UpdateStatus::UpdateAvailable { .. }
-            | crate::updater::UpdateStatus::Downloading { .. }
-            | crate::updater::UpdateStatus::Installing { .. }
-            | crate::updater::UpdateStatus::Error(_) => true,
-            _ => false,
-        };
+                | crate::updater::UpdateStatus::Downloading { .. }
+                | crate::updater::UpdateStatus::Installing { .. }
+                | crate::updater::UpdateStatus::Error(_)
+        );
         
         if !show {
             return;

@@ -14,8 +14,9 @@ const RELEASES_LATEST_URL: &str =
 const HTTP_TIMEOUT: Duration = Duration::from_secs(8);
 const USER_AGENT: &str = concat!("FerrumGrid/", env!("CARGO_PKG_VERSION"));
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum UpdateStatus {
+    #[default]
     Idle,
     Checking,
     UpToDate {
@@ -34,12 +35,6 @@ pub enum UpdateStatus {
         latest: String,
     },
     Error(String),
-}
-
-impl Default for UpdateStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 #[derive(Debug)]
@@ -101,10 +96,10 @@ impl UpdateCheck {
                 }
             }
             Err(mpsc::TryRecvError::Disconnected) => {
-                if matches!(self.status, UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. }) {
-                    if !matches!(self.status, UpdateStatus::Error(_)) {
-                        self.status = UpdateStatus::Error("update thread disconnected".to_string());
-                    }
+                if matches!(self.status, UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. })
+                    && !matches!(self.status, UpdateStatus::Error(_))
+                {
+                    self.status = UpdateStatus::Error("update thread disconnected".to_string());
                 }
                 self.rx = None;
             }
