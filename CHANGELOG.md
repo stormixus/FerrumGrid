@@ -2,6 +2,12 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.9] - 2026-05-26
+
+### Added
+
+- Added a premium, fully automated background self-updater for macOS. The system monitors GitHub Release API, displays a beautiful glassmorphic floating notification bubble in the bottom-left of the application, and seamlessly downloads, mounts the DMG, copies, and atomically replaces/relaunches the app bundle in the background (restart-in-place).
+
 ## [0.3.8] - 2026-05-26
 
 ### Changed

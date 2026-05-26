@@ -10,7 +10,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-0.3.8}"
+VERSION="${1:-0.3.9}"
 TARGET="${2:-aarch64-apple-darwin}"
 APP="$ROOT/FerrumGrid.app"
 OUT_DMG="$ROOT/FerrumGrid-${VERSION}-${TARGET}.dmg"

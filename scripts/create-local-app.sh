@@ -31,8 +31,8 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleIdentifier</key><string>com.stormix.ferrumgrid</string>
   <key>CFBundleName</key><string>FerrumGrid</string>
   <key>CFBundleDisplayName</key><string>FerrumGrid</string>
-  <key>CFBundleVersion</key><string>0.3.8</string>
-  <key>CFBundleShortVersionString</key><string>0.3.8</string>
+  <key>CFBundleVersion</key><string>0.3.9</string>
+  <key>CFBundleShortVersionString</key><string>0.3.9</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleSignature</key><string>????</string>
