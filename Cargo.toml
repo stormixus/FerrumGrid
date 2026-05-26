@@ -1,6 +1,6 @@
 [package]
 name = "ferrumgrid"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2021"
 authors = ["Stormix <stormixus@gmail.com>"]
 description = "A modern PostgreSQL desktop client built in Rust"

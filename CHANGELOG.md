@@ -2,6 +2,12 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.7] - 2026-05-26
+
+### Fixed
+
+- Fixed a bug where the `.app` bundle icon was enclosed in a grey squircle border ("squircle jail") in Finder / DMG by rebuilding the iconset from a full-bleed square canvas gradient background compliant with Apple's macOS HIG.
+
 ## [0.3.6] - 2026-05-23
 
 ### Added
