@@ -13,6 +13,7 @@ mod state;
 mod storage;
 mod types;
 mod ui;
+mod updater;
 
 fn main() -> eframe::Result<()> {
     tracing_subscriber::fmt()

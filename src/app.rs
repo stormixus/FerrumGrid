@@ -25,6 +25,7 @@ pub struct FerrumGridApp {
         tokio::sync::oneshot::Sender<()>,
         std::sync::mpsc::Receiver<()>,
     )>,
+    update_check: crate::updater::UpdateCheck,
 }
 
 fn reload_enum_text_projection_if_needed(state: &mut AppState, bridge: &DbBridge) -> bool {
@@ -138,6 +139,9 @@ impl FerrumGridApp {
 
         crate::dock_menu::install();
 
+        let mut update_check = crate::updater::UpdateCheck::default();
+        update_check.start();
+
         Self {
             state: app_state,
             bridge: Some(bridge),
@@ -147,6 +151,7 @@ impl FerrumGridApp {
             toasts: egui_notify::Toasts::default().with_anchor(egui_notify::Anchor::BottomRight),
             quit_requested: false,
             automation_runner: None,
+            update_check,
         }
     }
 
@@ -636,6 +641,7 @@ impl FerrumGridApp {
 
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        self.update_check.poll();
         let previous_dark_mode = self.settings.dark_mode;
         self.process_responses();
         self.state.diagnostics_panel.unsafe_ctid_active = self.settings.unsafe_ctid;
@@ -731,6 +737,7 @@ impl eframe::App for FerrumGridApp {
 
         if !self.state.vault.is_unlocked() {
             ui::vault::render_vault_window(ctx, &mut self.state);
+            self.render_update_bubble(ctx);
             self.toasts.show(ctx);
             return;
         }
@@ -756,6 +763,7 @@ impl eframe::App for FerrumGridApp {
         ui::table_designer::render_table_designer(ctx, &mut self.state, bridge);
         crate::prisma::ui::render_prisma_window(ctx, &mut self.state, bridge);
 
+        self.render_update_bubble(ctx);
         self.toasts.show(ctx);
     }
 
@@ -805,6 +813,225 @@ impl FerrumGridApp {
         }
 
         hide_main_window(ctx, true);
+    }
+
+    fn render_update_bubble(&mut self, ctx: &egui::Context) {
+        let status = &self.update_check.status;
+        
+        let show = match status {
+            crate::updater::UpdateStatus::UpdateAvailable { .. }
+            | crate::updater::UpdateStatus::Downloading { .. }
+            | crate::updater::UpdateStatus::Installing { .. }
+            | crate::updater::UpdateStatus::Error(_) => true,
+            _ => false,
+        };
+        
+        if !show {
+            return;
+        }
+
+        let offset = if self.state.vault.is_unlocked() {
+            egui::vec2(16.0, -38.0)
+        } else {
+            egui::vec2(16.0, -16.0)
+        };
+
+        egui::Area::new(egui::Id::new("auto_updater_bubble"))
+            .anchor(egui::Align2::LEFT_BOTTOM, offset)
+            .show(ctx, |ui| {
+                let frame = egui::Frame::new()
+                    .fill(crate::ui::theme::with_alpha(crate::ui::theme::BG_SHELL, 245))
+                    .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
+                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_LG))
+                    .inner_margin(egui::Margin::symmetric(14, 10))
+                    .shadow(egui::Shadow {
+                        offset: [0, 6],
+                        blur: 16,
+                        spread: 0,
+                        color: egui::Color32::from_black_alpha(100),
+                    });
+
+                frame.show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 12.0;
+
+                        // 1. Icon (emerald circle, yellow error, or spinner)
+                        match &self.update_check.status {
+                            crate::updater::UpdateStatus::UpdateAvailable { .. } => {
+                                let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
+                                ui.painter().circle_filled(rect.center(), 9.0, crate::ui::theme::ACCENT_EMERALD_DIM);
+                                ui.painter().circle_filled(rect.center(), 4.0, crate::ui::theme::ACCENT_EMERALD);
+                            }
+                            crate::updater::UpdateStatus::Downloading { .. }
+                            | crate::updater::UpdateStatus::Installing { .. } => {
+                                ui.add(egui::Spinner::new().size(16.0));
+                            }
+                            crate::updater::UpdateStatus::Error(_) => {
+                                let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
+                                ui.painter().circle_filled(rect.center(), 9.0, crate::ui::theme::ACCENT_RED_DIM);
+                                ui.painter().circle_filled(rect.center(), 4.0, crate::ui::theme::ACCENT_RED);
+                            }
+                            _ => {}
+                        }
+
+                        // 2. Info text
+                        ui.vertical(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            match &self.update_check.status {
+                                crate::updater::UpdateStatus::UpdateAvailable { latest, dmg_url, .. } => {
+                                    ui.label(
+                                        egui::RichText::new("Update Available")
+                                            .color(crate::ui::theme::TEXT_PRIMARY)
+                                            .strong()
+                                            .size(13.0),
+                                    );
+                                    let is_dmg = dmg_url.is_some();
+                                    let subtext = if is_dmg {
+                                        format!("v{} is ready to install", latest)
+                                    } else {
+                                        format!("v{} is available (manual download)", latest)
+                                    };
+                                    ui.label(
+                                        egui::RichText::new(subtext)
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0),
+                                    );
+                                }
+                                crate::updater::UpdateStatus::Downloading { latest } => {
+                                    ui.label(
+                                        egui::RichText::new("Downloading Update")
+                                            .color(crate::ui::theme::TEXT_PRIMARY)
+                                            .strong()
+                                            .size(13.0),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(format!("Downloading v{}...", latest))
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0),
+                                    );
+                                }
+                                crate::updater::UpdateStatus::Installing { latest } => {
+                                    ui.label(
+                                        egui::RichText::new("Installing Update")
+                                            .color(crate::ui::theme::TEXT_PRIMARY)
+                                            .strong()
+                                            .size(13.0),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(format!("Extracting & preparing v{}...", latest))
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0),
+                                    );
+                                }
+                                crate::updater::UpdateStatus::Error(err) => {
+                                    ui.label(
+                                        egui::RichText::new("Update Failed")
+                                            .color(crate::ui::theme::ACCENT_RED)
+                                            .strong()
+                                            .size(13.0),
+                                    );
+                                    let short_err = if err.len() > 32 {
+                                        format!("{}...", &err[..30])
+                                    } else {
+                                        err.clone()
+                                    };
+                                    ui.label(
+                                        egui::RichText::new(short_err)
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0),
+                                    );
+                                }
+                                _ => {}
+                            }
+                        });
+
+                        ui.add_space(8.0);
+
+                        // 3. Actions
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 6.0;
+                            match &self.update_check.status {
+                                crate::updater::UpdateStatus::UpdateAvailable { latest, dmg_url, url, .. } => {
+                                    let latest = latest.clone();
+                                    let dmg_url = dmg_url.clone();
+                                    let url = url.clone();
+
+                                    if let Some(dmg_url) = dmg_url {
+                                        let btn = egui::Button::new(
+                                            egui::RichText::new("Update Now")
+                                                .color(egui::Color32::from_rgb(15, 15, 15))
+                                                .strong()
+                                                .size(11.0)
+                                        )
+                                        .fill(crate::ui::theme::ACCENT_EMERALD)
+                                        .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+                                        
+                                        if ui.add(btn).clicked() {
+                                            self.update_check.start_update(dmg_url, latest, ctx.clone());
+                                        }
+                                    } else {
+                                        let btn = egui::Button::new(
+                                            egui::RichText::new("Download")
+                                                .color(egui::Color32::from_rgb(15, 15, 15))
+                                                .strong()
+                                                .size(11.0)
+                                        )
+                                        .fill(crate::ui::theme::ACCENT_EMERALD)
+                                        .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+                                        
+                                        if ui.add(btn).clicked() {
+                                            let _ = std::process::Command::new("open")
+                                                .arg(&url)
+                                                .spawn();
+                                            self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                        }
+                                    }
+
+                                    let dismiss_btn = egui::Button::new(
+                                        egui::RichText::new("Dismiss")
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0)
+                                    )
+                                    .fill(egui::Color32::TRANSPARENT)
+                                    .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
+                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+
+                                    if ui.add(dismiss_btn).clicked() {
+                                        self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                    }
+                                }
+                                crate::updater::UpdateStatus::Downloading { .. }
+                                | crate::updater::UpdateStatus::Installing { .. } => {
+                                    let btn = egui::Button::new(
+                                        egui::RichText::new("Processing...")
+                                            .color(crate::ui::theme::TEXT_DISABLED)
+                                            .size(11.0)
+                                    )
+                                    .fill(crate::ui::theme::BG_LIGHT)
+                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+                                    
+                                    ui.add_enabled(false, btn);
+                                }
+                                crate::updater::UpdateStatus::Error(_) => {
+                                    let dismiss_btn = egui::Button::new(
+                                        egui::RichText::new("Close")
+                                            .color(crate::ui::theme::TEXT_MUTED)
+                                            .size(11.0)
+                                    )
+                                    .fill(egui::Color32::TRANSPARENT)
+                                    .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
+                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+
+                                    if ui.add(dismiss_btn).clicked() {
+                                        self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        });
+                    });
+                });
+            });
     }
 }
 
