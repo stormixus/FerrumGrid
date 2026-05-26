@@ -970,7 +970,7 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
 
                     // Version
                     ui.label(
-                        RichText::new("v0.1.4")
+                        RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
                             .color(theme::text_muted())
                             .size(11.0),
                     );
