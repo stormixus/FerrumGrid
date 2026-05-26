@@ -2,6 +2,12 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.3.8] - 2026-05-26
+
+### Changed
+
+- Redesigned the application icon set to feature a bold, modernized grid-based "F" shape composed of 9 solid-colored rounded squares (emerald green in dark mode, charcoal in light mode). Enlarged the lettermark to occupy the squircle area with tight, uniform margins (~65px padding) to align with standard premium macOS Dock designs.
+
 ## [0.3.7] - 2026-05-26
 
 ### Fixed

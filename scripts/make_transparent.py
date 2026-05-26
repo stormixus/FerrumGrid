@@ -70,12 +70,14 @@ def generate_squircle_mask(size=1024, scale_factor=4):
     # C154.667 3.25625 164.36 2.0258 174.22 0
     vertices.extend(cubic_bezier((144.837, 5.72546), (154.667, 3.25625), (164.36, 2.0258), (174.22, 0)))
 
-    # Apply translation (102.4, 102.4) and scale 0.8 to center squircle
+    # Apply translation and scale 0.85 to center squircle
     # Then multiply by scale_factor for the super-sampling high-resolution canvas
+    SCALE = 0.85
+    OFFSET = (1024 - 1024 * SCALE) / 2 # 76.8
     transformed_vertices = []
     for x, y in vertices:
-        tx = (102.4 + x * 0.8) * scale_factor
-        ty = (102.4 + y * 0.8) * scale_factor
+        tx = (OFFSET + x * SCALE) * scale_factor
+        ty = (OFFSET + y * SCALE) * scale_factor
         transformed_vertices.append((tx, ty))
         
     # Draw filled polygon on the large high-res canvas
@@ -95,8 +97,11 @@ def get_gradient_color(y, size, is_dark):
     Computes standard macOS-style 3D border gradient:
     Highlight at the top (light reflecting), transition in the middle, and soft shadow at the bottom.
     """
-    y_start = 102.4 * 4
-    y_end = 921.6 * 4
+    SCALE = 0.85
+    OFFSET = (1024 - 1024 * SCALE) / 2 # 76.8
+    scale_factor = size / 1024.0
+    y_start = OFFSET * scale_factor
+    y_end = (OFFSET + 1024 * SCALE) * scale_factor
     if y <= y_start:
         t = 0.0
     elif y >= y_end:
@@ -105,39 +110,40 @@ def get_gradient_color(y, size, is_dark):
         t = (y - y_start) / (y_end - y_start)
         
     if is_dark:
-        # Dark mode gradient: Light white-silver highlight at the top, transition to transparent gray, to dark black shadow at bottom
+        # Dark mode gradient: Luminous white-silver highlight at the top, transition to transparent gray, to soft black shadow at bottom
         if t < 0.25:
             k = t / 0.25
             r, g, b = 255, 255, 255
-            a = int(140 * (1 - k) + 50 * k)
+            # Luminous rim lighting: higher top alpha for stronger edge separation in dark UI
+            a = int(220 * (1 - k) + 80 * k)
         elif t < 0.75:
             k = (t - 0.25) / 0.50
             r = int(255 * (1 - k) + 0 * k)
             g = int(255 * (1 - k) + 0 * k)
             b = int(255 * (1 - k) + 0 * k)
-            a = int(50 * (1 - k) + 40 * k)
+            a = int(80 * (1 - k) + 40 * k) # slightly higher mid-rim opacity for better edge definition
         else:
             k = (t - 0.75) / 0.25
             r, g, b = 0, 0, 0
-            a = int(40 * (1 - k) + 160 * k)
+            a = int(40 * (1 - k) + 120 * k) # soft shadow at the bottom
     else:
-        # Light mode gradient: Pure white highlight at the top, transitioning to subtle gray, to strong dark silver shadow at bottom
+        # Light mode gradient: Pure white highlight at the top, transitioning to subtle gray, to deep dark silver shadow at bottom
         if t < 0.25:
             k = t / 0.25
             r, g, b = 255, 255, 255
-            a = int(200 * (1 - k) + 90 * k)
+            a = int(220 * (1 - k) + 100 * k)
         elif t < 0.75:
             k = (t - 0.25) / 0.50
-            r = int(255 * (1 - k) + 160 * k)
-            g = int(255 * (1 - k) + 160 * k)
-            b = int(255 * (1 - k) + 160 * k)
-            a = 90
+            r = int(255 * (1 - k) + 140 * k)
+            g = int(255 * (1 - k) + 140 * k)
+            b = int(255 * (1 - k) + 140 * k)
+            a = 100 # slightly higher mid-rim opacity for better edge definition
         else:
             k = (t - 0.75) / 0.25
-            r = int(160 * (1 - k) + 110 * k)
-            g = int(160 * (1 - k) + 110 * k)
-            b = int(160 * (1 - k) + 110 * k)
-            a = int(90 * (1 - k) + 190 * k)
+            r = int(140 * (1 - k) + 90 * k) # deeper dark silver shadow at bottom to avoid washed-out edges
+            g = int(140 * (1 - k) + 90 * k)
+            b = int(140 * (1 - k) + 90 * k)
+            a = int(100 * (1 - k) + 220 * k) # higher bottom opacity for deep shadows
             
     return (r, g, b, a)
 
