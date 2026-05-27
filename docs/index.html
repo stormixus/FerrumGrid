@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FerrumGrid - Premium Open-Source PostgreSQL Client for macOS</title>
+  <meta name="description" content="An ultra-fast, lightweight, and modern open-source PostgreSQL client for macOS built natively in Rust and egui. Starts in under 100ms with zero Electron bloat.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/app-icon.png">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Gradients and Orbs -->
+  <div class="background-grid">
+    <div class="polka-pattern"></div>
+    <div class="glow-orb-1"></div>
+    <div class="glow-orb-2"></div>
+  </div>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="container nav-wrapper">
+      <a href="#" class="logo" id="nav-logo">
+        <img src="assets/app-icon.png" alt="FerrumGrid Logo">
+        <span>FerrumGrid</span>
+      </a>
+      
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#specs">Specs</a>
+        <a href="https://github.com/stormixus/FerrumGrid" target="_blank" class="btn-github">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+        
+        <!-- Interactive Theme Switcher Button -->
+        <button class="theme-switch" id="theme-switch-btn" aria-label="Toggle light/dark theme">
+          <span>☀️</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Hero Section -->
+  <main>
+    <section class="hero-section">
+      <div class="container hero-grid">
+        <div class="hero-content">
+          <h1>The ultra-fast, lightweight PostgreSQL client for macOS.</h1>
+          <p>Built natively in Rust and egui. Starts in under 100ms. Fits seamlessly in your dock. Experience zero Electron bloat, zero startup lag, and 100% open-source power.</p>
+          
+          <div class="hero-cta">
+            <div class="cta-buttons">
+              <a href="https://github.com/stormixus/FerrumGrid/releases/download/v0.3.8/FerrumGrid-0.3.8-aarch64-apple-darwin.dmg" class="btn-primary" id="cta-download">
+                Download for macOS
+              </a>
+              <a href="https://github.com/stormixus/FerrumGrid" target="_blank" class="btn-secondary" id="cta-view-source">
+                View Source Code
+              </a>
+            </div>
+            
+            <!-- Quick Curl Installer Box -->
+            <div class="terminal-install" id="install-curl-container">
+              <span class="terminal-prompt">$</span>
+              <span class="terminal-code" id="copy-code-text">curl -LsSf https://ferrumgrid.com/install.sh | sh</span>
+              <button class="btn-copy" id="btn-copy-install" aria-label="Copy installation command">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- macOS Dock and Interactive Theme Demo -->
+        <div class="dock-container">
+          <div class="dock-glow"></div>
+          <div class="macos-dock" id="interactive-dock">
+            
+            <!-- Finder Mock Icon -->
+            <div class="dock-item" id="dock-finder">
+              <svg width="100%" height="100%" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="10" fill="url(#finder-grad)"></rect>
+                <path d="M12 14C12 12.8954 12.8954 12 14 12H24V36H14C12.8954 36 12 35.1046 12 34V14Z" fill="#8FD5FF"></path>
+                <path d="M24 12H34C35.1046 12 36 12.8954 36 14V34C36 35.1046 35.1046 36 34 36H24V12Z" fill="#1C92FF"></path>
+                <path d="M20 20C20 18.8954 20.8954 18 22 18H26C27.1046 18 28 18.8954 28 20V28C28 29.1046 27.1046 30 26 30H22C20.8954 30 20 29.1046 20 28V20Z" fill="#0C2D48" opacity="0.3"></path>
+                <circle cx="19" cy="20" r="2.5" fill="#0A3E63"></circle>
+                <circle cx="29" cy="20" r="2.5" fill="#0A3E63"></circle>
+                <path d="M19 28C19 30.5 24 31.5 29 28" stroke="#0A3E63" stroke-width="2" stroke-linecap="round"></path>
+                <defs>
+                  <linearGradient id="finder-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#EBF6FF"></stop>
+                    <stop offset="1" stop-color="#B0DFFF"></stop>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="dock-tooltip">Finder</div>
+            </div>
+
+            <!-- Safari Mock Icon -->
+            <div class="dock-item" id="dock-safari">
+              <svg width="100%" height="100%" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="10" fill="url(#safari-grad)"></rect>
+                <circle cx="24" cy="24" r="14" fill="#0A7FFF" stroke="#FFFFFF" stroke-width="1.5"></circle>
+                <path d="M28 20L20 28L22.5 22.5L28 20Z" fill="#FF3B30"></path>
+                <path d="M20 28L28 20L25.5 25.5L20 28Z" fill="#E5E5EA"></path>
+                <defs>
+                  <linearGradient id="safari-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#7BE2FC"></stop>
+                    <stop offset="1" stop-color="#023DF6"></stop>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="dock-tooltip">Safari</div>
+            </div>
+
+            <!-- FerrumGrid Dynamic Dock Icon (Main Attraction) -->
+            <div class="dock-item ferrumgrid-dock" id="dock-ferrumgrid">
+              <div class="ferrumgrid-glow"></div>
+              <img src="assets/app-icon.png" alt="FerrumGrid Dock Icon" id="ferrumgrid-dock-icon">
+              <div class="dock-tooltip">FerrumGrid (Active)</div>
+            </div>
+
+            <!-- Terminal Mock Icon -->
+            <div class="dock-item" id="dock-terminal">
+              <svg width="100%" height="100%" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="10" fill="#1C1C1E" stroke="rgba(255,255,255,0.1)" stroke-width="1"></rect>
+                <path d="M12 16L18 21L12 26" stroke="#3ECF8E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M19 26H29" stroke="#3ECF8E" stroke-width="2.5" stroke-linecap="round"></path>
+              </svg>
+              <div class="dock-tooltip">Terminal</div>
+            </div>
+
+            <!-- System Settings Mock Icon -->
+            <div class="dock-item" id="dock-settings">
+              <svg width="100%" height="100%" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="10" fill="url(#settings-grad)"></rect>
+                <circle cx="24" cy="24" r="8" fill="#AEAEB2"></circle>
+                <circle cx="24" cy="24" r="5" fill="#E5E5EA"></circle>
+                <defs>
+                  <linearGradient id="settings-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#E5E5EA"></stop>
+                    <stop offset="1" stop-color="#8E8E93"></stop>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="dock-tooltip">System Settings</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Features Section -->
+    <section class="features-section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <h2>Stunningly simple, native UI.</h2>
+          <p>We believe professional database clients shouldn't be sluggish. Designed for speed, built for developers.</p>
+        </div>
+
+        <div class="features-tabs-wrapper">
+          <!-- Tab Navigation -->
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="query" id="tab-btn-query">
+              SQL Query Runner
+              <span>Instant database table lookup, auto-completions, and query history caching.</span>
+            </button>
+            <button class="tab-btn" data-tab="connect" id="tab-btn-connect">
+              Connection Manager
+              <span>Save multiple database connections locally and securely with SSL tunnel options.</span>
+            </button>
+            <button class="tab-btn" data-tab="installer" id="tab-btn-installer">
+              Premium DMG Installer
+              <span>Double click, drag, and drop. Built with dynamic AppleScript coordinates.</span>
+            </button>
+          </div>
+
+          <!-- Glassmorphic Window Mockups Container -->
+          <div class="tab-content-panel">
+            
+            <!-- SQL Editor Panel -->
+            <div class="glass-window tab-panel-block" id="tab-content-query">
+              <div class="window-header">
+                <div class="window-dots">
+                  <span class="dot dot-red"></span>
+                  <span class="dot dot-yellow"></span>
+                  <span class="dot dot-green"></span>
+                </div>
+                <div class="window-title">SQL Editor — FerrumGrid</div>
+                <div class="window-action-placeholder"></div>
+              </div>
+              <div class="window-body">
+                <div class="mock-editor">
+                  <span class="comment">-- Fetch recently active system operators</span><br>
+                  <span class="keyword">SELECT</span> id, username, email, is_active<br>
+                  <span class="keyword">FROM</span> users<br>
+                  <span class="keyword">WHERE</span> active = <span class="string">true</span> <span class="keyword">LIMIT</span> <span class="string">3</span>;
+                </div>
+                <div class="mock-table-wrapper">
+                  <table class="mock-table">
+                    <thead>
+                      <tr>
+                        <th>id</th>
+                        <th>username</th>
+                        <th>email</th>
+                        <th>is_active</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>1</td>
+                        <td>stormixus</td>
+                        <td>stormix@me.com</td>
+                        <td style="color: #3ECF8E;">true</td>
+                      </tr>
+                      <tr>
+                        <td>2</td>
+                        <td>ferrum_dev</td>
+                        <td>rust@ferrumgrid.com</td>
+                        <td style="color: #3ECF8E;">true</td>
+                      </tr>
+                      <tr>
+                        <td>3</td>
+                        <td>k_shin</td>
+                        <td>hwanki@shin.co</td>
+                        <td style="color: #3ECF8E;">true</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Connection Panel -->
+            <div class="glass-window tab-panel-block" id="tab-content-connect" style="display: none;">
+              <div class="window-header">
+                <div class="window-dots">
+                  <span class="dot dot-red"></span>
+                  <span class="dot dot-yellow"></span>
+                  <span class="dot dot-green"></span>
+                </div>
+                <div class="window-title">Connect to PostgreSQL — FerrumGrid</div>
+                <div class="window-action-placeholder"></div>
+              </div>
+              <div class="window-body" style="display: flex; flex-direction: column; gap: 1rem; max-width: 480px; margin: 0 auto; padding: 2rem 0;">
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                  <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Host Address</span>
+                  <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem; font-size: 0.9rem;">127.0.0.1</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 0.7fr 0.3fr; gap: 1rem;">
+                  <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Database User</span>
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem; font-size: 0.9rem;">postgres</div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Port</span>
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem; font-size: 0.9rem;">5432</div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                  <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Password</span>
+                  <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.6rem; font-size: 0.9rem; letter-spacing: 0.15em;">••••••••••••</div>
+                </div>
+                <button class="btn-primary" style="margin-top: 1rem; justify-content: center; padding: 0.7rem; font-size: 1rem; border: none; cursor: pointer;">Connect Database</button>
+              </div>
+            </div>
+
+            <!-- DMG Installer Panel (Showing the beautiful custom DMG background we created!) -->
+            <div class="glass-window tab-panel-block" id="tab-content-installer" style="display: none;">
+              <div class="window-header">
+                <div class="window-dots">
+                  <span class="dot dot-red"></span>
+                  <span class="dot dot-yellow"></span>
+                  <span class="dot dot-green"></span>
+                </div>
+                <div class="window-title">FerrumGrid Installer</div>
+                <div class="window-action-placeholder"></div>
+              </div>
+              <div class="window-body mock-dmg-body">
+                <div class="dmg-bg-image"></div>
+                <div class="dmg-interactive-layer">
+                  <div class="dmg-icon-card" id="dmg-icon-app">
+                    <img src="assets/app-icon.png" alt="FerrumGrid App">
+                    <span>FerrumGrid.app</span>
+                  </div>
+                  <div class="dmg-drag-line"></div>
+                  <div class="dmg-icon-card" id="dmg-icon-applications">
+                    <!-- Standard macOS Application folder SVG icon representation -->
+                    <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
+                      <rect width="64" height="64" rx="14" fill="#E5E5EA" opacity="0.1"></rect>
+                      <path d="M8 18C8 15.7909 9.79086 14 12 14H24L28 18H52C54.2091 18 56 19.7909 56 22V48C56 50.2091 54.2091 52 52 52H12C9.79086 52 8 50.2091 8 48V18Z" fill="#0C84FF"></path>
+                      <circle cx="32" cy="35" r="9" fill="#FFFFFF" opacity="0.9"></circle>
+                      <path d="M32 29L35 34H29L32 29Z" fill="#0C84FF"></path>
+                    </svg>
+                    <span>Applications</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technical Specs Section -->
+    <section class="specs-section" id="specs">
+      <div class="container">
+        <div class="section-header">
+          <h2>Engineered for developers.</h2>
+          <p>We threw away the web wrappers and built a highly efficient tool from scratch.</p>
+        </div>
+
+        <div class="specs-grid">
+          <!-- Spec Card 1 -->
+          <div class="spec-card">
+            <div class="spec-icon">🦀</div>
+            <h3>Written in Rust</h3>
+            <p>Leveraging Rust's type-safety, unmatched speed, and minimal memory foot-print. No garbage collection lag.</p>
+          </div>
+          <!-- Spec Card 2 -->
+          <div class="spec-card">
+            <div class="spec-icon">⚡</div>
+            <h3>&lt; 100ms Startup</h3>
+            <p>Launches instantly from the Dock. Database lookup and diagnostics ready before you even position your hands on the keyboard.</p>
+          </div>
+          <!-- Spec Card 3 -->
+          <div class="spec-card">
+            <div class="spec-icon">🔒</div>
+            <h3>100% Secure &amp; OSS</h3>
+            <p>MIT Licensed. Absolutely no trackers, telemetry, account sign-ups, or remote cloud database access. Your data stays yours.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer Navigation -->
+  <footer>
+    <div class="container footer-wrapper">
+      <div class="footer-left">
+        <p>© 2026 FerrumGrid. Built with passion under the MIT License.</p>
+        <p>Dynamic theme switching via macOS Cocoa APIs.</p>
+      </div>
+      <div class="footer-right">
+        <a href="https://github.com/stormixus/FerrumGrid" target="_blank">GitHub</a>
+        <a href="#features">Features</a>
+        <a href="#specs">Specs</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript App -->
+  <script src="app.js"></script>
+</body>
+</html>
