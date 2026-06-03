@@ -333,6 +333,35 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     add_empty_row(state);
                 }
 
+                ui.add_space(theme::SPACE_SM);
+
+                let import_btn = result_toolbar_action_button(
+                    ui,
+                    crate::ui::icons_svg::EXPORT,
+                    "import_csv",
+                    &t("grid_import_csv"),
+                    true,
+                );
+                if import_btn.clicked() {
+                    if let Some(source) = state.data_edit.source.clone() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("CSV", &["csv"])
+                            .pick_file()
+                        {
+                            bridge.send(crate::db::bridge::DbCommand::ImportCsv {
+                                conn_id: source.conn_id,
+                                schema: source.schema.clone(),
+                                table: source.table.clone(),
+                                path,
+                            });
+                            state.status_message = format!(
+                                "Importing CSV into {}.{}\u{2026}",
+                                source.schema, source.table
+                            );
+                        }
+                    }
+                }
+
                 ui.add_space(theme::SPACE_MD);
             }
 

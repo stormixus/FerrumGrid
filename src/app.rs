@@ -574,6 +574,49 @@ impl FerrumGridApp {
                     self.state.migration_wizard.apply_error = Some(error.clone());
                     self.state.status_message = format!("Migration failed: {error}");
                 }
+                DbResponse::CsvImported {
+                    conn_id,
+                    schema,
+                    table,
+                    rows,
+                } => {
+                    let msg = format!("Imported {rows} rows into {schema}.{table}");
+                    self.state.status_message = msg.clone();
+                    self.toasts
+                        .info(msg)
+                        .duration(Some(std::time::Duration::from_secs(5)));
+                    // 가져온 테이블을 보고 있으면 그리드 새로고침.
+                    let viewing = self
+                        .state
+                        .data_edit
+                        .source
+                        .as_ref()
+                        .map(|s| s.conn_id == conn_id && s.schema == schema && s.table == table)
+                        .unwrap_or(false);
+                    if viewing {
+                        let source = crate::state::DataSource {
+                            conn_id,
+                            schema: schema.clone(),
+                            table: table.clone(),
+                            filter: None,
+                        };
+                        let limit = self.state.data_edit.page_limit;
+                        let columns = self.state.data_columns_for_source(&source);
+                        let sql = build_data_select_sql_with_columns(
+                            &source,
+                            &self.state.data_edit.sort,
+                            limit,
+                            0,
+                            &columns,
+                        );
+                        bridge.send(crate::db::bridge::DbCommand::ExecuteQuery {
+                            conn_id,
+                            sql,
+                            row_limit: Some(limit),
+                        });
+                        self.state.query_running = true;
+                    }
+                }
                 DbResponse::TransferProgress { progress } => {
                     self.state.transfer.progress = Some(progress);
                 }

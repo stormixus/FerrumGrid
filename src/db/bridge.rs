@@ -115,6 +115,13 @@ pub enum DbCommand {
         target_config: ConnectionConfig,
         sql: String,
     },
+    /// CSV 파일을 대상 테이블로 import (COPY FROM STDIN).
+    ImportCsv {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        path: std::path::PathBuf,
+    },
 }
 
 #[derive(Debug)]
@@ -242,6 +249,13 @@ pub enum DbResponse {
     MigrationFailed {
         error: String,
     },
+    /// CSV import 완료 — 적재된 행 수.
+    CsvImported {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        rows: u64,
+    },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
     /// routing 용 (현재 app.rs handler 가 단일 drop_dialog 만 추적하므로 무시).
@@ -360,6 +374,11 @@ enum ConnCommand {
     FetchDependents {
         refobjid: u32,
     },
+    ImportCsv {
+        schema: String,
+        table: String,
+        path: std::path::PathBuf,
+    },
     Shutdown,
 }
 
@@ -445,6 +464,23 @@ async fn dispatch_loop(
                     let _ = handle
                         .task_tx
                         .send(ConnCommand::ExecuteAutomation { task_id, sql })
+                        .await;
+                }
+            }
+            DbCommand::ImportCsv {
+                conn_id,
+                schema,
+                table,
+                path,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ImportCsv {
+                            schema,
+                            table,
+                            path,
+                        })
                         .await;
                 }
             }
@@ -1009,6 +1045,27 @@ async fn connection_task(
                         conn_id,
                         error: crate::db::error::DbError::from_pg(&e, conn_id),
                     },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ImportCsv {
+                schema,
+                table,
+                path,
+            } => {
+                let response = match crate::db::import::import_csv_file(
+                    &client, &schema, &table, &path, conn_id,
+                )
+                .await
+                {
+                    Ok(rows) => DbResponse::CsvImported {
+                        conn_id,
+                        schema,
+                        table,
+                        rows,
+                    },
+                    Err(error) => DbResponse::Error { conn_id, error },
                 };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();

@@ -10,6 +10,7 @@ pub mod ddl;
 pub mod ddl_create;
 pub mod edits;
 pub mod error;
+pub mod import;
 pub mod introspect;
 pub mod invalidate;
 pub mod metadata;
