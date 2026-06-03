@@ -21,7 +21,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned to match rust-toolchain.toml so clippy lints stay deterministic
+      # across stable Rust releases. Bump both together.
+      - uses: dtolnay/rust-toolchain@1.96.0
       - uses: Swatinem/rust-cache@v2
 
       - name: Install Linux dependencies
