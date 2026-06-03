@@ -1,3 +1,4 @@
+pub mod automation;
 pub mod backups;
 pub mod connections;
 pub mod history;

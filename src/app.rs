@@ -498,6 +498,8 @@ impl FerrumGridApp {
                     if let Ok(mut store) = self.state.automation.write() {
                         store.mark_run(task_id, chrono::Utc::now(), result.clone());
                     }
+                    // 실행 후 last_run/next_run 갱신을 디스크에 영속화.
+                    crate::ui::objects::persist_automation(&self.state);
                     match result {
                         ApplyResult::Success { rows_affected } => {
                             self.toasts.info(format!(

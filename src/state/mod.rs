@@ -418,7 +418,9 @@ impl Default for AppState {
             dragging_saved_connection: None,
             diagnostics_panel: DiagnosticsPanel::default(),
             automation: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::automation::scheduler::AutomationStore::default(),
+                crate::automation::scheduler::AutomationStore::from_tasks(
+                    crate::storage::automation::load_tasks(),
+                ),
             )),
             automation_draft: AutomationDraft::default(),
             explicit_tx_active: false,

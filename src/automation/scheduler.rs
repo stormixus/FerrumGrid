@@ -9,12 +9,13 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// 예약 정책. Plan v7 §6 Phase 4b — *최소* 2 종 (즉시 실행 + 주기 실행).
 /// Cron 스타일 (특정 시각/요일) 은 Phase 4b 의 minimum acceptance 외 — 향후 확장.
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Schedule {
     /// 단일 시점 실행 (해당 시각 도달 시 1회).
     Once { at: DateTime<Utc> },
@@ -24,7 +25,7 @@ pub enum Schedule {
 
 /// SQL 실행 결과 (응답으로 노출).
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ApplyResult {
     Success { rows_affected: u64 },
     Failed { error: String },
@@ -46,7 +47,7 @@ impl ApplyResult {
 
 /// 단일 자동화 작업.
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduledTask {
     pub id: Uuid,
     pub title: String,
@@ -130,6 +131,20 @@ pub struct AutomationStore {
 impl AutomationStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// 디스크에서 로드한 task 목록으로 store 재구성 (startup 시).
+    pub fn from_tasks(tasks: Vec<ScheduledTask>) -> Self {
+        Self {
+            tasks: tasks.into_iter().map(|t| (t.id, t)).collect(),
+        }
+    }
+
+    /// 영속화를 위해 모든 task 를 Vec 로 복제 (정렬: title).
+    pub fn all_tasks(&self) -> Vec<ScheduledTask> {
+        let mut tasks: Vec<ScheduledTask> = self.tasks.values().cloned().collect();
+        tasks.sort_by(|a, b| a.title.cmp(&b.title));
+        tasks
     }
 
     /// task 등록 — `next_run` 은 이미 `ScheduledTask::new` 에서 derived.
@@ -427,6 +442,39 @@ mod tests {
             task.next_run.is_none(),
             "Once task 가 mark_run 후 더 이상 실행 안 됨"
         );
+    }
+
+    #[test]
+    fn scheduled_task_json_round_trips() {
+        let task = ScheduledTask::new(
+            "nightly",
+            "VACUUM ANALYZE",
+            Schedule::Interval {
+                period: Duration::from_secs(86_400),
+            },
+        );
+        let json = serde_json::to_string(&task).expect("serialize");
+        let back: ScheduledTask = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.id, task.id);
+        assert_eq!(back.title, task.title);
+        assert_eq!(back.sql, task.sql);
+        assert_eq!(back.schedule, task.schedule);
+    }
+
+    #[test]
+    fn store_from_tasks_restores_all() {
+        let original = AutomationStore::from_tasks(vec![
+            ScheduledTask::new("a", "SELECT 1", Schedule::Interval {
+                period: Duration::from_secs(60),
+            }),
+            ScheduledTask::new("b", "SELECT 2", Schedule::Once {
+                at: ts("2026-05-05T03:00:00Z"),
+            }),
+        ]);
+        assert_eq!(original.len(), 2);
+        let snapshot = original.all_tasks();
+        let restored = AutomationStore::from_tasks(snapshot);
+        assert_eq!(restored.len(), 2);
     }
 
     #[test]

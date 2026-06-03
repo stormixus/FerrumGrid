@@ -399,6 +399,13 @@ fn refresh_current_view(state: &mut AppState, bridge: &DbBridge) {
     }
 }
 
+/// 자동화 작업 목록을 디스크에 스냅샷 (add/remove/mark_run 직후 호출).
+pub fn persist_automation(state: &AppState) {
+    if let Ok(store) = state.automation.read() {
+        crate::storage::automation::save_tasks(&store.all_tasks());
+    }
+}
+
 fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, action: ObjectAction) {
     match action {
         ObjectAction::ViewData {
@@ -511,6 +518,7 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                 .expect("automation lock poisoned")
                 .add(ScheduledTask::new(title, sql, schedule));
             state.automation_draft.reset();
+            persist_automation(state);
         }
         ObjectAction::AutomationRunNow { id, sql } => {
             if let Some(conn_id) = state.active_connection {
@@ -527,6 +535,7 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                 .write()
                 .expect("automation lock poisoned")
                 .remove(id);
+            persist_automation(state);
         }
         ObjectAction::SelectTable { schema, name } => {
             state.objects_selected_table = Some((schema.clone(), name.clone()));
