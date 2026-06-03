@@ -260,6 +260,8 @@ pub struct AppState {
     pub echo_warned: HashSet<u32>,
     pub query_history: Vec<crate::storage::history::HistoryEntry>,
     pub show_history_panel: bool,
+    /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
+    pub history_search: String,
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
     pub migration_wizard: MigrationWizardState,
@@ -427,6 +429,7 @@ impl Default for AppState {
             echo_warned: HashSet::new(),
             query_history: Vec::new(),
             show_history_panel: false,
+            history_search: String::new(),
             transfer: TransferState::default(),
             clipboard_tables: None,
             migration_wizard: MigrationWizardState::default(),

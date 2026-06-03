@@ -1395,12 +1395,28 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
         return;
     }
 
+    ui.add_space(4.0);
+    ui.add(
+        egui::TextEdit::singleline(&mut state.history_search)
+            .hint_text("Filter history…")
+            .desired_width(f32::INFINITY)
+            .font(egui::TextStyle::Monospace),
+    );
+    ui.add_space(4.0);
+
+    let needle = state.history_search.trim().to_lowercase();
+
     egui::ScrollArea::vertical()
         .id_salt("history_scroll")
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let mut load_query = None;
+            let mut shown = 0usize;
             for (idx, entry) in state.query_history.iter().rev().enumerate() {
+                if !needle.is_empty() && !entry.query.to_lowercase().contains(&needle) {
+                    continue;
+                }
+                shown += 1;
                 let preview: String = entry
                     .query
                     .chars()
@@ -1460,6 +1476,16 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
                     load_query = Some(entry.query.clone());
                 }
                 ui.add_space(2.0);
+            }
+
+            if shown == 0 {
+                ui.centered_and_justified(|ui| {
+                    ui.label(
+                        RichText::new("No matches")
+                            .color(theme::text_muted())
+                            .size(11.0),
+                    );
+                });
             }
 
             if let Some(query) = load_query {
