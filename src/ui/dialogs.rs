@@ -489,6 +489,47 @@ fn render_saved_connection_row(
 // ---------------------------------------------------------------------------
 
 fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
+    // URL/DSN 빠른 입력 — 폼과 양방향 변환.
+    ui.label(
+        RichText::new(t("connection_url"))
+            .color(theme::text_muted())
+            .size(12.0),
+    );
+    ui.add(
+        theme::mono_text_input(&mut dialog.url_input)
+            .hint_text("postgres://user:pass@host:5432/db")
+            .desired_width(f32::INFINITY),
+    );
+    ui.add_space(theme::SPACE_XS);
+    ui.horizontal(|ui| {
+        if ui.add(theme::secondary_button(&t("connection_url_apply"))).clicked() {
+            if let Some(parsed) =
+                crate::connection_url::parse_postgres_connection_url(&dialog.url_input)
+            {
+                dialog.host = parsed.host;
+                dialog.port = parsed.port.to_string();
+                dialog.database = parsed.database;
+                dialog.username = parsed.username;
+                if !parsed.password.is_empty() {
+                    dialog.password = parsed.password;
+                }
+                dialog.use_tls = parsed.use_tls;
+            }
+        }
+        if ui.add(theme::secondary_button(&t("connection_url_from_form"))).clicked() {
+            dialog.url_input = crate::connection_url::PostgresConnectionUrl {
+                host: dialog.host.clone(),
+                port: dialog.port.parse().unwrap_or(5432),
+                database: dialog.database.clone(),
+                username: dialog.username.clone(),
+                password: dialog.password.clone(),
+                use_tls: dialog.use_tls,
+            }
+            .to_url();
+        }
+    });
+    ui.add_space(theme::SPACE_SM);
+
     egui::Grid::new("conn_fields")
         .num_columns(2)
         .min_col_width(80.0)

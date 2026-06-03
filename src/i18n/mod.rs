@@ -4172,6 +4172,9 @@ pub fn init() {
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_group", "Group");
+    en.insert("connection_url", "Connection URL");
+    en.insert("connection_url_apply", "Fill from URL");
+    en.insert("connection_url_from_form", "Build URL");
     en.insert("connection_host", "Host");
     en.insert("connection_port", "Port");
     en.insert("connection_database", "Database");
@@ -4474,6 +4477,9 @@ pub fn init() {
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_group", "그룹");
+    ko.insert("connection_url", "연결 URL");
+    ko.insert("connection_url_apply", "URL에서 채우기");
+    ko.insert("connection_url_from_form", "URL 생성");
     ko.insert("connection_host", "호스트");
     ko.insert("connection_port", "포트");
     ko.insert("connection_database", "데이터베이스");
@@ -4765,6 +4771,9 @@ pub fn init() {
     ja.insert("connection_dialog_title", "新規接続");
     ja.insert("connection_name", "名前");
     ja.insert("connection_group", "グループ");
+    ja.insert("connection_url", "接続URL");
+    ja.insert("connection_url_apply", "URLから入力");
+    ja.insert("connection_url_from_form", "URLを生成");
     ja.insert("connection_host", "ホスト");
     ja.insert("connection_port", "ポート");
     ja.insert("connection_database", "データベース");
@@ -4865,6 +4874,9 @@ pub fn init() {
     zh.insert("connection_dialog_title", "新建连接");
     zh.insert("connection_name", "名称");
     zh.insert("connection_group", "分组");
+    zh.insert("connection_url", "连接URL");
+    zh.insert("connection_url_apply", "从URL填充");
+    zh.insert("connection_url_from_form", "生成URL");
     zh.insert("connection_host", "主机");
     zh.insert("connection_port", "端口");
     zh.insert("connection_database", "数据库");

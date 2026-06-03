@@ -787,6 +787,8 @@ pub struct ConnectionDialogState {
     pub use_tls: bool,
     /// 선택적 폴더/그룹명 (dev/staging/prod 등). 빈 문자열 = 미분류.
     pub group: String,
+    /// 연결 URL/DSN 빠른 입력 필드 (폼과 양방향 변환용 transient 버퍼).
+    pub url_input: String,
     pub testing: bool,
     pub test_result: Option<Result<String, String>>,
     pub editing_id: Option<ConnectionId>,
@@ -809,6 +811,7 @@ impl Default for ConnectionDialogState {
             show_password: false,
             use_tls: false,
             group: String::new(),
+            url_input: String::new(),
             testing: false,
             test_result: None,
             editing_id: None,
@@ -863,6 +866,15 @@ impl ConnectionDialogState {
             show_password: false,
             use_tls: config.use_tls,
             group: config.group.clone().unwrap_or_default(),
+            url_input: crate::connection_url::PostgresConnectionUrl {
+                host: config.host.clone(),
+                port: config.port,
+                database: config.database.clone(),
+                username: config.username.clone(),
+                password: config.password.clone(),
+                use_tls: config.use_tls,
+            }
+            .to_url(),
             testing: false,
             test_result: None,
             editing_id: Some(config.id),
