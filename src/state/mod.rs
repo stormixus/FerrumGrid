@@ -826,6 +826,12 @@ pub struct ConnectionDialogState {
     pub password: String,
     pub show_password: bool,
     pub use_tls: bool,
+    /// libpq sslmode: require / verify-ca / verify-full.
+    pub sslmode: String,
+    /// CA root / client cert / client key 파일 경로 (빈 문자열 = 미설정).
+    pub ssl_root_cert: String,
+    pub ssl_client_cert: String,
+    pub ssl_client_key: String,
     /// 선택적 폴더/그룹명 (dev/staging/prod 등). 빈 문자열 = 미분류.
     pub group: String,
     /// 연결 URL/DSN 빠른 입력 필드 (폼과 양방향 변환용 transient 버퍼).
@@ -851,6 +857,10 @@ impl Default for ConnectionDialogState {
             password: String::new(),
             show_password: false,
             use_tls: false,
+            sslmode: "require".to_string(),
+            ssl_root_cert: String::new(),
+            ssl_client_cert: String::new(),
+            ssl_client_key: String::new(),
             group: String::new(),
             url_input: String::new(),
             testing: false,
@@ -861,6 +871,16 @@ impl Default for ConnectionDialogState {
             last_clipboard_text: None,
             pending_clipboard_import: None,
         }
+    }
+}
+
+/// 빈 문자열은 None, 그 외는 trim 후 Some(path).
+fn opt_path(s: &str) -> Option<String> {
+    let t = s.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
     }
 }
 
@@ -882,6 +902,10 @@ impl ConnectionDialogState {
             username: self.username.clone(),
             password: self.password.clone(),
             use_tls: self.use_tls,
+            sslmode: self.sslmode.clone(),
+            ssl_root_cert: opt_path(&self.ssl_root_cert),
+            ssl_client_cert: opt_path(&self.ssl_client_cert),
+            ssl_client_key: opt_path(&self.ssl_client_key),
             color_tag: None,
             group: {
                 let g = self.group.trim();
@@ -906,6 +930,14 @@ impl ConnectionDialogState {
             password: config.password.clone(),
             show_password: false,
             use_tls: config.use_tls,
+            sslmode: if config.sslmode.is_empty() {
+                "require".to_string()
+            } else {
+                config.sslmode.clone()
+            },
+            ssl_root_cert: config.ssl_root_cert.clone().unwrap_or_default(),
+            ssl_client_cert: config.ssl_client_cert.clone().unwrap_or_default(),
+            ssl_client_key: config.ssl_client_key.clone().unwrap_or_default(),
             group: config.group.clone().unwrap_or_default(),
             url_input: crate::connection_url::PostgresConnectionUrl {
                 host: config.host.clone(),

@@ -635,6 +635,22 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             });
             ui.end_row();
 
+            if dialog.use_tls {
+                field_label(ui, t("connection_sslmode"));
+                egui::ComboBox::from_id_salt("conn_sslmode")
+                    .selected_text(&dialog.sslmode)
+                    .show_ui(ui, |ui| {
+                        for m in ["require", "verify-ca", "verify-full"] {
+                            ui.selectable_value(&mut dialog.sslmode, m.to_string(), m);
+                        }
+                    });
+                ui.end_row();
+
+                cert_file_row(ui, t("connection_ssl_root_cert"), &mut dialog.ssl_root_cert);
+                cert_file_row(ui, t("connection_ssl_client_cert"), &mut dialog.ssl_client_cert);
+                cert_file_row(ui, t("connection_ssl_client_key"), &mut dialog.ssl_client_key);
+            }
+
             field_label(ui, t("connection_ssh_tunnel"));
             ui.add_enabled(
                 false,
@@ -648,6 +664,30 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             );
             ui.end_row();
         });
+}
+
+/// 인증서 파일 경로 입력 행: 텍스트 필드 + 파일 선택(…) + 지우기(×).
+fn cert_file_row(ui: &mut egui::Ui, label: String, value: &mut String) {
+    field_label(ui, label);
+    ui.horizontal(|ui| {
+        ui.add(
+            theme::mono_text_input(value)
+                .hint_text("/path/to.pem")
+                .desired_width(190.0),
+        );
+        if ui.small_button("\u{2026}").clicked() {
+            if let Some(p) = rfd::FileDialog::new()
+                .add_filter("PEM", &["pem", "crt", "cer", "key"])
+                .pick_file()
+            {
+                *value = p.display().to_string();
+            }
+        }
+        if !value.is_empty() && ui.small_button("\u{00d7}").clicked() {
+            value.clear();
+        }
+    });
+    ui.end_row();
 }
 
 fn field_label(ui: &mut egui::Ui, text: String) {

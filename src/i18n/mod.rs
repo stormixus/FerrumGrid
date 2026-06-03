@@ -4178,6 +4178,10 @@ pub fn init() {
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_group", "Group");
+    en.insert("connection_sslmode", "SSL Mode");
+    en.insert("connection_ssl_root_cert", "CA Root Cert");
+    en.insert("connection_ssl_client_cert", "Client Cert");
+    en.insert("connection_ssl_client_key", "Client Key");
     en.insert("connection_url", "Connection URL");
     en.insert("connection_url_apply", "Fill from URL");
     en.insert("connection_url_from_form", "Build URL");
@@ -4508,6 +4512,10 @@ pub fn init() {
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_group", "그룹");
+    ko.insert("connection_sslmode", "SSL 모드");
+    ko.insert("connection_ssl_root_cert", "CA 루트 인증서");
+    ko.insert("connection_ssl_client_cert", "클라이언트 인증서");
+    ko.insert("connection_ssl_client_key", "클라이언트 키");
     ko.insert("connection_url", "연결 URL");
     ko.insert("connection_url_apply", "URL에서 채우기");
     ko.insert("connection_url_from_form", "URL 생성");

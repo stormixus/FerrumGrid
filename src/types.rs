@@ -26,6 +26,18 @@ pub struct ConnectionConfig {
     #[serde(default)]
     pub password: String,
     pub use_tls: bool,
+    /// libpq sslmode: "" (=require), "require", "verify-ca", "verify-full".
+    #[serde(default)]
+    pub sslmode: String,
+    /// CA root 인증서 경로 (sslrootcert). verify-ca/verify-full 검증용.
+    #[serde(default)]
+    pub ssl_root_cert: Option<String>,
+    /// 클라이언트 인증서 경로 (sslcert, mTLS).
+    #[serde(default)]
+    pub ssl_client_cert: Option<String>,
+    /// 클라이언트 키 경로 (sslkey, mTLS, PKCS#8 PEM).
+    #[serde(default)]
+    pub ssl_client_key: Option<String>,
     pub color_tag: Option<String>,
     /// 선택적 폴더/그룹명 (dev/staging/prod 등). None/빈 문자열 = 미분류.
     #[serde(default)]
@@ -235,6 +247,10 @@ impl Default for ConnectionConfig {
             username: "postgres".to_string(),
             password: String::new(),
             use_tls: false,
+            sslmode: String::new(),
+            ssl_root_cert: None,
+            ssl_client_cert: None,
+            ssl_client_key: None,
             color_tag: None,
             group: None,
             ssh_tunnel: None,
