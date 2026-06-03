@@ -783,6 +783,8 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("tree_history_title", "Query History");
     en.insert("tree_history_desc", "Recent queries will appear here");
     en.insert("tree_snippets_title", "Saved Snippets");
+    en.insert("snippet_name_hint", "Snippet name (optional)");
+    en.insert("snippet_save_current", "Save current query");
     en.insert("tree_snippets_desc", "Save frequently used queries here");
 
     // Panels
@@ -1483,6 +1485,8 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("tree_history_title", "쿼리 히스토리");
     ko.insert("tree_history_desc", "최근 쿼리가 여기에 표시됩니다");
     ko.insert("tree_snippets_title", "저장된 스니펫");
+    ko.insert("snippet_name_hint", "스니펫 이름 (선택)");
+    ko.insert("snippet_save_current", "현재 쿼리 저장");
     ko.insert("tree_snippets_desc", "자주 사용하는 쿼리를 여기에 저장하세요");
 
     // Panels

@@ -276,6 +276,10 @@ pub struct AppState {
     pub show_history_panel: bool,
     /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
     pub history_search: String,
+    /// 저장된 SQL 스니펫 라이브러리 (이름으로 삽입).
+    pub snippets: Vec<crate::storage::snippets::Snippet>,
+    /// 새 스니펫 저장 시 입력하는 이름 버퍼.
+    pub snippet_draft_name: String,
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
     pub migration_wizard: MigrationWizardState,
@@ -452,6 +456,8 @@ impl Default for AppState {
             query_history: Vec::new(),
             show_history_panel: false,
             history_search: String::new(),
+            snippets: crate::storage::snippets::load_snippets(),
+            snippet_draft_name: String::new(),
             transfer: TransferState::default(),
             clipboard_tables: None,
             migration_wizard: MigrationWizardState::default(),
