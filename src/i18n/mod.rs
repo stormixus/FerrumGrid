@@ -4268,6 +4268,8 @@ pub fn init() {
     en.insert("sessions_confirm", "Confirm kill");
     en.insert("sessions_no_connection", "No active connection");
     en.insert("explain_window_title", "Query Plan");
+    en.insert("explain_interpret", "Interpret with AI");
+    en.insert("explain_advice_title", "AI tuning hints");
     en.insert(
         "explain_window_hint",
         "EXPLAIN (FORMAT JSON) — estimated cost & rows. Hottest nodes in red.",
@@ -4622,6 +4624,8 @@ pub fn init() {
     ko.insert("sessions_confirm", "종료 확인");
     ko.insert("sessions_no_connection", "활성 연결 없음");
     ko.insert("explain_window_title", "쿼리 플랜");
+    ko.insert("explain_interpret", "AI 해석");
+    ko.insert("explain_advice_title", "AI 튜닝 힌트");
     ko.insert(
         "explain_window_hint",
         "EXPLAIN (FORMAT JSON) — 예상 비용 및 행 수. 비용 큰 노드는 빨강.",

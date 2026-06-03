@@ -641,6 +641,7 @@ impl FerrumGridApp {
                     match crate::db::explain::parse_explain_json(&json) {
                         Some(plan) => {
                             self.state.explain_plan = Some(plan);
+                            self.state.explain_advice = None;
                             self.state.show_explain_window = true;
                         }
                         None => {
@@ -828,7 +829,7 @@ impl eframe::App for FerrumGridApp {
         ui::backup_dialogs::render_backup_wizard(ctx, &mut self.state, bridge, &self.settings);
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
-        ui::explain_window::render_explain_window(ctx, &mut self.state);
+        ui::explain_window::render_explain_window(ctx, &mut self.state, &self.settings);
         ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();

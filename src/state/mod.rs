@@ -212,6 +212,9 @@ pub struct AppState {
     /// EXPLAIN 플랜 트리 (파싱 결과). 창에 표시.
     pub explain_plan: Option<crate::db::explain::PlanNode>,
     pub show_explain_window: bool,
+    /// AI 플랜 해석 결과(조언) + 백그라운드 작업 슬롯.
+    pub explain_advice: Option<String>,
+    pub explain_advice_job: std::sync::Arc<std::sync::Mutex<crate::ai::AiJob>>,
     /// AI text-to-SQL 프롬프트 바 + 백그라운드 작업 슬롯.
     pub ai_prompt_open: bool,
     pub ai_prompt_input: String,
@@ -419,6 +422,10 @@ impl Default for AppState {
             find_match_idx: 0,
             explain_plan: None,
             show_explain_window: false,
+            explain_advice: None,
+            explain_advice_job: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::ai::AiJob::default(),
+            )),
             ai_prompt_open: false,
             ai_prompt_input: String::new(),
             ai_job: std::sync::Arc::new(std::sync::Mutex::new(crate::ai::AiJob::default())),

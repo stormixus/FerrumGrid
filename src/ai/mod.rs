@@ -29,9 +29,31 @@ pub fn generate_sql(
         return Err("Empty prompt".to_string());
     }
     let system = build_system_prompt(schema);
+    chat(backend, model, api_key, &system, prompt).map(|s| strip_fences(&s))
+}
+
+/// EXPLAIN 플랜 텍스트를 받아 Postgres 튜닝 조언(프로즈)을 생성.
+pub fn interpret_plan(
+    backend: &str,
+    model: &str,
+    api_key: &str,
+    plan_text: &str,
+) -> Result<String, String> {
+    if api_key.trim().is_empty() {
+        return Err("No API key set (Settings → AI Assist)".to_string());
+    }
+    let system = "You are a PostgreSQL performance expert. Given an EXPLAIN plan, \
+         give a short, concrete diagnosis: name the bottleneck node, flag seq scans on \
+         large tables, row-estimate skew, and sorts/hashes likely to spill, then suggest \
+         the specific index or rewrite. Be terse and actionable. Plain text, no markdown.";
+    chat(backend, model, api_key, system, plan_text)
+}
+
+/// 백엔드 디스패치 (원문 텍스트 반환, 펜스 미제거).
+fn chat(backend: &str, model: &str, api_key: &str, system: &str, user: &str) -> Result<String, String> {
     match backend {
-        "OpenAI" => openai(model, api_key, &system, prompt),
-        "Anthropic" => anthropic(model, api_key, &system, prompt),
+        "OpenAI" => openai(model, api_key, system, user),
+        "Anthropic" => anthropic(model, api_key, system, user),
         other => Err(format!("AI backend '{other}' is not supported yet")),
     }
 }
@@ -65,7 +87,7 @@ fn openai(model: &str, key: &str, system: &str, user: &str) -> Result<String, St
     let sql = v["choices"][0]["message"]["content"]
         .as_str()
         .ok_or_else(|| "OpenAI: no content in response".to_string())?;
-    Ok(strip_fences(sql))
+    Ok(sql.to_string())
 }
 
 fn anthropic(model: &str, key: &str, system: &str, user: &str) -> Result<String, String> {
@@ -83,7 +105,7 @@ fn anthropic(model: &str, key: &str, system: &str, user: &str) -> Result<String,
     let sql = v["content"][0]["text"]
         .as_str()
         .ok_or_else(|| "Anthropic: no content in response".to_string())?;
-    Ok(strip_fences(sql))
+    Ok(sql.to_string())
 }
 
 /// ureq 의 4xx/5xx body 에 API 에러 메시지가 있으면 그것을 노출.

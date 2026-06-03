@@ -9,9 +9,10 @@ use eframe::egui::{self, RichText};
 use crate::db::explain::PlanNode;
 use crate::i18n::t;
 use crate::state::AppState;
+use crate::storage::settings::AppSettings;
 use crate::ui::theme;
 
-pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState) {
+pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState, settings: &AppSettings) {
     if !state.show_explain_window {
         return;
     }
@@ -19,32 +20,125 @@ pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState) {
         return;
     };
 
+    // AI 조언 작업 결과 수거.
+    if let Some(res) = state.explain_advice_job.lock().ok().and_then(|mut g| g.result.take()) {
+        match res {
+            Ok(advice) => state.explain_advice = Some(advice),
+            Err(e) => state.explain_advice = Some(format!("AI error: {e}")),
+        }
+    }
+    let advice_running = state.explain_advice_job.lock().map(|g| g.running).unwrap_or(false);
+
     // 트리 전체에서 최대 비용 — heat 색상 기준.
     let max_cost = max_total_cost(&plan).unwrap_or(0.0);
 
     let mut open = true;
+    let mut interpret = false;
     egui::Window::new(t("explain_window_title"))
         .open(&mut open)
-        .default_size([520.0, 420.0])
+        .default_size([560.0, 460.0])
         .resizable(true)
         .collapsible(true)
         .show(ctx, |ui| {
-            ui.label(
-                RichText::new(t("explain_window_hint"))
-                    .color(theme::text_muted())
-                    .size(11.0),
-            );
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(t("explain_window_hint"))
+                        .color(theme::text_muted())
+                        .size(11.0),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .add_enabled(!advice_running, theme::secondary_button(&t("explain_interpret")))
+                        .clicked()
+                    {
+                        interpret = true;
+                    }
+                    if advice_running {
+                        ui.spinner();
+                    }
+                });
+            });
             ui.separator();
             egui::ScrollArea::both()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     render_node(ui, &plan, 0, max_cost);
+                    if let Some(advice) = &state.explain_advice {
+                        ui.add_space(theme::SPACE_MD);
+                        ui.separator();
+                        ui.label(
+                            RichText::new(t("explain_advice_title"))
+                                .color(theme::ACCENT_PURPLE)
+                                .strong()
+                                .size(12.0),
+                        );
+                        ui.add_space(theme::SPACE_XS);
+                        ui.label(RichText::new(advice).size(11.5).color(theme::text_secondary()));
+                    }
                 });
         });
 
+    if interpret {
+        start_interpret_job(ctx, state, settings, &plan);
+    }
     if !open {
         state.show_explain_window = false;
     }
+}
+
+/// 플랜 트리를 들여쓰기 텍스트로 직렬화 (AI 입력용).
+fn plan_to_text(node: &PlanNode, depth: usize, out: &mut String) {
+    for _ in 0..depth {
+        out.push_str("  ");
+    }
+    out.push_str(&node.node_type);
+    if let Some(rel) = &node.relation {
+        out.push_str(&format!(" on {rel}"));
+    }
+    if let Some(c) = node.total_cost {
+        out.push_str(&format!(" cost={c:.1}"));
+    }
+    if let Some(r) = node.plan_rows {
+        out.push_str(&format!(" rows={r:.0}"));
+    }
+    if let Some(a) = node.actual_rows {
+        out.push_str(&format!(" actual={a:.0}"));
+    }
+    out.push('\n');
+    for child in &node.children {
+        plan_to_text(child, depth + 1, out);
+    }
+}
+
+fn start_interpret_job(
+    ctx: &egui::Context,
+    state: &AppState,
+    settings: &AppSettings,
+    plan: &PlanNode,
+) {
+    let job = state.explain_advice_job.clone();
+    {
+        let mut g = job.lock().expect("advice job lock");
+        if g.running {
+            return;
+        }
+        g.running = true;
+        g.result = None;
+    }
+    let mut plan_text = String::new();
+    plan_to_text(plan, 0, &mut plan_text);
+    let backend = settings.ai_backend.clone();
+    let model = settings.ai_model.clone();
+    let key = settings.ai_api_key.clone();
+    let ctx = ctx.clone();
+    std::thread::spawn(move || {
+        let res = crate::ai::interpret_plan(&backend, &model, &key, &plan_text);
+        if let Ok(mut g) = job.lock() {
+            g.running = false;
+            g.result = Some(res);
+        }
+        ctx.request_repaint();
+    });
 }
 
 fn max_total_cost(node: &PlanNode) -> Option<f64> {
