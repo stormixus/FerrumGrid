@@ -18,7 +18,7 @@ pub fn render_editor(
     settings: &AppSettings,
 ) {
     render_tab_bar(ui, state, bridge);
-    render_toolbar(ui, state, bridge);
+    render_toolbar(ui, state, bridge, settings);
     render_editor_body(ui, state, bridge, settings);
 }
 
@@ -245,7 +245,12 @@ fn truncate_label(text: &str, max_chars: usize) -> String {
 // Toolbar
 // ---------------------------------------------------------------------------
 
-fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+fn render_toolbar(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    settings: &AppSettings,
+) {
     let toolbar_frame = egui::Frame::new()
         .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(18, theme::SPACE_XS_I))
@@ -277,22 +282,38 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 ui.spinner();
             } else {
                 let run_label = format!("  {}  \u{2318}\u{21B5}  ", t("query_execute"));
-                let run_btn = ui.add(theme::primary_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::PLAY_SM, "ed_play2", 12.0, Color32::WHITE),
-                    run_label,
-                ));
-                let shortcut_fired = can_execute
-                    && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
-                if shortcut_fired || (run_btn.clicked() && can_execute) {
+                let run_btn = ui
+                    .add(theme::primary_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::PLAY_SM, "ed_play2", 12.0, Color32::WHITE),
+                        run_label,
+                    ))
+                    .on_hover_text(t("query_execute_selection_hint"));
+                // ⌘↵ = 전체 실행, ⌘⇧↵ = 선택 영역 또는 커서 위치 문장 실행.
+                let run_all_fired = can_execute
+                    && ui.input(|i| {
+                        i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Enter)
+                    });
+                let run_sel_fired = can_execute
+                    && ui.input(|i| {
+                        i.modifiers.command && i.modifiers.shift && i.key_pressed(egui::Key::Enter)
+                    });
+                if run_all_fired || (run_btn.clicked() && can_execute) {
                     execute_current_query(state, bridge);
+                } else if run_sel_fired {
+                    execute_selection_or_statement(state, bridge);
                 }
             }
 
-            // Save button (secondary with icon)
-            ui.add(theme::secondary_icon_button(
-                crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save2", 12.0, theme::text_secondary()),
-                "Save",
-            ));
+            // Save button (secondary with icon) — format_on_save 시 버퍼 정렬.
+            let save_resp = ui
+                .add(theme::secondary_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save2", 12.0, theme::text_secondary()),
+                    "Save",
+                ))
+                .on_hover_text(t("editor_save_hint"));
+            if save_resp.clicked() && settings.format_on_save {
+                format_active_tab(state);
+            }
 
             // History button (ghost with icon)
             let history_label = if state.show_history_panel {
@@ -337,19 +358,95 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 render_badge_info(ui, "auto-commit");
             }
 
+            // 연결 가드레일 배지.
+            let (ro, prod) = state
+                .active_connection
+                .and_then(|id| state.connections.get(&id))
+                .map(|c| (c.config.read_only, c.config.is_production))
+                .unwrap_or((false, false));
+            if ro {
+                ui.label(
+                    RichText::new(t("badge_read_only"))
+                        .color(theme::ACCENT_YELLOW)
+                        .strong()
+                        .size(11.0),
+                );
+            }
+            if prod {
+                ui.label(
+                    RichText::new(t("badge_production"))
+                        .color(theme::ACCENT_RED)
+                        .strong()
+                        .size(11.0),
+                );
+            }
+
             // Right side: cursor info + Format + EXPLAIN
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
 
-                ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
-                    "EXPLAIN",
-                ));
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_ai_btn", 12.0, theme::ACCENT_PURPLE),
+                        "AI",
+                    ))
+                    .on_hover_text(t("ai_button_hint"))
+                    .clicked()
+                {
+                    state.ai_prompt_open = !state.ai_prompt_open;
+                }
 
-                ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::SIGMA, "ed_sigma2", 12.0, theme::text_muted()),
-                    "Format",
-                ));
+                // 쿼리 에러가 있으면 AI 수정 버튼 노출.
+                if state.last_error.is_some() {
+                    let running = state.ai_job.lock().map(|g| g.running).unwrap_or(false);
+                    if ui
+                        .add_enabled(
+                            !running,
+                            theme::ghost_icon_button(
+                                crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_ai_fix", 12.0, theme::ACCENT_RED),
+                                t("ai_fix"),
+                            ),
+                        )
+                        .on_hover_text(t("ai_fix_hint"))
+                        .clicked()
+                    {
+                        start_ai_fix_job(ui, state, settings);
+                    }
+                }
+
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
+                        "EXPLAIN",
+                    ))
+                    .on_hover_text(t("editor_explain_hint"))
+                    .clicked()
+                {
+                    if let Some(conn_id) = state.active_connection {
+                        let sql = state.editor_tabs.get(state.active_tab).and_then(|tab| {
+                            selected_or_statement_sql(
+                                &tab.content,
+                                state.editor_selection,
+                                state.editor_cursor_char,
+                            )
+                        });
+                        if let Some(sql) = sql {
+                            state.query_running = true;
+                            bridge.send(crate::db::bridge::DbCommand::RunExplain { conn_id, sql });
+                        }
+                    }
+                }
+
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::SIGMA, "ed_sigma2", 12.0, theme::text_muted()),
+                        "Format",
+                    ))
+                    .on_hover_text(t("editor_format_hint"))
+                    .clicked()
+                {
+                    format_active_tab(state);
+                }
 
                 let sep_rect = ui
                     .allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover())
@@ -454,7 +551,8 @@ fn render_editor_body(
                     .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
             .show_inside(ui, |ui| {
-                render_history_panel(ui, state);
+                let slow_ms = parse_threshold_ms(&settings.slow_query_threshold);
+                render_history_panel(ui, state, slow_ms);
             });
     }
 
@@ -483,8 +581,25 @@ fn render_editor_body(
         };
         render_editor_meta(ui, &title, line_count, char_count);
 
+        // ⌘F 찾기/바꾸기 바 토글, Esc 로 닫기.
+        if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::F)) {
+            state.find_open = !state.find_open;
+        }
+        if state.find_open && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            state.find_open = false;
+        }
+        if state.find_open {
+            render_find_bar(ui, state);
+        }
+        if state.ai_prompt_open {
+            render_ai_bar(ui, state, settings);
+        }
+        drain_ai_job(state);
+
         let mut editor_rect = egui::Rect::NOTHING;
         let mut cursor_index = None;
+        let mut selection_capture: Option<(usize, usize)> = None;
+        let mut cursor_capture: Option<usize> = None;
         let mut content_snapshot = String::new();
         let tab_id = state.editor_tabs[active_tab].id;
 
@@ -577,6 +692,18 @@ fn render_editor_body(
                                 editor_rect = output.response.rect;
                                 cursor_index =
                                     output.cursor_range.map(|range| range.primary.ccursor.index);
+                                // run-selection / run-statement 용 커서·선택 영역을
+                                // AppState 에 저장 (toolbar 단축키에서 소비).
+                                if let Some(range) = output.cursor_range {
+                                    let p = range.primary.ccursor.index;
+                                    let s = range.secondary.ccursor.index;
+                                    selection_capture = if p == s {
+                                        None
+                                    } else {
+                                        Some((p.min(s), p.max(s)))
+                                    };
+                                }
+                                cursor_capture = cursor_index;
                                 content_snapshot = tab.content.clone();
                             });
                     });
@@ -642,6 +769,9 @@ fn render_editor_body(
                 }
             }
         }
+
+        state.editor_selection = selection_capture;
+        state.editor_cursor_char = cursor_capture;
     });
 }
 
@@ -1169,21 +1299,490 @@ pub(crate) fn toggle_explicit_tx_for_sql(state: &mut AppState, sql: &str) {
 }
 
 fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
-    if let Some(conn_id) = state.active_connection {
-        if let Some(tab) = state.editor_tabs.get(state.active_tab) {
-            let sql = tab.content.trim().to_string();
-            if !sql.is_empty() {
-                toggle_explicit_tx_for_sql(state, &sql);
-                state.query_running = true;
-                state.last_error = None;
-                bridge.send(DbCommand::ExecuteQuery {
-                    conn_id,
-                    sql,
-                    row_limit: Some(state.default_row_limit),
-                });
+    let sql = state
+        .editor_tabs
+        .get(state.active_tab)
+        .map(|tab| tab.content.trim().to_string());
+    if let Some(sql) = sql {
+        execute_sql_text(state, bridge, sql);
+    }
+}
+
+/// 활성 탭의 SQL 을 Postgres-aware 포매터로 정렬 (키워드 대문자 + 들여쓰기).
+fn format_active_tab(state: &mut AppState) {
+    if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+        if tab.content.trim().is_empty() {
+            return;
+        }
+        let opts = sqlformat::FormatOptions {
+            uppercase: Some(true),
+            ..Default::default()
+        };
+        tab.content = sqlformat::format(&tab.content, &sqlformat::QueryParams::None, &opts);
+    }
+}
+
+/// 선택 영역(있으면) 또는 커서 위치 문장을 실행. ⌘⇧↵ 단축키.
+fn execute_selection_or_statement(state: &mut AppState, bridge: &DbBridge) {
+    let sql = state.editor_tabs.get(state.active_tab).and_then(|tab| {
+        selected_or_statement_sql(&tab.content, state.editor_selection, state.editor_cursor_char)
+    });
+    if let Some(sql) = sql {
+        execute_sql_text(state, bridge, sql);
+    }
+}
+
+/// 문장 분류 — 가드레일 판정용.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StmtKind {
+    Read,
+    Write,
+    /// DROP/TRUNCATE, 또는 WHERE 없는 UPDATE/DELETE.
+    Destructive,
+}
+
+/// SQL 첫 키워드(및 WHERE 유무)로 문장 종류를 분류. (순수 함수)
+fn classify_statement(sql: &str) -> StmtKind {
+    let upper = sql.trim_start().to_uppercase();
+    let first = upper.split_whitespace().next().unwrap_or("");
+    if matches!(first, "DROP" | "TRUNCATE") {
+        return StmtKind::Destructive;
+    }
+    if (first == "UPDATE" || first == "DELETE") && !upper.contains(" WHERE ") {
+        return StmtKind::Destructive;
+    }
+    let write = matches!(
+        first,
+        "INSERT"
+            | "UPDATE"
+            | "DELETE"
+            | "CREATE"
+            | "ALTER"
+            | "GRANT"
+            | "REVOKE"
+            | "COMMENT"
+            | "REINDEX"
+            | "VACUUM"
+            | "MERGE"
+            | "REFRESH"
+            | "COPY"
+    );
+    if write {
+        StmtKind::Write
+    } else {
+        StmtKind::Read
+    }
+}
+
+/// 주어진 SQL 문자열을 실행 (전체/선택/문장 공통 경로). 연결의 read-only /
+/// production 가드레일을 적용한다.
+fn execute_sql_text(state: &mut AppState, bridge: &DbBridge, sql: String) {
+    if sql.is_empty() {
+        return;
+    }
+    let Some(conn_id) = state.active_connection else {
+        return;
+    };
+    let (read_only, is_prod) = state
+        .connections
+        .get(&conn_id)
+        .map(|c| (c.config.read_only, c.config.is_production))
+        .unwrap_or((false, false));
+    let kind = classify_statement(&sql);
+
+    if read_only && kind != StmtKind::Read {
+        state.last_error = Some(t("guard_read_only_blocked"));
+        return;
+    }
+    if is_prod && kind == StmtKind::Destructive {
+        // typed 확인을 거치도록 보류 (확인 창이 force 실행).
+        state.pending_prod_confirm = Some(sql);
+        state.prod_confirm_input.clear();
+        return;
+    }
+
+    toggle_explicit_tx_for_sql(state, &sql);
+    state.query_running = true;
+    state.last_error = None;
+    bridge.send(DbCommand::ExecuteQuery {
+        conn_id,
+        sql,
+        row_limit: Some(state.default_row_limit),
+    });
+}
+
+/// 실행할 SQL 결정: 선택 영역 우선, 없으면 커서 위치 문장, 그것도 없으면 전체.
+/// 모두 공백이면 None. (순수 함수 — 단위 테스트 대상)
+fn selected_or_statement_sql(
+    content: &str,
+    selection: Option<(usize, usize)>,
+    cursor: Option<usize>,
+) -> Option<String> {
+    if let Some((a, b)) = selection {
+        if b > a {
+            let sel: String = content.chars().skip(a).take(b - a).collect();
+            let trimmed = sel.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
             }
         }
     }
+    if let Some(cur) = cursor {
+        if let Some(stmt) = statement_under_cursor(content, cur) {
+            return Some(stmt);
+        }
+    }
+    let whole = content.trim();
+    if whole.is_empty() {
+        None
+    } else {
+        Some(whole.to_string())
+    }
+}
+
+/// 대소문자 무시(ASCII) 부분 일치로 모든 매치의 char 범위를 반환.
+/// (순수 함수 — 단위 테스트 대상)
+fn find_matches(content: &str, needle: &str) -> Vec<(usize, usize)> {
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    let hay: Vec<char> = content.chars().map(|c| c.to_ascii_lowercase()).collect();
+    let need: Vec<char> = needle.chars().map(|c| c.to_ascii_lowercase()).collect();
+    let mut out = Vec::new();
+    if need.len() > hay.len() {
+        return out;
+    }
+    let mut i = 0;
+    while i + need.len() <= hay.len() {
+        if hay[i..i + need.len()] == need[..] {
+            out.push((i, i + need.len()));
+            i += need.len();
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// `idx` 번째 매치 한 건만 `repl` 로 치환한 새 content (없으면 None).
+fn replace_one_match(content: &str, needle: &str, repl: &str, idx: usize) -> Option<String> {
+    let matches = find_matches(content, needle);
+    let (s, e) = *matches.get(idx)?;
+    let chars: Vec<char> = content.chars().collect();
+    let mut out: String = chars[..s].iter().collect();
+    out.push_str(repl);
+    out.extend(chars[e..].iter());
+    Some(out)
+}
+
+/// 모든 매치를 `repl` 로 치환. (새 content, 치환 횟수)
+fn replace_all_matches(content: &str, needle: &str, repl: &str) -> (String, usize) {
+    let matches = find_matches(content, needle);
+    if matches.is_empty() {
+        return (content.to_string(), 0);
+    }
+    let chars: Vec<char> = content.chars().collect();
+    let mut out = String::new();
+    let mut last = 0;
+    for (s, e) in &matches {
+        out.extend(chars[last..*s].iter());
+        out.push_str(repl);
+        last = *e;
+    }
+    out.extend(chars[last..].iter());
+    (out, matches.len())
+}
+
+fn select_editor_range(ctx: &egui::Context, tab_id: uuid::Uuid, start: usize, end: usize) {
+    let te_id = egui::Id::new(("sql_editor", tab_id));
+    if let Some(mut st) = egui::TextEdit::load_state(ctx, te_id) {
+        use egui::text::{CCursor, CCursorRange};
+        st.cursor.set_char_range(Some(CCursorRange::two(
+            CCursor::new(start),
+            CCursor::new(end),
+        )));
+        st.store(ctx, te_id);
+    }
+}
+
+/// 활성 연결의 로드된 테이블/컬럼으로 AI 프롬프트용 스키마 컨텍스트 구성.
+fn build_ai_schema_context(state: &AppState) -> String {
+    let Some(conn_id) = state.active_connection else {
+        return String::new();
+    };
+    let Some(conn) = state.connections.get(&conn_id) else {
+        return String::new();
+    };
+    let mut out = String::new();
+    for ((schema, table), cols) in conn.columns.iter().take(60) {
+        let defs: Vec<String> = cols
+            .iter()
+            .map(|c| format!("{} {}", c.name, c.data_type))
+            .collect();
+        out.push_str(&format!("{schema}.{table}({})\n", defs.join(", ")));
+    }
+    out
+}
+
+/// AI 작업 시작 — 별도 스레드에서 blocking HTTP 호출, 결과는 `ai_job` 슬롯으로.
+fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
+    let job = state.ai_job.clone();
+    {
+        let mut g = job.lock().expect("ai_job lock");
+        if g.running {
+            return;
+        }
+        g.running = true;
+        g.result = None;
+    }
+    let backend = settings.ai_backend.clone();
+    let model = settings.ai_model.clone();
+    let key = settings.ai_api_key.clone();
+    let schema = if settings.ai_send_schema {
+        build_ai_schema_context(state)
+    } else {
+        String::new()
+    };
+    let prompt = state.ai_prompt_input.clone();
+    let ctx = ui.ctx().clone();
+    std::thread::spawn(move || {
+        let res = crate::ai::generate_sql(&backend, &model, &key, &schema, &prompt);
+        if let Ok(mut g) = job.lock() {
+            g.running = false;
+            g.result = Some(res);
+        }
+        ctx.request_repaint();
+    });
+}
+
+/// 실패한 쿼리 + 에러를 AI 에 보내 수정안을 받아 활성 탭을 교체.
+fn start_ai_fix_job(ui: &egui::Ui, state: &mut AppState, settings: &AppSettings) {
+    let (sql, error) = match (
+        state
+            .editor_tabs
+            .get(state.active_tab)
+            .map(|t| t.content.trim().to_string())
+            .filter(|s| !s.is_empty()),
+        state.last_error.clone(),
+    ) {
+        (Some(sql), Some(error)) => (sql, error),
+        _ => return,
+    };
+    let job = state.ai_job.clone();
+    {
+        let mut g = job.lock().expect("ai_job lock");
+        if g.running {
+            return;
+        }
+        g.running = true;
+        g.result = None;
+    }
+    state.ai_replace_active_tab = true;
+    let backend = settings.ai_backend.clone();
+    let model = settings.ai_model.clone();
+    let key = settings.ai_api_key.clone();
+    let schema = if settings.ai_send_schema {
+        build_ai_schema_context(state)
+    } else {
+        String::new()
+    };
+    let ctx = ui.ctx().clone();
+    std::thread::spawn(move || {
+        let res = crate::ai::fix_sql(&backend, &model, &key, &schema, &sql, &error);
+        if let Ok(mut g) = job.lock() {
+            g.running = false;
+            g.result = Some(res);
+        }
+        ctx.request_repaint();
+    });
+}
+
+/// AI 작업 결과가 준비되면 활성 탭에 SQL 삽입 (또는 오류 표시).
+fn drain_ai_job(state: &mut AppState) {
+    let result = state
+        .ai_job
+        .lock()
+        .ok()
+        .and_then(|mut g| g.result.take());
+    if let Some(res) = result {
+        match res {
+            Ok(sql) => {
+                let replace = state.ai_replace_active_tab;
+                if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+                    if replace || tab.content.trim().is_empty() {
+                        tab.content = sql;
+                    } else {
+                        if !tab.content.ends_with('\n') {
+                            tab.content.push('\n');
+                        }
+                        tab.content.push_str(&sql);
+                    }
+                }
+                state.ai_prompt_input.clear();
+                state.ai_prompt_open = false;
+                if replace {
+                    state.last_error = None;
+                }
+                state.ai_replace_active_tab = false;
+            }
+            Err(e) => {
+                state.last_error = Some(format!("AI: {e}"));
+                state.ai_replace_active_tab = false;
+            }
+        }
+    }
+}
+
+/// AI text-to-SQL 프롬프트 바.
+fn render_ai_bar(ui: &mut egui::Ui, state: &mut AppState, settings: &AppSettings) {
+    let running = state.ai_job.lock().map(|g| g.running).unwrap_or(false);
+    egui::Frame::new()
+        .fill(theme::bg_dark())
+        .stroke(Stroke::new(1.0, theme::ACCENT_PURPLE))
+        .inner_margin(Margin::symmetric(theme::SPACE_SM as i8, theme::SPACE_XS as i8))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("AI \u{25b8}")
+                        .color(theme::ACCENT_PURPLE)
+                        .strong()
+                        .size(11.0),
+                );
+                let resp = ui.add(
+                    theme::text_input(&mut state.ai_prompt_input)
+                        .hint_text(t("ai_prompt_hint"))
+                        .desired_width(340.0),
+                );
+                let submit =
+                    resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let gen = ui
+                    .add_enabled(!running, theme::secondary_button(&t("ai_generate")))
+                    .clicked();
+                if running {
+                    ui.spinner();
+                }
+                if (gen || submit) && !running {
+                    start_ai_job(ui, state, settings);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("\u{00d7}").clicked() {
+                        state.ai_prompt_open = false;
+                    }
+                });
+            });
+        });
+}
+
+/// 찾기/바꾸기 바. 활성 탭 content 에 대해 동작.
+fn render_find_bar(ui: &mut egui::Ui, state: &mut AppState) {
+    let active_tab = state.active_tab;
+    let (tab_id, content) = match state.editor_tabs.get(active_tab) {
+        Some(t) => (t.id, t.content.clone()),
+        None => return,
+    };
+    let matches = find_matches(&content, &state.find_query);
+    let n = matches.len();
+    if n == 0 {
+        state.find_match_idx = 0;
+    } else if state.find_match_idx >= n {
+        state.find_match_idx = n - 1;
+    }
+
+    let mut select_to: Option<(usize, usize)> = None;
+    let mut new_content: Option<String> = None;
+
+    egui::Frame::new()
+        .fill(theme::bg_dark())
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
+        .inner_margin(Margin::symmetric(theme::SPACE_SM as i8, theme::SPACE_XS as i8))
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.add(
+                    theme::text_input(&mut state.find_query)
+                        .hint_text(t("editor_find"))
+                        .desired_width(160.0),
+                );
+                let count = if state.find_query.is_empty() {
+                    String::new()
+                } else if n == 0 {
+                    "0/0".to_string()
+                } else {
+                    format!("{}/{}", state.find_match_idx + 1, n)
+                };
+                ui.label(
+                    RichText::new(count)
+                        .color(theme::text_muted())
+                        .monospace()
+                        .size(11.0),
+                );
+                if ui.add(theme::secondary_button("◀")).clicked() && n > 0 {
+                    state.find_match_idx = (state.find_match_idx + n - 1) % n;
+                    select_to = Some(matches[state.find_match_idx]);
+                }
+                if ui.add(theme::secondary_button("▶")).clicked() && n > 0 {
+                    state.find_match_idx = (state.find_match_idx + 1) % n;
+                    select_to = Some(matches[state.find_match_idx]);
+                }
+
+                ui.separator();
+                ui.add(
+                    theme::text_input(&mut state.find_replace)
+                        .hint_text(t("editor_replace"))
+                        .desired_width(160.0),
+                );
+                if ui.add(theme::secondary_button(&t("editor_replace_one"))).clicked() && n > 0 {
+                    new_content = replace_one_match(
+                        &content,
+                        &state.find_query,
+                        &state.find_replace,
+                        state.find_match_idx,
+                    );
+                }
+                if ui.add(theme::secondary_button(&t("editor_replace_all"))).clicked() && n > 0 {
+                    new_content = Some(
+                        replace_all_matches(&content, &state.find_query, &state.find_replace).0,
+                    );
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("×").clicked() {
+                        state.find_open = false;
+                    }
+                });
+            });
+        });
+
+    if let Some(new) = new_content {
+        if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
+            tab.content = new;
+        }
+    }
+    if let Some((s, e)) = select_to {
+        select_editor_range(ui.ctx(), tab_id, s, e);
+    }
+}
+
+/// `;` 로 구분된 문장 중 커서(char 인덱스)가 위치한 문장을 반환.
+/// 경계에 걸치면 왼쪽 문장 우선. 비어있으면 None.
+fn statement_under_cursor(content: &str, cursor_char: usize) -> Option<String> {
+    let chars: Vec<char> = content.chars().collect();
+    let total = chars.len();
+    let cur = cursor_char.min(total);
+    let mut seg_start = 0usize;
+    for i in 0..=total {
+        let at_sep = i < total && chars[i] == ';';
+        if at_sep || i == total {
+            if cur >= seg_start && cur <= i {
+                let seg: String = chars[seg_start..i].iter().collect();
+                let trimmed = seg.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+            seg_start = i + 1;
+        }
+    }
+    None
 }
 
 
@@ -1373,7 +1972,19 @@ fn highlight_sql(text: &str, wrap_width: f32, font_size: f32) -> egui::text::Lay
     job
 }
 
-fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
+/// "500ms" / "1s" / "2000" 같은 임계값 문자열을 ms 로 파싱.
+fn parse_threshold_ms(s: &str) -> Option<u128> {
+    let s = s.trim();
+    if let Some(num) = s.strip_suffix("ms") {
+        num.trim().parse::<u128>().ok()
+    } else if let Some(num) = s.strip_suffix('s') {
+        num.trim().parse::<f64>().ok().map(|v| (v * 1000.0) as u128)
+    } else {
+        s.parse::<u128>().ok()
+    }
+}
+
+fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState, slow_ms: Option<u128>) {
     ui.horizontal(|ui| {
         ui.strong(RichText::new("Query History").size(12.0));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1395,12 +2006,28 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
         return;
     }
 
+    ui.add_space(4.0);
+    ui.add(
+        egui::TextEdit::singleline(&mut state.history_search)
+            .hint_text("Filter history…")
+            .desired_width(f32::INFINITY)
+            .font(egui::TextStyle::Monospace),
+    );
+    ui.add_space(4.0);
+
+    let needle = state.history_search.trim().to_lowercase();
+
     egui::ScrollArea::vertical()
         .id_salt("history_scroll")
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let mut load_query = None;
+            let mut shown = 0usize;
             for (idx, entry) in state.query_history.iter().rev().enumerate() {
+                if !needle.is_empty() && !entry.query.to_lowercase().contains(&needle) {
+                    continue;
+                }
+                shown += 1;
                 let preview: String = entry
                     .query
                     .chars()
@@ -1424,11 +2051,25 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
                                     .size(9.5)
                                     .monospace(),
                             );
+                            let is_slow = slow_ms
+                                .map(|t| entry.duration_ms > t)
+                                .unwrap_or(false);
                             ui.label(
                                 RichText::new(format!("{}ms", entry.duration_ms))
-                                    .color(theme::accent_color())
+                                    .color(if is_slow {
+                                        theme::ACCENT_RED
+                                    } else {
+                                        theme::accent_color()
+                                    })
                                     .size(9.5),
                             );
+                            if is_slow {
+                                ui.label(
+                                    RichText::new("slow")
+                                        .color(theme::ACCENT_RED)
+                                        .size(9.0),
+                                );
+                            }
                             ui.label(
                                 RichText::new(format!(
                                     "{} {}",
@@ -1462,6 +2103,16 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
                 ui.add_space(2.0);
             }
 
+            if shown == 0 {
+                ui.centered_and_justified(|ui| {
+                    ui.label(
+                        RichText::new("No matches")
+                            .color(theme::text_muted())
+                            .size(11.0),
+                    );
+                });
+            }
+
             if let Some(query) = load_query {
                 if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
                     tab.content = query;
@@ -1473,6 +2124,115 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
 #[inline]
 fn fmt(font_id: egui::FontId, color: Color32) -> egui::text::TextFormat {
     egui::text::TextFormat::simple(font_id, color)
+}
+
+#[cfg(test)]
+mod run_selection_tests {
+    use super::*;
+
+    #[test]
+    fn statement_under_cursor_picks_segment_containing_cursor() {
+        let sql = "SELECT 1; SELECT 2; SELECT 3";
+        // cursor inside the 2nd statement (char index ~12)
+        assert_eq!(
+            statement_under_cursor(sql, 12).as_deref(),
+            Some("SELECT 2")
+        );
+        // cursor in the 1st
+        assert_eq!(statement_under_cursor(sql, 2).as_deref(), Some("SELECT 1"));
+        // cursor in the last (no trailing ;)
+        assert_eq!(statement_under_cursor(sql, 26).as_deref(), Some("SELECT 3"));
+    }
+
+    #[test]
+    fn statement_under_cursor_at_boundary_prefers_left() {
+        let sql = "SELECT 1;SELECT 2";
+        // cursor exactly at the ';' (index 8) -> left statement
+        assert_eq!(statement_under_cursor(sql, 8).as_deref(), Some("SELECT 1"));
+    }
+
+    #[test]
+    fn selection_wins_over_statement() {
+        let sql = "SELECT 1; SELECT 2;";
+        // select "SELECT 2" (chars 10..18)
+        assert_eq!(
+            selected_or_statement_sql(sql, Some((10, 18)), Some(0)).as_deref(),
+            Some("SELECT 2")
+        );
+    }
+
+    #[test]
+    fn empty_selection_falls_back_to_statement_then_whole() {
+        let sql = "SELECT 42";
+        assert_eq!(
+            selected_or_statement_sql(sql, None, Some(3)).as_deref(),
+            Some("SELECT 42")
+        );
+        // whitespace-only content -> None
+        assert_eq!(selected_or_statement_sql("   \n  ", None, Some(0)), None);
+    }
+
+    #[test]
+    fn find_matches_is_case_insensitive_and_non_overlapping() {
+        let m = find_matches("Select select SELECT", "select");
+        assert_eq!(m, vec![(0, 6), (7, 13), (14, 20)]);
+        assert!(find_matches("abc", "").is_empty());
+        assert!(find_matches("abc", "xyz").is_empty());
+    }
+
+    #[test]
+    fn replace_one_only_touches_indexed_match() {
+        let (out, n) = (
+            replace_one_match("a foo b foo", "foo", "X", 1).unwrap(),
+            2,
+        );
+        assert_eq!(out, "a foo b X");
+        assert_eq!(find_matches("a foo b foo", "foo").len(), n);
+    }
+
+    #[test]
+    fn replace_all_replaces_every_match() {
+        let (out, count) = replace_all_matches("foo FOO foo", "foo", "bar");
+        assert_eq!(out, "bar bar bar");
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn classify_statement_detects_kind() {
+        assert_eq!(classify_statement("SELECT * FROM t"), StmtKind::Read);
+        assert_eq!(classify_statement("  with x as (..) select 1"), StmtKind::Read);
+        assert_eq!(classify_statement("INSERT INTO t VALUES (1)"), StmtKind::Write);
+        assert_eq!(
+            classify_statement("UPDATE t SET a=1 WHERE id=2"),
+            StmtKind::Write
+        );
+        // missing WHERE -> destructive
+        assert_eq!(classify_statement("UPDATE t SET a=1"), StmtKind::Destructive);
+        assert_eq!(classify_statement("DELETE FROM t"), StmtKind::Destructive);
+        assert_eq!(classify_statement("DROP TABLE t"), StmtKind::Destructive);
+        assert_eq!(classify_statement("truncate t"), StmtKind::Destructive);
+    }
+
+    #[test]
+    fn parse_threshold_ms_handles_units() {
+        assert_eq!(parse_threshold_ms("500ms"), Some(500));
+        assert_eq!(parse_threshold_ms("1s"), Some(1000));
+        assert_eq!(parse_threshold_ms("5s"), Some(5000));
+        assert_eq!(parse_threshold_ms("2000"), Some(2000));
+        assert_eq!(parse_threshold_ms("garbage"), None);
+    }
+
+    #[test]
+    fn formatter_uppercases_keywords() {
+        let opts = sqlformat::FormatOptions {
+            uppercase: Some(true),
+            ..Default::default()
+        };
+        let out = sqlformat::format("select a from t where b=1", &sqlformat::QueryParams::None, &opts);
+        assert!(out.contains("SELECT"), "got: {out}");
+        assert!(out.contains("FROM"), "got: {out}");
+        assert!(out.contains("WHERE"), "got: {out}");
+    }
 }
 
 #[cfg(test)]

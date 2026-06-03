@@ -203,10 +203,7 @@ fn stabilize_info_panel_resize_cursor(ctx: &egui::Context, state: &AppState) {
         .read_response(resize_id)
         .is_some_and(|response| response.hovered() || response.dragged());
     let pointer_near_splitter = egui::containers::panel::PanelState::load(ctx, panel_id)
-        .and_then(|panel| {
-            ctx.input(|input| input.pointer.hover_pos())
-                .map(|pos| (panel, pos))
-        })
+        .zip(ctx.input(|input| input.pointer.hover_pos()))
         .is_some_and(|(panel, pos)| {
             let grab_radius = ctx.style().interaction.resize_grab_radius_side.max(10.0);
             let splitter = panel.rect.left();
@@ -578,6 +575,75 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                     );
                     if settings_btn.clicked() {
                         state.show_settings_dialog = true;
+                    }
+
+                    // DBA 세션 모니터 토글.
+                    let sessions_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::DATABASE,
+                                "tb_sessions",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("sessions_window_title"));
+                    if sessions_btn.clicked() {
+                        state.show_sessions_window = !state.show_sessions_window;
+                        if state.show_sessions_window {
+                            state.sessions_needs_fetch = true;
+                        }
+                    }
+
+                    // 카탈로그(시퀀스/enum/익스텐션) 브라우저 토글.
+                    let catalog_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::SCHEMA,
+                                "tb_catalog",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("catalog_window_title"));
+                    if catalog_btn.clicked() {
+                        state.show_catalog_window = !state.show_catalog_window;
+                        if state.show_catalog_window {
+                            state.catalog_needs_fetch = true;
+                        }
+                    }
+
+                    // 권한(GRANT/REVOKE) 브라우저 토글.
+                    let priv_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::VAULT,
+                                "tb_privileges",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("privileges_window_title"));
+                    if priv_btn.clicked() {
+                        state.show_privileges_window = !state.show_privileges_window;
+                        if state.show_privileges_window {
+                            state.privileges_needs_fetch = true;
+                        }
                     }
 
                     let vault_btn = ui.add(

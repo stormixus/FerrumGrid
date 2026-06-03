@@ -339,88 +339,62 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
                 let mut delete_idx: Option<usize> = None;
                 let count = state.saved_connections.len();
 
+                // 인덱스를 group 라벨 별로 묶는다 (첫 등장 순서로 수집 후 정렬:
+                // 이름 있는 그룹은 알파벳, 미분류는 맨 뒤).
+                let mut groups: Vec<(Option<String>, Vec<usize>)> = Vec::new();
                 for i in 0..count {
-                    let name = state.saved_connections[i].display_name.clone();
-                    let host = state.saved_connections[i].host.clone();
-                    let port = state.saved_connections[i].port;
-                    let database = state.saved_connections[i].database.clone();
+                    let g = state.saved_connections[i]
+                        .group
+                        .clone()
+                        .filter(|s| !s.trim().is_empty());
+                    if let Some(slot) = groups.iter_mut().find(|(name, _)| *name == g) {
+                        slot.1.push(i);
+                    } else {
+                        groups.push((g, vec![i]));
+                    }
+                }
+                groups.sort_by(|a, b| match (&a.0, &b.0) {
+                    (Some(x), Some(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
+                    (Some(_), None) => std::cmp::Ordering::Less,
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    (None, None) => std::cmp::Ordering::Equal,
+                });
 
-                    egui::Frame::new()
-                        .inner_margin(Margin::symmetric(
-                            theme::SPACE_MD as i8,
-                            theme::SPACE_SM as i8,
-                        ))
-                        .corner_radius(CornerRadius::same(theme::RADIUS_SM))
-                        .show(ui, |ui| {
-                            ui.set_min_width(ui.available_width());
-                            ui.horizontal(|ui| {
-                                crate::ui::icon_img(
-                                    ui,
-                                    crate::ui::icons_svg::DATABASE,
-                                    "saved_db",
-                                    10.0,
-                                );
-                                ui.add_space(2.0);
-
-                                let resp = ui.add(
-                                    egui::Label::new(
-                                        RichText::new(&name)
-                                            .color(theme::text_primary())
-                                            .size(12.0),
-                                    )
-                                    .sense(egui::Sense::click()),
-                                );
-                                if resp.clicked() {
-                                    load_idx = Some(i);
+                let has_named_group = groups.iter().any(|(name, _)| name.is_some());
+                for (group_name, indices) in &groups {
+                    match group_name {
+                        Some(name) if has_named_group => {
+                            egui::CollapsingHeader::new(
+                                RichText::new(name)
+                                    .color(theme::text_secondary())
+                                    .size(11.0)
+                                    .strong(),
+                            )
+                            .id_salt(("conn_group", name.as_str()))
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                for &i in indices {
+                                    render_saved_connection_row(
+                                        ui,
+                                        state,
+                                        i,
+                                        &mut load_idx,
+                                        &mut delete_idx,
+                                    );
                                 }
-                                if resp.hovered() {
-                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                }
-
-                                ui.label(
-                                    RichText::new(format!("{}:{}/{}", host, port, database))
-                                        .color(theme::text_muted())
-                                        .size(11.0),
-                                );
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        let del_resp = ui.add(
-                                            egui::Button::new("")
-                                                .fill(Color32::TRANSPARENT)
-                                                .stroke(Stroke::NONE),
-                                        );
-                                        ui.allocate_new_ui(
-                                            egui::UiBuilder::new().max_rect(del_resp.rect),
-                                            |ui| {
-                                                crate::ui::icon_img(
-                                                    ui,
-                                                    crate::ui::icons_svg::CLOSE,
-                                                    "del_conn",
-                                                    10.0,
-                                                );
-                                            },
-                                        );
-
-                                        if del_resp.hovered() {
-                                            ui.ctx()
-                                                .set_cursor_icon(egui::CursorIcon::PointingHand);
-                                        }
-                                        if del_resp.clicked() {
-                                            delete_idx = Some(i);
-                                        }
-                                    },
-                                );
                             });
-                        });
-
-                    if i < count - 1 {
-                        ui.painter().hline(
-                            ui.available_rect_before_wrap().x_range(),
-                            ui.cursor().top(),
-                            Stroke::new(1.0, theme::border_subtle()),
-                        );
+                        }
+                        _ => {
+                            for &i in indices {
+                                render_saved_connection_row(
+                                    ui,
+                                    state,
+                                    i,
+                                    &mut load_idx,
+                                    &mut delete_idx,
+                                );
+                            }
+                        }
                     }
                 }
 
@@ -436,11 +410,126 @@ fn render_saved_connections(ui: &mut egui::Ui, state: &mut AppState) {
     });
 }
 
+/// 저장된 커넥션 한 행 렌더 (그룹 헤더 안/밖 공용). 클릭 시 `load_idx`,
+/// 삭제 아이콘 클릭 시 `delete_idx` 설정.
+fn render_saved_connection_row(
+    ui: &mut egui::Ui,
+    state: &AppState,
+    i: usize,
+    load_idx: &mut Option<usize>,
+    delete_idx: &mut Option<usize>,
+) {
+    let name = state.saved_connections[i].display_name.clone();
+    let host = state.saved_connections[i].host.clone();
+    let port = state.saved_connections[i].port;
+    let database = state.saved_connections[i].database.clone();
+
+    egui::Frame::new()
+        .inner_margin(Margin::symmetric(
+            theme::SPACE_MD as i8,
+            theme::SPACE_SM as i8,
+        ))
+        .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                crate::ui::icon_img(ui, crate::ui::icons_svg::DATABASE, "saved_db", 10.0);
+                ui.add_space(2.0);
+
+                let resp = ui.add(
+                    egui::Label::new(
+                        RichText::new(&name).color(theme::text_primary()).size(12.0),
+                    )
+                    .sense(egui::Sense::click()),
+                );
+                if resp.clicked() {
+                    *load_idx = Some(i);
+                }
+                if resp.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+
+                ui.label(
+                    RichText::new(format!("{}:{}/{}", host, port, database))
+                        .color(theme::text_muted())
+                        .size(11.0),
+                );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let del_resp = ui.add(
+                        egui::Button::new("")
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE),
+                    );
+                    ui.allocate_new_ui(
+                        egui::UiBuilder::new().max_rect(del_resp.rect),
+                        |ui| {
+                            crate::ui::icon_img(
+                                ui,
+                                crate::ui::icons_svg::CLOSE,
+                                "del_conn",
+                                10.0,
+                            );
+                        },
+                    );
+
+                    if del_resp.hovered() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
+                    if del_resp.clicked() {
+                        *delete_idx = Some(i);
+                    }
+                });
+            });
+        });
+}
+
 // ---------------------------------------------------------------------------
 // Form fields
 // ---------------------------------------------------------------------------
 
 fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
+    // URL/DSN 빠른 입력 — 폼과 양방향 변환.
+    ui.label(
+        RichText::new(t("connection_url"))
+            .color(theme::text_muted())
+            .size(12.0),
+    );
+    ui.add(
+        theme::mono_text_input(&mut dialog.url_input)
+            .hint_text("postgres://user:pass@host:5432/db")
+            .desired_width(f32::INFINITY),
+    );
+    ui.add_space(theme::SPACE_XS);
+    ui.horizontal(|ui| {
+        if ui.add(theme::secondary_button(&t("connection_url_apply"))).clicked() {
+            if let Some(parsed) =
+                crate::connection_url::parse_postgres_connection_url(&dialog.url_input)
+            {
+                dialog.host = parsed.host;
+                dialog.port = parsed.port.to_string();
+                dialog.database = parsed.database;
+                dialog.username = parsed.username;
+                if !parsed.password.is_empty() {
+                    dialog.password = parsed.password;
+                }
+                dialog.use_tls = parsed.use_tls;
+            }
+        }
+        if ui.add(theme::secondary_button(&t("connection_url_from_form"))).clicked() {
+            dialog.url_input = crate::connection_url::PostgresConnectionUrl {
+                host: dialog.host.clone(),
+                port: dialog.port.parse().unwrap_or(5432),
+                database: dialog.database.clone(),
+                username: dialog.username.clone(),
+                password: dialog.password.clone(),
+                use_tls: dialog.use_tls,
+            }
+            .to_url();
+        }
+    });
+    ui.add_space(theme::SPACE_SM);
+
     egui::Grid::new("conn_fields")
         .num_columns(2)
         .min_col_width(80.0)
@@ -450,6 +539,14 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             ui.add(
                 theme::text_input(&mut dialog.display_name)
                     .hint_text("My Database")
+                    .desired_width(f32::INFINITY),
+            );
+            ui.end_row();
+
+            field_label(ui, t("connection_group"));
+            ui.add(
+                theme::text_input(&mut dialog.group)
+                    .hint_text("dev / staging / prod")
                     .desired_width(f32::INFINITY),
             );
             ui.end_row();
@@ -517,6 +614,31 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             });
             ui.end_row();
 
+            field_label(ui, t("connection_auth_mode"));
+            ui.horizontal(|ui| {
+                ui.selectable_value(
+                    &mut dialog.auth_mode,
+                    "password".to_string(),
+                    t("connection_auth_password"),
+                );
+                ui.selectable_value(
+                    &mut dialog.auth_mode,
+                    "rds-iam".to_string(),
+                    t("connection_auth_rds_iam"),
+                );
+            });
+            ui.end_row();
+
+            if dialog.auth_mode == "rds-iam" {
+                field_label(ui, t("connection_aws_region"));
+                ui.add(
+                    theme::mono_text_input(&mut dialog.aws_region)
+                        .hint_text("us-east-1 (or leave blank for default)")
+                        .desired_width(f32::INFINITY),
+                );
+                ui.end_row();
+            }
+
             field_label(ui, t("connection_use_tls"));
             ui.horizontal(|ui| {
                 ui.checkbox(&mut dialog.use_tls, "");
@@ -538,19 +660,85 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             });
             ui.end_row();
 
-            field_label(ui, t("connection_ssh_tunnel"));
-            ui.add_enabled(
-                false,
-                egui::Button::new(
-                    RichText::new(t("connection_coming_soon"))
-                        .color(theme::text_disabled())
-                        .size(11.0),
-                )
-                .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::border_subtle())),
-            );
+            if dialog.use_tls {
+                field_label(ui, t("connection_sslmode"));
+                egui::ComboBox::from_id_salt("conn_sslmode")
+                    .selected_text(&dialog.sslmode)
+                    .show_ui(ui, |ui| {
+                        for m in ["require", "verify-ca", "verify-full"] {
+                            ui.selectable_value(&mut dialog.sslmode, m.to_string(), m);
+                        }
+                    });
+                ui.end_row();
+
+                cert_file_row(ui, t("connection_ssl_root_cert"), &mut dialog.ssl_root_cert);
+                cert_file_row(ui, t("connection_ssl_client_cert"), &mut dialog.ssl_client_cert);
+                cert_file_row(ui, t("connection_ssl_client_key"), &mut dialog.ssl_client_key);
+            }
+
+            field_label(ui, t("connection_guardrails"));
+            ui.vertical(|ui| {
+                ui.checkbox(&mut dialog.read_only, t("connection_read_only"));
+                ui.checkbox(&mut dialog.is_production, t("connection_production"));
+            });
             ui.end_row();
+
+            field_label(ui, t("connection_ssh_tunnel"));
+            ui.checkbox(&mut dialog.ssh_enabled, t("connection_ssh_enable"));
+            ui.end_row();
+
+            if dialog.ssh_enabled {
+                field_label(ui, t("connection_ssh_host"));
+                ui.horizontal(|ui| {
+                    ui.add(
+                        theme::mono_text_input(&mut dialog.ssh_host)
+                            .hint_text("bastion.example.com")
+                            .desired_width(150.0),
+                    );
+                    ui.label(RichText::new(":").color(theme::text_muted()));
+                    ui.add(
+                        theme::mono_text_input(&mut dialog.ssh_port)
+                            .hint_text("22")
+                            .desired_width(50.0),
+                    );
+                });
+                ui.end_row();
+
+                field_label(ui, t("connection_ssh_user"));
+                ui.add(
+                    theme::mono_text_input(&mut dialog.ssh_user)
+                        .hint_text("ec2-user")
+                        .desired_width(f32::INFINITY),
+                );
+                ui.end_row();
+
+                cert_file_row(ui, t("connection_ssh_key"), &mut dialog.ssh_key);
+            }
         });
+}
+
+/// 인증서 파일 경로 입력 행: 텍스트 필드 + 파일 선택(…) + 지우기(×).
+fn cert_file_row(ui: &mut egui::Ui, label: String, value: &mut String) {
+    field_label(ui, label);
+    ui.horizontal(|ui| {
+        ui.add(
+            theme::mono_text_input(value)
+                .hint_text("/path/to.pem")
+                .desired_width(190.0),
+        );
+        if ui.small_button("\u{2026}").clicked() {
+            if let Some(p) = rfd::FileDialog::new()
+                .add_filter("PEM", &["pem", "crt", "cer", "key"])
+                .pick_file()
+            {
+                *value = p.display().to_string();
+            }
+        }
+        if !value.is_empty() && ui.small_button("\u{00d7}").clicked() {
+            value.clear();
+        }
+    });
+    ui.end_row();
 }
 
 fn field_label(ui: &mut egui::Ui, text: String) {
@@ -670,12 +858,79 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     });
 }
 
+/// 프로덕션 연결에서 파괴적 문장 실행 전 typed 확인 모달.
+pub fn render_prod_confirm_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
+    let Some(sql) = state.pending_prod_confirm.clone() else {
+        return;
+    };
+    let mut run = false;
+    let mut cancel = false;
+
+    egui::Window::new(t("guard_prod_confirm_title"))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .show(ctx, |ui| {
+            ui.label(
+                RichText::new(t("guard_prod_confirm_body"))
+                    .color(theme::ACCENT_RED)
+                    .strong()
+                    .size(12.0),
+            );
+            ui.add_space(theme::SPACE_SM);
+            let preview: String = sql.chars().take(200).collect();
+            ui.label(
+                RichText::new(preview)
+                    .monospace()
+                    .color(theme::text_muted())
+                    .size(11.0),
+            );
+            ui.add_space(theme::SPACE_MD);
+            ui.add(
+                theme::mono_text_input(&mut state.prod_confirm_input)
+                    .hint_text("production")
+                    .desired_width(220.0),
+            );
+            ui.add_space(theme::SPACE_SM);
+            let ok = state.prod_confirm_input.trim().eq_ignore_ascii_case("production");
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(ok, theme::secondary_button(&t("guard_prod_confirm_run")))
+                    .clicked()
+                {
+                    run = true;
+                }
+                if ui.add(theme::secondary_button(&t("connection_cancel"))).clicked() {
+                    cancel = true;
+                }
+            });
+        });
+
+    if run {
+        if let Some(conn_id) = state.active_connection {
+            state.query_running = true;
+            state.last_error = None;
+            bridge.send(DbCommand::ExecuteQuery {
+                conn_id,
+                sql,
+                row_limit: Some(state.default_row_limit),
+            });
+        }
+        state.pending_prod_confirm = None;
+        state.prod_confirm_input.clear();
+    }
+    if cancel {
+        state.pending_prod_confirm = None;
+        state.prod_confirm_input.clear();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Connect action
 // ---------------------------------------------------------------------------
 
 fn do_connect(state: &mut AppState, bridge: &DbBridge) {
-    let config = state.connection_dialog.to_config();
+    let mut config = state.connection_dialog.to_config();
     let conn_id = config.id;
 
     if let Some(saved) = state.saved_connections.iter_mut().find(|c| {
@@ -685,6 +940,9 @@ fn do_connect(state: &mut AppState, bridge: &DbBridge) {
                 && c.database == config.database
                 && c.username == config.username)
     }) {
+        // 다이얼로그는 color_tag 를 편집하지 않으므로 기존 값 보존 (편집 저장 시
+        // 색상 태그가 사라지던 버그 수정).
+        config.color_tag = saved.color_tag.clone();
         *saved = config.clone();
     } else {
         state.saved_connections.push(config.clone());

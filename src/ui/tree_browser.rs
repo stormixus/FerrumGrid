@@ -38,15 +38,134 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 ui.label(RichText::new(t("tree_history_desc")).color(theme::text_disabled()).size(11.0));
             });
         }
-        TreePanelTab::Snippets => {
-            ui.add_space(theme::SPACE_XXL);
-            ui.vertical_centered(|ui| {
-                ui.label(RichText::new("S").monospace().size(20.0).color(theme::ACCENT_PURPLE));
-                ui.add_space(theme::SPACE_SM);
-                ui.label(RichText::new(t("tree_snippets_title")).color(theme::text_muted()).size(12.0));
-                ui.label(RichText::new(t("tree_snippets_desc")).color(theme::text_disabled()).size(11.0));
-            });
+        TreePanelTab::Snippets => render_snippets_panel(ui, state),
+    }
+}
+
+/// 스니펫 라이브러리 패널 — 현재 쿼리 저장 + 이름으로 에디터에 삽입 + 삭제.
+fn render_snippets_panel(ui: &mut egui::Ui, state: &mut AppState) {
+    ui.add_space(theme::SPACE_SM);
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::new(t("tree_snippets_title"))
+                .color(theme::text_secondary())
+                .size(12.0)
+                .strong(),
+        );
+    });
+    ui.add_space(theme::SPACE_XS);
+
+    // 현재 활성 쿼리를 이름과 함께 스니펫으로 저장.
+    ui.add(
+        theme::text_input(&mut state.snippet_draft_name)
+            .hint_text(t("snippet_name_hint"))
+            .desired_width(f32::INFINITY),
+    );
+    ui.add_space(theme::SPACE_XS);
+    let current_sql = state
+        .editor_tabs
+        .get(state.active_tab)
+        .map(|t| t.content.trim().to_string())
+        .unwrap_or_default();
+    let can_save = !current_sql.is_empty();
+    if ui
+        .add_enabled(can_save, theme::secondary_button(&t("snippet_save_current")))
+        .clicked()
+    {
+        let name = if state.snippet_draft_name.trim().is_empty() {
+            current_sql.lines().next().unwrap_or("snippet").chars().take(40).collect()
+        } else {
+            state.snippet_draft_name.trim().to_string()
+        };
+        state
+            .snippets
+            .push(crate::storage::snippets::Snippet::new(name, current_sql));
+        state.snippet_draft_name.clear();
+        crate::storage::snippets::save_snippets(&state.snippets);
+    }
+
+    ui.add_space(theme::SPACE_SM);
+    ui.separator();
+    ui.add_space(theme::SPACE_XS);
+
+    if state.snippets.is_empty() {
+        ui.vertical_centered(|ui| {
+            ui.add_space(theme::SPACE_LG);
+            ui.label(
+                RichText::new(t("tree_snippets_desc"))
+                    .color(theme::text_disabled())
+                    .size(11.0),
+            );
+        });
+        return;
+    }
+
+    let mut insert_body: Option<String> = None;
+    let mut delete_id: Option<uuid::Uuid> = None;
+
+    egui::ScrollArea::vertical()
+        .id_salt("snippets_scroll")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for snippet in &state.snippets {
+                egui::Frame::new()
+                    .fill(theme::bg_medium())
+                    .inner_margin(Margin::same(theme::SPACE_SM as i8))
+                    .corner_radius(CornerRadius::same(theme::RADIUS_SM))
+                    .show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        ui.horizontal(|ui| {
+                            let resp = ui.add(
+                                egui::Label::new(
+                                    RichText::new(&snippet.name)
+                                        .color(theme::text_primary())
+                                        .size(12.0),
+                                )
+                                .sense(Sense::click()),
+                            );
+                            if resp.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if resp.clicked() {
+                                insert_body = Some(snippet.body.clone());
+                            }
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.small_button("×").clicked() {
+                                        delete_id = Some(snippet.id);
+                                    }
+                                },
+                            );
+                        });
+                        let preview: String =
+                            snippet.body.chars().take(80).collect::<String>().replace('\n', " ");
+                        ui.label(
+                            RichText::new(preview)
+                                .color(theme::text_muted())
+                                .monospace()
+                                .size(10.0),
+                        );
+                    });
+                ui.add_space(2.0);
+            }
+        });
+
+    if let Some(body) = insert_body {
+        if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+            if tab.content.trim().is_empty() {
+                tab.content = body;
+            } else {
+                if !tab.content.ends_with('\n') {
+                    tab.content.push('\n');
+                }
+                tab.content.push_str(&body);
+            }
         }
+    }
+    if let Some(id) = delete_id {
+        state.snippets.retain(|s| s.id != id);
+        crate::storage::snippets::save_snippets(&state.snippets);
     }
 }
 

@@ -3,6 +3,57 @@ use tokio_postgres::{CancelToken, Client, Config, NoTls, Socket};
 use crate::db::error::DbError;
 use crate::types::ConnectionConfig;
 
+/// sslmode + (선택) CA root / client cert+key 를 반영한 native-tls connector.
+///
+/// sslmode 매핑 (native-tls 는 require/verify-ca/verify-full 만 의미 있게 구분):
+/// - verify-full: 체인 + 호스트명 모두 검증 (기본)
+/// - verify-ca:   체인만 검증, 호스트명 무시
+/// - require/prefer/allow: 암호화만, 검증 안 함
+#[allow(clippy::result_large_err)]
+fn build_tls_connector(cfg: &ConnectionConfig) -> Result<native_tls::TlsConnector, DbError> {
+    let mut builder = native_tls::TlsConnector::builder();
+    let mode = if cfg.sslmode.is_empty() {
+        "require"
+    } else {
+        cfg.sslmode.as_str()
+    };
+    match mode {
+        "verify-full" => {}
+        "verify-ca" => {
+            builder.danger_accept_invalid_hostnames(true);
+        }
+        _ => {
+            builder.danger_accept_invalid_certs(true);
+            builder.danger_accept_invalid_hostnames(true);
+        }
+    }
+
+    if let Some(path) = cfg.ssl_root_cert.as_deref().filter(|p| !p.is_empty()) {
+        let pem = std::fs::read(path)
+            .map_err(|e| DbError::connection(cfg.id, format!("Failed to read CA cert: {e}")))?;
+        let cert = native_tls::Certificate::from_pem(&pem)
+            .map_err(|e| DbError::connection(cfg.id, format!("Invalid CA cert: {e}")))?;
+        builder.add_root_certificate(cert);
+    }
+
+    if let (Some(cert_path), Some(key_path)) = (
+        cfg.ssl_client_cert.as_deref().filter(|p| !p.is_empty()),
+        cfg.ssl_client_key.as_deref().filter(|p| !p.is_empty()),
+    ) {
+        let cert_pem = std::fs::read(cert_path)
+            .map_err(|e| DbError::connection(cfg.id, format!("Failed to read client cert: {e}")))?;
+        let key_pem = std::fs::read(key_path)
+            .map_err(|e| DbError::connection(cfg.id, format!("Failed to read client key: {e}")))?;
+        let identity = native_tls::Identity::from_pkcs8(&cert_pem, &key_pem)
+            .map_err(|e| DbError::connection(cfg.id, format!("Invalid client cert/key: {e}")))?;
+        builder.identity(identity);
+    }
+
+    builder
+        .build()
+        .map_err(|e| DbError::connection(cfg.id, format!("TLS setup failed: {e}")))
+}
+
 pub async fn connect(
     config: &ConnectionConfig,
 ) -> Result<
@@ -34,9 +85,7 @@ async fn connect_impl(
         .connect_timeout(std::time::Duration::from_secs(10));
 
     if cfg.use_tls {
-        let tls_connector = native_tls::TlsConnector::builder()
-            .build()
-            .map_err(|e| DbError::connection(cfg.id, format!("TLS setup failed: {e}")))?;
+        let tls_connector = build_tls_connector(cfg)?;
         let connector = postgres_native_tls::MakeTlsConnector::new(tls_connector);
         pg_config
             .connect(connector)

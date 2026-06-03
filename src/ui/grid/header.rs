@@ -76,7 +76,10 @@ fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, activ
 }
 use crate::types::CellValue;
 use super::pager::render_data_pager;
-use super::paste::{export_csv, export_json, export_sql_insert, result_to_tsv};
+use super::paste::{
+    export_csv, export_json, export_sql_insert, export_xlsx, result_to_markdown,
+    result_to_sql_insert, result_to_tsv,
+};
 use super::toolbar::{
     metric_chip, result_meta_chip, result_meta_chip_svg, result_toolbar_action_button,
 };
@@ -330,6 +333,35 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     add_empty_row(state);
                 }
 
+                ui.add_space(theme::SPACE_SM);
+
+                let import_btn = result_toolbar_action_button(
+                    ui,
+                    crate::ui::icons_svg::EXPORT,
+                    "import_csv",
+                    &t("grid_import_csv"),
+                    true,
+                );
+                if import_btn.clicked() {
+                    if let Some(source) = state.data_edit.source.clone() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("CSV", &["csv"])
+                            .pick_file()
+                        {
+                            bridge.send(crate::db::bridge::DbCommand::ImportCsv {
+                                conn_id: source.conn_id,
+                                schema: source.schema.clone(),
+                                table: source.table.clone(),
+                                path,
+                            });
+                            state.status_message = format!(
+                                "Importing CSV into {}.{}\u{2026}",
+                                source.schema, source.table
+                            );
+                        }
+                    }
+                }
+
                 ui.add_space(theme::SPACE_MD);
             }
 
@@ -348,7 +380,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                 ui,
                 export_popup_id,
                 &export_btn,
-                120.0,
+                170.0,
                 theme::SPACE_MD_I,
                 |ui| {
                     if ui.button("CSV").clicked() {
@@ -361,6 +393,23 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
                     }
                     if ui.button("SQL INSERT").clicked() {
                         export_sql_insert(state);
+                        ui.close_menu();
+                    }
+                    if ui.button("Excel (.xlsx)").clicked() {
+                        export_xlsx(state);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("Copy as Markdown").clicked() {
+                        if let Some(ref result) = state.current_result {
+                            ui.ctx().copy_text(result_to_markdown(result));
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("Copy as INSERT").clicked() {
+                        if let Some(sql) = result_to_sql_insert(state) {
+                            ui.ctx().copy_text(sql);
+                        }
                         ui.close_menu();
                     }
                 },

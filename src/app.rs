@@ -498,6 +498,8 @@ impl FerrumGridApp {
                     if let Ok(mut store) = self.state.automation.write() {
                         store.mark_run(task_id, chrono::Utc::now(), result.clone());
                     }
+                    // 실행 후 last_run/next_run 갱신을 디스크에 영속화.
+                    crate::ui::objects::persist_automation(&self.state);
                     match result {
                         ApplyResult::Success { rows_affected } => {
                             self.toasts.info(format!(
@@ -571,6 +573,87 @@ impl FerrumGridApp {
                     self.state.migration_wizard.applying = false;
                     self.state.migration_wizard.apply_error = Some(error.clone());
                     self.state.status_message = format!("Migration failed: {error}");
+                }
+                DbResponse::CsvImported {
+                    conn_id,
+                    schema,
+                    table,
+                    rows,
+                } => {
+                    let msg = format!("Imported {rows} rows into {schema}.{table}");
+                    self.state.status_message = msg.clone();
+                    self.toasts
+                        .info(msg)
+                        .duration(Some(std::time::Duration::from_secs(5)));
+                    // 가져온 테이블을 보고 있으면 그리드 새로고침.
+                    let viewing = self
+                        .state
+                        .data_edit
+                        .source
+                        .as_ref()
+                        .map(|s| s.conn_id == conn_id && s.schema == schema && s.table == table)
+                        .unwrap_or(false);
+                    if viewing {
+                        let source = crate::state::DataSource {
+                            conn_id,
+                            schema: schema.clone(),
+                            table: table.clone(),
+                            filter: None,
+                        };
+                        let limit = self.state.data_edit.page_limit;
+                        let columns = self.state.data_columns_for_source(&source);
+                        let sql = build_data_select_sql_with_columns(
+                            &source,
+                            &self.state.data_edit.sort,
+                            limit,
+                            0,
+                            &columns,
+                        );
+                        bridge.send(crate::db::bridge::DbCommand::ExecuteQuery {
+                            conn_id,
+                            sql,
+                            row_limit: Some(limit),
+                        });
+                        self.state.query_running = true;
+                    }
+                }
+                DbResponse::SessionList { conn_id: _, sessions } => {
+                    self.state.sessions = sessions;
+                }
+                DbResponse::CatalogList { conn_id: _, catalog } => {
+                    self.state.catalog = Some(catalog);
+                }
+                DbResponse::GrantList { conn_id: _, grants } => {
+                    self.state.grants = grants;
+                }
+                DbResponse::BackendKilled {
+                    conn_id: _,
+                    pid,
+                    terminated,
+                    ok,
+                } => {
+                    let verb = if terminated { "terminated" } else { "cancelled" };
+                    if ok {
+                        self.toasts.info(format!("Backend {pid} {verb}"));
+                    } else {
+                        self.toasts
+                            .error(format!("Failed to {verb} backend {pid} (already gone?)"));
+                    }
+                    // 목록 새로고침.
+                    self.state.sessions_needs_fetch = true;
+                }
+                DbResponse::ExplainPlan { conn_id: _, json } => {
+                    self.state.query_running = false;
+                    match crate::db::explain::parse_explain_json(&json) {
+                        Some(plan) => {
+                            self.state.explain_plan = Some(plan);
+                            self.state.explain_advice = None;
+                            self.state.show_explain_window = true;
+                        }
+                        None => {
+                            self.toasts.error("Failed to parse EXPLAIN plan");
+                        }
+                    }
                 }
                 DbResponse::TransferProgress { progress } => {
                     self.state.transfer.progress = Some(progress);
@@ -745,12 +828,17 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
+        ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
         ui::migration_wizard::render_migration_wizard(ctx, &mut self.state, bridge);
         ui::backup_dialogs::render_backup_wizard(ctx, &mut self.state, bridge, &self.settings);
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
+        ui::explain_window::render_explain_window(ctx, &mut self.state, &self.settings);
+        ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
+        ui::catalog_window::render_catalog_window(ctx, &mut self.state, bridge);
+        ui::privileges_window::render_privileges_window(ctx, &mut self.state, bridge);
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
             ui::theme::configure_fonts(ctx, &self.settings.language);

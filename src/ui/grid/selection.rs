@@ -96,12 +96,13 @@ pub(super) fn render_editable_cell(
     let dirty = snapshot.is_dirty();
     let error = validate_edit_value(&snapshot, &type_name, nullable, &enum_values);
     let selected = state.data_edit.selected_cell == Some(cell_key);
+    let in_range = state.data_edit.cell_in_range(row_idx, col_idx);
     let rect = ui.available_rect_before_wrap();
-    if selected {
+    if selected || in_range {
         ui.painter().rect_filled(
             rect,
             CornerRadius::ZERO,
-            theme::with_alpha(theme::accent_color(), 16),
+            theme::with_alpha(theme::accent_color(), if selected { 16 } else { 10 }),
         );
     }
     if dirty {
@@ -131,8 +132,24 @@ pub(super) fn render_editable_cell(
         let response = ui.interact(
             rect,
             ui.make_persistent_id(("data_cell", row_idx, col_idx)),
-            egui::Sense::click(),
+            egui::Sense::click_and_drag(),
         );
+        // 드래그 선택: 시작 셀을 anchor 로, 포인터가 올라온 셀을 focus 로 직사각형.
+        if response.drag_started() {
+            state.data_edit.drag_anchor = Some((row_idx, col_idx));
+            state.data_edit.selection_range = None;
+        }
+        if let Some(anchor) = state.data_edit.drag_anchor {
+            let (down, pos) =
+                ui.input(|i| (i.pointer.primary_down(), i.pointer.interact_pos()));
+            if down {
+                if pos.is_some_and(|p| rect.contains(p)) {
+                    state.data_edit.selection_range = Some((anchor, (row_idx, col_idx)));
+                }
+            } else {
+                state.data_edit.drag_anchor = None;
+            }
+        }
         let copy_text = editable_cell_display_text(&snapshot);
         show_cell_copy_context_menu(&response, &copy_text);
         let content_width = relation_content_width(rect, relation_target.is_some());
@@ -163,9 +180,19 @@ pub(super) fn render_editable_cell(
         };
 
         if response.double_clicked() && !relation_clicked {
+            state.data_edit.selection_range = None;
             select_data_cell(state, row_idx, col_idx, true);
         } else if response.clicked() && !relation_clicked {
-            select_data_cell(state, row_idx, col_idx, false);
+            let shift = ui.input(|i| i.modifiers.shift);
+            if shift {
+                // Shift+클릭: 기존 selected_cell 을 anchor 로 직사각형 선택.
+                if let Some(anchor) = state.data_edit.selected_cell {
+                    state.data_edit.selection_range = Some((anchor, (row_idx, col_idx)));
+                }
+            } else {
+                state.data_edit.selection_range = None;
+                select_data_cell(state, row_idx, col_idx, false);
+            }
         }
         if let Some(error) = error {
             show_dark_hover_tooltip(ui, response.id.with("error"), &response, &error);

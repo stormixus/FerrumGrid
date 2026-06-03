@@ -115,6 +115,36 @@ pub enum DbCommand {
         target_config: ConnectionConfig,
         sql: String,
     },
+    /// CSV 파일을 대상 테이블로 import (COPY FROM STDIN).
+    ImportCsv {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        path: std::path::PathBuf,
+    },
+    /// `EXPLAIN (FORMAT JSON) <sql>` 실행 (plan-only, 쿼리 미실행).
+    RunExplain {
+        conn_id: ConnectionId,
+        sql: String,
+    },
+    /// pg_stat_activity 세션 목록 조회.
+    ListSessions {
+        conn_id: ConnectionId,
+    },
+    /// 카탈로그 객체(시퀀스/enum/익스텐션) 조회.
+    ListCatalog {
+        conn_id: ConnectionId,
+    },
+    /// 객체 단위 권한(ACL) 조회.
+    ListGrants {
+        conn_id: ConnectionId,
+    },
+    /// backend cancel(terminate=false) 또는 terminate(true).
+    KillBackend {
+        conn_id: ConnectionId,
+        pid: i32,
+        terminate: bool,
+    },
 }
 
 #[derive(Debug)]
@@ -242,6 +272,45 @@ pub enum DbResponse {
     MigrationFailed {
         error: String,
     },
+    /// CSV import 완료 — 적재된 행 수.
+    CsvImported {
+        conn_id: ConnectionId,
+        schema: String,
+        table: String,
+        rows: u64,
+    },
+    /// EXPLAIN 플랜 JSON 문자열. `conn_id` 는 future per-connection routing 용.
+    ExplainPlan {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        json: String,
+    },
+    /// pg_stat_activity 세션 목록.
+    SessionList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        sessions: Vec<crate::db::sessions::SessionRow>,
+    },
+    /// 카탈로그 객체 목록.
+    CatalogList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        catalog: crate::db::catalog::CatalogObjects,
+    },
+    /// 객체 단위 권한 목록.
+    GrantList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        grants: Vec<crate::db::privileges::GrantRow>,
+    },
+    /// backend cancel/terminate 결과.
+    BackendKilled {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        pid: i32,
+        terminated: bool,
+        ok: bool,
+    },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
     /// routing 용 (현재 app.rs handler 가 단일 drop_dialog 만 추적하므로 무시).
@@ -360,6 +429,21 @@ enum ConnCommand {
     FetchDependents {
         refobjid: u32,
     },
+    ImportCsv {
+        schema: String,
+        table: String,
+        path: std::path::PathBuf,
+    },
+    RunExplain {
+        sql: String,
+    },
+    ListSessions,
+    ListCatalog,
+    ListGrants,
+    KillBackend {
+        pid: i32,
+        terminate: bool,
+    },
     Shutdown,
 }
 
@@ -445,6 +529,55 @@ async fn dispatch_loop(
                     let _ = handle
                         .task_tx
                         .send(ConnCommand::ExecuteAutomation { task_id, sql })
+                        .await;
+                }
+            }
+            DbCommand::ImportCsv {
+                conn_id,
+                schema,
+                table,
+                path,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::ImportCsv {
+                            schema,
+                            table,
+                            path,
+                        })
+                        .await;
+                }
+            }
+            DbCommand::RunExplain { conn_id, sql } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::RunExplain { sql }).await;
+                }
+            }
+            DbCommand::ListSessions { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListSessions).await;
+                }
+            }
+            DbCommand::ListCatalog { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListCatalog).await;
+                }
+            }
+            DbCommand::ListGrants { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListGrants).await;
+                }
+            }
+            DbCommand::KillBackend {
+                conn_id,
+                pid,
+                terminate,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::KillBackend { pid, terminate })
                         .await;
                 }
             }
@@ -669,6 +802,53 @@ async fn connection_task(
     ctx: eframe::egui::Context,
     cancel_token_tx: tokio::sync::watch::Sender<Option<tokio_postgres::CancelToken>>,
 ) {
+    let mut config = config;
+
+    // AWS RDS IAM 인증 — 실제 RDS 엔드포인트(터널 치환 전)로 토큰 생성 후
+    // password 자리에 사용. 토큰은 매 연결마다 새로 발급(~15분 만료).
+    if config.auth_mode == "rds-iam" {
+        match crate::db::iam::generate_rds_token(
+            &config.host,
+            config.port,
+            &config.username,
+            config.aws_region.as_deref(),
+            conn_id,
+        )
+        .await
+        {
+            Ok(token) => config.password = token,
+            Err(e) => {
+                let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
+                ctx.request_repaint();
+                return;
+            }
+        }
+    }
+
+    // SSH 터널 설정 — 있으면 ssh 포워딩을 열고 host/port 를 로컬 포워딩으로
+    // 치환한다. `_tunnel` 은 이 task(=연결) 수명 동안 살아있어야 한다.
+    // (TLS + 터널 시 호스트명이 127.0.0.1 이 되므로 verify-full 은 실패할 수
+    //  있음 — sslmode=require 권장.)
+    let (config, _tunnel) = match &config.ssh_tunnel {
+        Some(tcfg) => {
+            match crate::db::ssh_tunnel::open_tunnel(tcfg, &config.host, config.port, conn_id).await
+            {
+                Ok(tunnel) => {
+                    let mut rewritten = config.clone();
+                    rewritten.host = "127.0.0.1".to_string();
+                    rewritten.port = tunnel.local_port;
+                    (rewritten, Some(tunnel))
+                }
+                Err(e) => {
+                    let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
+                    ctx.request_repaint();
+                    return;
+                }
+            }
+        }
+        None => (config, None),
+    };
+
     // Connect
     let client = if config.use_tls {
         match crate::db::connection::connect(&config).await {
@@ -1010,6 +1190,73 @@ async fn connection_task(
                         error: crate::db::error::DbError::from_pg(&e, conn_id),
                     },
                 };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ImportCsv {
+                schema,
+                table,
+                path,
+            } => {
+                let response = match crate::db::import::import_csv_file(
+                    &client, &schema, &table, &path, conn_id,
+                )
+                .await
+                {
+                    Ok(rows) => DbResponse::CsvImported {
+                        conn_id,
+                        schema,
+                        table,
+                        rows,
+                    },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::RunExplain { sql } => {
+                let response = match crate::db::explain::run_explain(&client, &sql, conn_id).await {
+                    Ok(json) => DbResponse::ExplainPlan { conn_id, json },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListSessions => {
+                let response = match crate::db::sessions::list_sessions(&client, conn_id).await {
+                    Ok(sessions) => DbResponse::SessionList { conn_id, sessions },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListCatalog => {
+                let response = match crate::db::catalog::list_catalog(&client, conn_id).await {
+                    Ok(catalog) => DbResponse::CatalogList { conn_id, catalog },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListGrants => {
+                let response = match crate::db::privileges::list_grants(&client, conn_id).await {
+                    Ok(grants) => DbResponse::GrantList { conn_id, grants },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::KillBackend { pid, terminate } => {
+                let response =
+                    match crate::db::sessions::kill_backend(&client, pid, terminate, conn_id).await {
+                        Ok(ok) => DbResponse::BackendKilled {
+                            conn_id,
+                            pid,
+                            terminated: terminate,
+                            ok,
+                        },
+                        Err(error) => DbResponse::Error { conn_id, error },
+                    };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }

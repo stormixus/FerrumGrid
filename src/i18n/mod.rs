@@ -304,6 +304,7 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("workspace_new_query", "New Query");
     en.insert("grid_revert", "Revert");
     en.insert("grid_add_row", "Add Row");
+    en.insert("grid_import_csv", "Import CSV");
     en.insert("grid_delete_row", "Delete Row");
     en.insert("grid_edits", "{0} edits");
     en.insert("grid_pk_required", "Primary key required to update rows");
@@ -783,6 +784,8 @@ fn insert_recent_ui_en(en: &mut Translation) {
     en.insert("tree_history_title", "Query History");
     en.insert("tree_history_desc", "Recent queries will appear here");
     en.insert("tree_snippets_title", "Saved Snippets");
+    en.insert("snippet_name_hint", "Snippet name (optional)");
+    en.insert("snippet_save_current", "Save current query");
     en.insert("tree_snippets_desc", "Save frequently used queries here");
 
     // Panels
@@ -1004,6 +1007,7 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("workspace_new_query", "새 쿼리");
     ko.insert("grid_revert", "되돌리기");
     ko.insert("grid_add_row", "행 추가");
+    ko.insert("grid_import_csv", "CSV 가져오기");
     ko.insert("grid_delete_row", "행 삭제");
     ko.insert("grid_edits", "{0}개 수정");
     ko.insert("grid_pk_required", "행 업데이트에는 기본키가 필요합니다");
@@ -1483,6 +1487,8 @@ fn insert_recent_ui_ko(ko: &mut Translation) {
     ko.insert("tree_history_title", "쿼리 히스토리");
     ko.insert("tree_history_desc", "최근 쿼리가 여기에 표시됩니다");
     ko.insert("tree_snippets_title", "저장된 스니펫");
+    ko.insert("snippet_name_hint", "스니펫 이름 (선택)");
+    ko.insert("snippet_save_current", "현재 쿼리 저장");
     ko.insert("tree_snippets_desc", "자주 사용하는 쿼리를 여기에 저장하세요");
 
     // Panels
@@ -4171,6 +4177,34 @@ pub fn init() {
     en.insert("connection_details", "Connection Details");
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
+    en.insert("connection_group", "Group");
+    en.insert("connection_auth_mode", "Auth");
+    en.insert("connection_auth_password", "Password");
+    en.insert("connection_auth_rds_iam", "AWS RDS IAM");
+    en.insert("connection_aws_region", "AWS Region");
+    en.insert("connection_ssh_enable", "Tunnel via SSH (uses ssh keys/agent)");
+    en.insert("connection_ssh_host", "SSH Host");
+    en.insert("connection_ssh_user", "SSH User");
+    en.insert("connection_ssh_key", "SSH Key");
+    en.insert("connection_guardrails", "Guardrails");
+    en.insert("connection_read_only", "Read-only (block writes/DDL)");
+    en.insert("connection_production", "Production (confirm destructive writes)");
+    en.insert("badge_read_only", "READ-ONLY");
+    en.insert("badge_production", "\u{26a0} PRODUCTION");
+    en.insert("guard_read_only_blocked", "Blocked: this connection is read-only");
+    en.insert("guard_prod_confirm_title", "Production safeguard");
+    en.insert(
+        "guard_prod_confirm_body",
+        "Destructive statement on a PRODUCTION connection. Type 'production' to run it.",
+    );
+    en.insert("guard_prod_confirm_run", "Run on production");
+    en.insert("connection_sslmode", "SSL Mode");
+    en.insert("connection_ssl_root_cert", "CA Root Cert");
+    en.insert("connection_ssl_client_cert", "Client Cert");
+    en.insert("connection_ssl_client_key", "Client Key");
+    en.insert("connection_url", "Connection URL");
+    en.insert("connection_url_apply", "Fill from URL");
+    en.insert("connection_url_from_form", "Build URL");
     en.insert("connection_host", "Host");
     en.insert("connection_port", "Port");
     en.insert("connection_database", "Database");
@@ -4223,6 +4257,58 @@ pub fn init() {
     en.insert("vault_unlocked_status", "Personal Vault unlocked");
     en.insert("query_editor_placeholder", "Enter your SQL query here...");
     en.insert("query_execute", "Execute");
+    en.insert(
+        "query_execute_selection_hint",
+        "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
+    );
+    en.insert("ai_button_hint", "AI: describe a query in plain English -> SQL");
+    en.insert("ai_prompt_hint", "users who signed up last week with no orders");
+    en.insert("ai_generate", "Generate");
+    en.insert("ai_fix", "Fix with AI");
+    en.insert("ai_fix_hint", "Send the failed query + error to AI and replace it with a fix");
+    en.insert("settings_row_api_key", "API key");
+    en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
+    en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
+    en.insert("privileges_window_title", "Privileges (GRANT / REVOKE)");
+    en.insert("privileges_priv", "Privilege");
+    en.insert("privileges_on", "on");
+    en.insert("privileges_grantee", "to");
+    en.insert("privileges_grant", "Grant");
+    en.insert("privileges_revoke", "Revoke");
+    en.insert("catalog_window_title", "Catalog (sequences / types / extensions)");
+    en.insert("comment_editor_label", "Description (COMMENT)");
+    en.insert("comment_column_label", "Column comment");
+    en.insert("comment_editor_hint", "Describe this table…");
+    en.insert("comment_editor_save", "Save comment");
+    en.insert("catalog_install_ext", "Install extension");
+    en.insert("catalog_new_seq", "Create sequence");
+    en.insert("catalog_confirm_drop", "Confirm DROP");
+    en.insert("catalog_loading", "Loading…");
+    en.insert("catalog_extensions", "Extensions");
+    en.insert("catalog_enums", "Enum types");
+    en.insert("catalog_sequences", "Sequences");
+    en.insert("sessions_window_title", "Sessions");
+    en.insert("sessions_refresh", "Refresh");
+    en.insert("sessions_cancel", "Cancel");
+    en.insert("sessions_cancel_hint", "pg_cancel_backend — stop the running statement");
+    en.insert("sessions_terminate", "Terminate");
+    en.insert("sessions_terminate_hint", "pg_terminate_backend — drop the connection");
+    en.insert("sessions_confirm", "Confirm kill");
+    en.insert("sessions_no_connection", "No active connection");
+    en.insert("explain_window_title", "Query Plan");
+    en.insert("explain_interpret", "Interpret with AI");
+    en.insert("explain_advice_title", "AI tuning hints");
+    en.insert(
+        "explain_window_hint",
+        "EXPLAIN (FORMAT JSON) — estimated cost & rows. Hottest nodes in red.",
+    );
+    en.insert("editor_format", "Format");
+    en.insert("editor_format_hint", "Format SQL (keyword case + indent)");
+    en.insert("editor_save_hint", "Save — tidies SQL when 'format on save' is on");
+    en.insert("editor_find", "Find");
+    en.insert("editor_replace", "Replace");
+    en.insert("editor_replace_one", "Replace");
+    en.insert("editor_replace_all", "Replace All");
     en.insert("query_cancel", "Cancel");
     en.insert("result_rows", "rows");
     en.insert("result_execution_time", "Execution time");
@@ -4472,6 +4558,34 @@ pub fn init() {
     ko.insert("connection_details", "연결 정보");
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
+    ko.insert("connection_group", "그룹");
+    ko.insert("connection_auth_mode", "인증");
+    ko.insert("connection_auth_password", "비밀번호");
+    ko.insert("connection_auth_rds_iam", "AWS RDS IAM");
+    ko.insert("connection_aws_region", "AWS 리전");
+    ko.insert("connection_ssh_enable", "SSH 터널 사용 (ssh 키/agent)");
+    ko.insert("connection_ssh_host", "SSH 호스트");
+    ko.insert("connection_ssh_user", "SSH 사용자");
+    ko.insert("connection_ssh_key", "SSH 키");
+    ko.insert("connection_guardrails", "가드레일");
+    ko.insert("connection_read_only", "읽기 전용 (쓰기/DDL 차단)");
+    ko.insert("connection_production", "프로덕션 (파괴적 쓰기 확인)");
+    ko.insert("badge_read_only", "읽기 전용");
+    ko.insert("badge_production", "\u{26a0} 프로덕션");
+    ko.insert("guard_read_only_blocked", "차단됨: 읽기 전용 연결입니다");
+    ko.insert("guard_prod_confirm_title", "프로덕션 보호");
+    ko.insert(
+        "guard_prod_confirm_body",
+        "프로덕션 연결의 파괴적 문장입니다. 실행하려면 'production' 을 입력하세요.",
+    );
+    ko.insert("guard_prod_confirm_run", "프로덕션에서 실행");
+    ko.insert("connection_sslmode", "SSL 모드");
+    ko.insert("connection_ssl_root_cert", "CA 루트 인증서");
+    ko.insert("connection_ssl_client_cert", "클라이언트 인증서");
+    ko.insert("connection_ssl_client_key", "클라이언트 키");
+    ko.insert("connection_url", "연결 URL");
+    ko.insert("connection_url_apply", "URL에서 채우기");
+    ko.insert("connection_url_from_form", "URL 생성");
     ko.insert("connection_host", "호스트");
     ko.insert("connection_port", "포트");
     ko.insert("connection_database", "데이터베이스");
@@ -4527,6 +4641,58 @@ pub fn init() {
     ko.insert("vault_unlocked_status", "Personal Vault 잠금 해제됨");
     ko.insert("query_editor_placeholder", "SQL 쿼리를 입력하세요...");
     ko.insert("query_execute", "실행");
+    ko.insert(
+        "query_execute_selection_hint",
+        "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
+    );
+    ko.insert("ai_button_hint", "AI: 자연어로 쿼리 설명 -> SQL 생성");
+    ko.insert("ai_prompt_hint", "지난주 가입했지만 주문이 없는 사용자");
+    ko.insert("ai_generate", "생성");
+    ko.insert("ai_fix", "AI 수정");
+    ko.insert("ai_fix_hint", "실패한 쿼리 + 에러를 AI 에 보내 수정안으로 교체");
+    ko.insert("settings_row_api_key", "API 키");
+    ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
+    ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
+    ko.insert("privileges_window_title", "권한 (GRANT / REVOKE)");
+    ko.insert("privileges_priv", "권한");
+    ko.insert("privileges_on", "대상");
+    ko.insert("privileges_grantee", "부여 대상");
+    ko.insert("privileges_grant", "부여");
+    ko.insert("privileges_revoke", "회수");
+    ko.insert("catalog_window_title", "카탈로그 (시퀀스 / 타입 / 익스텐션)");
+    ko.insert("comment_editor_label", "설명 (COMMENT)");
+    ko.insert("comment_column_label", "컬럼 설명");
+    ko.insert("comment_editor_hint", "이 테이블 설명…");
+    ko.insert("comment_editor_save", "설명 저장");
+    ko.insert("catalog_install_ext", "익스텐션 설치");
+    ko.insert("catalog_new_seq", "시퀀스 생성");
+    ko.insert("catalog_confirm_drop", "DROP 확인");
+    ko.insert("catalog_loading", "불러오는 중…");
+    ko.insert("catalog_extensions", "익스텐션");
+    ko.insert("catalog_enums", "Enum 타입");
+    ko.insert("catalog_sequences", "시퀀스");
+    ko.insert("sessions_window_title", "세션");
+    ko.insert("sessions_refresh", "새로고침");
+    ko.insert("sessions_cancel", "취소");
+    ko.insert("sessions_cancel_hint", "pg_cancel_backend — 실행 중 문장 취소");
+    ko.insert("sessions_terminate", "강제 종료");
+    ko.insert("sessions_terminate_hint", "pg_terminate_backend — 연결 종료");
+    ko.insert("sessions_confirm", "종료 확인");
+    ko.insert("sessions_no_connection", "활성 연결 없음");
+    ko.insert("explain_window_title", "쿼리 플랜");
+    ko.insert("explain_interpret", "AI 해석");
+    ko.insert("explain_advice_title", "AI 튜닝 힌트");
+    ko.insert(
+        "explain_window_hint",
+        "EXPLAIN (FORMAT JSON) — 예상 비용 및 행 수. 비용 큰 노드는 빨강.",
+    );
+    ko.insert("editor_format", "정렬");
+    ko.insert("editor_format_hint", "SQL 정렬 (키워드 대문자 + 들여쓰기)");
+    ko.insert("editor_save_hint", "저장 — '저장 시 정렬' 설정 시 SQL 정렬");
+    ko.insert("editor_find", "찾기");
+    ko.insert("editor_replace", "바꾸기");
+    ko.insert("editor_replace_one", "바꾸기");
+    ko.insert("editor_replace_all", "모두 바꾸기");
     ko.insert("query_cancel", "취소");
     ko.insert("result_rows", "행");
     ko.insert("result_execution_time", "실행 시간");
@@ -4762,6 +4928,10 @@ pub fn init() {
     ja.insert("status_connecting", "接続中...");
     ja.insert("connection_dialog_title", "新規接続");
     ja.insert("connection_name", "名前");
+    ja.insert("connection_group", "グループ");
+    ja.insert("connection_url", "接続URL");
+    ja.insert("connection_url_apply", "URLから入力");
+    ja.insert("connection_url_from_form", "URLを生成");
     ja.insert("connection_host", "ホスト");
     ja.insert("connection_port", "ポート");
     ja.insert("connection_database", "データベース");
@@ -4861,6 +5031,10 @@ pub fn init() {
     zh.insert("status_connecting", "连接中...");
     zh.insert("connection_dialog_title", "新建连接");
     zh.insert("connection_name", "名称");
+    zh.insert("connection_group", "分组");
+    zh.insert("connection_url", "连接URL");
+    zh.insert("connection_url_apply", "从URL填充");
+    zh.insert("connection_url_from_form", "生成URL");
     zh.insert("connection_host", "主机");
     zh.insert("connection_port", "端口");
     zh.insert("connection_database", "数据库");

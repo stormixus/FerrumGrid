@@ -1,6 +1,6 @@
 [package]
 name = "ferrumgrid"
-version = "0.3.9"
+version = "0.4.0"
 edition = "2021"
 authors = ["Stormix <stormixus@gmail.com>"]
 description = "A modern PostgreSQL desktop client built in Rust"
@@ -76,6 +76,8 @@ semver = "1"
 resvg = { version = "0.37", default-features = false }
 tiny-skia = "0.11"
 image = { version = "0.25", default-features = false, features = ["png"] }
+rust_xlsxwriter = "0.95.0"
+sqlformat = "0.5.0"
 
 # macOS native integration
 [target.'cfg(target_os = "macos")'.dependencies]

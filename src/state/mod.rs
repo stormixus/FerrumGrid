@@ -195,6 +195,64 @@ pub struct AppState {
     pub active_workspace_tab: usize,
     pub editor_tabs: Vec<EditorTab>,
     pub active_tab: usize,
+    /// 활성 에디터의 커서 char 위치 (매 프레임 TextEdit 출력에서 갱신).
+    /// 커서 위치 문장 실행(run-statement)에 사용.
+    pub editor_cursor_char: Option<usize>,
+    /// 활성 에디터의 선택 영역 (정렬된 char 인덱스). None = 선택 없음.
+    /// 선택 영역 실행(run-selection)에 사용.
+    pub editor_selection: Option<(usize, usize)>,
+    /// 에디터 찾기/바꾸기 바 표시 여부 (⌘F 로 토글).
+    pub find_open: bool,
+    /// 찾기 검색어 (대소문자 무시 부분 일치).
+    pub find_query: String,
+    /// 바꾸기 문자열.
+    pub find_replace: String,
+    /// 현재 포커스된 매치 인덱스 (next/prev 순환).
+    pub find_match_idx: usize,
+    /// EXPLAIN 플랜 트리 (파싱 결과). 창에 표시.
+    pub explain_plan: Option<crate::db::explain::PlanNode>,
+    pub show_explain_window: bool,
+    /// AI 플랜 해석 결과(조언) + 백그라운드 작업 슬롯.
+    pub explain_advice: Option<String>,
+    pub explain_advice_job: std::sync::Arc<std::sync::Mutex<crate::ai::AiJob>>,
+    /// AI text-to-SQL 프롬프트 바 + 백그라운드 작업 슬롯.
+    pub ai_prompt_open: bool,
+    pub ai_prompt_input: String,
+    pub ai_job: std::sync::Arc<std::sync::Mutex<crate::ai::AiJob>>,
+    /// AI 결과를 활성 탭에 append 대신 replace (에러 auto-fix 시).
+    pub ai_replace_active_tab: bool,
+    /// 카탈로그(시퀀스/enum/익스텐션) 브라우저 창 상태.
+    pub show_catalog_window: bool,
+    pub catalog_needs_fetch: bool,
+    pub catalog: Option<crate::db::catalog::CatalogObjects>,
+    /// CREATE EXTENSION 입력 + DROP 확인 대기 키 ("ext:name" / "seq:s.n" / "type:s.n").
+    pub catalog_new_extension: String,
+    pub catalog_new_sequence: String,
+    pub catalog_confirm_drop: Option<String>,
+    /// 테이블 COMMENT 편집 버퍼 + 현재 편집 대상 (schema, table) — 대상 변경 시 재시드.
+    pub comment_edit_buffer: String,
+    pub comment_edit_for: Option<(String, String)>,
+    /// 컬럼 COMMENT 편집: 선택 컬럼명 + 버퍼 + 재시드 키 (schema, table, column).
+    pub column_comment_selected: String,
+    pub column_comment_buffer: String,
+    pub column_comment_for: Option<(String, String, String)>,
+    /// 권한(GRANT/REVOKE) 브라우저 창 상태 + 폼.
+    pub show_privileges_window: bool,
+    pub privileges_needs_fetch: bool,
+    pub grants: Vec<crate::db::privileges::GrantRow>,
+    pub grant_form_target: String,
+    pub grant_form_grantee: String,
+    pub grant_form_privilege: String,
+    /// DBA 세션 모니터 창 상태.
+    pub show_sessions_window: bool,
+    pub sessions_needs_fetch: bool,
+    pub sessions: Vec<crate::db::sessions::SessionRow>,
+    /// terminate 확인 대기 중인 pid (2-step 확인).
+    pub sessions_confirm_terminate: Option<i32>,
+    /// 프로덕션 파괴적 문장 — typed 확인 대기 중인 SQL.
+    pub pending_prod_confirm: Option<String>,
+    /// 프로덕션 확인 입력 ("production" 일치 시 실행 허용).
+    pub prod_confirm_input: String,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -260,6 +318,12 @@ pub struct AppState {
     pub echo_warned: HashSet<u32>,
     pub query_history: Vec<crate::storage::history::HistoryEntry>,
     pub show_history_panel: bool,
+    /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
+    pub history_search: String,
+    /// 저장된 SQL 스니펫 라이브러리 (이름으로 삽입).
+    pub snippets: Vec<crate::storage::snippets::Snippet>,
+    /// 새 스니펫 저장 시 입력하는 이름 버퍼.
+    pub snippet_draft_name: String,
     pub transfer: TransferState,
     pub clipboard_tables: Option<ClipboardTables>,
     pub migration_wizard: MigrationWizardState,
@@ -374,6 +438,45 @@ impl Default for AppState {
             active_workspace_tab: 0,
             editor_tabs: vec![EditorTab::new("Query 1")],
             active_tab: 0,
+            editor_cursor_char: None,
+            editor_selection: None,
+            find_open: false,
+            find_query: String::new(),
+            find_replace: String::new(),
+            find_match_idx: 0,
+            explain_plan: None,
+            show_explain_window: false,
+            explain_advice: None,
+            explain_advice_job: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::ai::AiJob::default(),
+            )),
+            ai_prompt_open: false,
+            ai_prompt_input: String::new(),
+            ai_job: std::sync::Arc::new(std::sync::Mutex::new(crate::ai::AiJob::default())),
+            ai_replace_active_tab: false,
+            show_catalog_window: false,
+            catalog_needs_fetch: false,
+            catalog: None,
+            catalog_new_extension: String::new(),
+            catalog_new_sequence: String::new(),
+            catalog_confirm_drop: None,
+            comment_edit_buffer: String::new(),
+            comment_edit_for: None,
+            column_comment_selected: String::new(),
+            column_comment_buffer: String::new(),
+            column_comment_for: None,
+            show_privileges_window: false,
+            privileges_needs_fetch: false,
+            grants: Vec::new(),
+            grant_form_target: String::new(),
+            grant_form_grantee: String::new(),
+            grant_form_privilege: "SELECT".to_string(),
+            show_sessions_window: false,
+            sessions_needs_fetch: false,
+            sessions: Vec::new(),
+            sessions_confirm_terminate: None,
+            pending_prod_confirm: None,
+            prod_confirm_input: String::new(),
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),
@@ -416,7 +519,9 @@ impl Default for AppState {
             dragging_saved_connection: None,
             diagnostics_panel: DiagnosticsPanel::default(),
             automation: std::sync::Arc::new(std::sync::RwLock::new(
-                crate::automation::scheduler::AutomationStore::default(),
+                crate::automation::scheduler::AutomationStore::from_tasks(
+                    crate::storage::automation::load_tasks(),
+                ),
             )),
             automation_draft: AutomationDraft::default(),
             explicit_tx_active: false,
@@ -427,6 +532,9 @@ impl Default for AppState {
             echo_warned: HashSet::new(),
             query_history: Vec::new(),
             show_history_panel: false,
+            history_search: String::new(),
+            snippets: crate::storage::snippets::load_snippets(),
+            snippet_draft_name: String::new(),
             transfer: TransferState::default(),
             clipboard_tables: None,
             migration_wizard: MigrationWizardState::default(),
@@ -466,6 +574,8 @@ impl AppState {
                 page_index: 0,
                 page_index_input: "1".to_string(),
                 selected_cell: None,
+                selection_range: None,
+                drag_anchor: None,
                 editing_cell: None,
                 pending_deletes: HashSet::new(),
                 inserted_rows: HashSet::new(),
@@ -534,6 +644,8 @@ impl AppState {
             page_index,
             page_index_input,
             selected_cell: None,
+            selection_range: None,
+            drag_anchor: None,
             editing_cell: None,
             pending_deletes: HashSet::new(),
             inserted_rows: HashSet::new(),
@@ -780,6 +892,28 @@ pub struct ConnectionDialogState {
     pub password: String,
     pub show_password: bool,
     pub use_tls: bool,
+    /// libpq sslmode: require / verify-ca / verify-full.
+    pub sslmode: String,
+    /// CA root / client cert / client key 파일 경로 (빈 문자열 = 미설정).
+    pub ssl_root_cert: String,
+    pub ssl_client_cert: String,
+    pub ssl_client_key: String,
+    /// 선택적 폴더/그룹명 (dev/staging/prod 등). 빈 문자열 = 미분류.
+    pub group: String,
+    /// 읽기 전용 / 프로덕션 가드레일.
+    pub read_only: bool,
+    pub is_production: bool,
+    /// 인증 방식 ("password" / "rds-iam") + AWS 리전.
+    pub auth_mode: String,
+    pub aws_region: String,
+    /// SSH 터널 설정 (system ssh 포워딩).
+    pub ssh_enabled: bool,
+    pub ssh_host: String,
+    pub ssh_port: String,
+    pub ssh_user: String,
+    pub ssh_key: String,
+    /// 연결 URL/DSN 빠른 입력 필드 (폼과 양방향 변환용 transient 버퍼).
+    pub url_input: String,
     pub testing: bool,
     pub test_result: Option<Result<String, String>>,
     pub editing_id: Option<ConnectionId>,
@@ -801,6 +935,21 @@ impl Default for ConnectionDialogState {
             password: String::new(),
             show_password: false,
             use_tls: false,
+            sslmode: "require".to_string(),
+            ssl_root_cert: String::new(),
+            ssl_client_cert: String::new(),
+            ssl_client_key: String::new(),
+            group: String::new(),
+            read_only: false,
+            is_production: false,
+            auth_mode: "password".to_string(),
+            aws_region: String::new(),
+            ssh_enabled: false,
+            ssh_host: String::new(),
+            ssh_port: "22".to_string(),
+            ssh_user: String::new(),
+            ssh_key: String::new(),
+            url_input: String::new(),
             testing: false,
             test_result: None,
             editing_id: None,
@@ -809,6 +958,16 @@ impl Default for ConnectionDialogState {
             last_clipboard_text: None,
             pending_clipboard_import: None,
         }
+    }
+}
+
+/// 빈 문자열은 None, 그 외는 trim 후 Some(path).
+fn opt_path(s: &str) -> Option<String> {
+    let t = s.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
     }
 }
 
@@ -830,8 +989,33 @@ impl ConnectionDialogState {
             username: self.username.clone(),
             password: self.password.clone(),
             use_tls: self.use_tls,
+            sslmode: self.sslmode.clone(),
+            ssl_root_cert: opt_path(&self.ssl_root_cert),
+            ssl_client_cert: opt_path(&self.ssl_client_cert),
+            ssl_client_key: opt_path(&self.ssl_client_key),
+            read_only: self.read_only,
+            is_production: self.is_production,
+            auth_mode: self.auth_mode.clone(),
+            aws_region: opt_path(&self.aws_region),
+            ssh_tunnel: if self.ssh_enabled && !self.ssh_host.trim().is_empty() {
+                Some(crate::types::SshTunnelConfig {
+                    host: self.ssh_host.trim().to_string(),
+                    port: self.ssh_port.trim().parse().unwrap_or(22),
+                    username: self.ssh_user.trim().to_string(),
+                    key_path: opt_path(&self.ssh_key),
+                })
+            } else {
+                None
+            },
             color_tag: None,
-            ssh_tunnel: None,
+            group: {
+                let g = self.group.trim();
+                if g.is_empty() {
+                    None
+                } else {
+                    Some(g.to_string())
+                }
+            },
         }
     }
 
@@ -846,6 +1030,49 @@ impl ConnectionDialogState {
             password: config.password.clone(),
             show_password: false,
             use_tls: config.use_tls,
+            sslmode: if config.sslmode.is_empty() {
+                "require".to_string()
+            } else {
+                config.sslmode.clone()
+            },
+            ssl_root_cert: config.ssl_root_cert.clone().unwrap_or_default(),
+            ssl_client_cert: config.ssl_client_cert.clone().unwrap_or_default(),
+            ssl_client_key: config.ssl_client_key.clone().unwrap_or_default(),
+            read_only: config.read_only,
+            is_production: config.is_production,
+            auth_mode: if config.auth_mode.is_empty() {
+                "password".to_string()
+            } else {
+                config.auth_mode.clone()
+            },
+            aws_region: config.aws_region.clone().unwrap_or_default(),
+            ssh_enabled: config.ssh_tunnel.is_some(),
+            ssh_host: config.ssh_tunnel.as_ref().map(|t| t.host.clone()).unwrap_or_default(),
+            ssh_port: config
+                .ssh_tunnel
+                .as_ref()
+                .map(|t| t.port.to_string())
+                .unwrap_or_else(|| "22".to_string()),
+            ssh_user: config
+                .ssh_tunnel
+                .as_ref()
+                .map(|t| t.username.clone())
+                .unwrap_or_default(),
+            ssh_key: config
+                .ssh_tunnel
+                .as_ref()
+                .and_then(|t| t.key_path.clone())
+                .unwrap_or_default(),
+            group: config.group.clone().unwrap_or_default(),
+            url_input: crate::connection_url::PostgresConnectionUrl {
+                host: config.host.clone(),
+                port: config.port,
+                database: config.database.clone(),
+                username: config.username.clone(),
+                password: config.password.clone(),
+                use_tls: config.use_tls,
+            }
+            .to_url(),
             testing: false,
             test_result: None,
             editing_id: Some(config.id),

@@ -607,6 +607,7 @@ mod tests {
             table_type: "BASE TABLE".to_string(),
             oid: Some(16384),
             row_estimate: None,
+            comment: None,
         };
         assert_eq!(t.oid, Some(16384));
         let t2 = crate::types::TableInfo {
@@ -614,6 +615,7 @@ mod tests {
             table_type: "VIEW".to_string(),
             oid: None,
             row_estimate: None,
+            comment: None,
         };
         assert!(t2.oid.is_none());
     }

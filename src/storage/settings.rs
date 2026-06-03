@@ -111,6 +111,9 @@ pub struct AppSettings {
     // --- AI Assist ---
     pub ai_backend: String,
     pub ai_model: String,
+    /// BYOK API 키 (OpenAI/Anthropic). 빈 문자열이면 AI 비활성.
+    #[serde(default)]
+    pub ai_api_key: String,
     pub ai_send_schema: bool,
     pub ai_allow_row_samples: bool,
     pub ai_explain_on_hover: bool,
@@ -231,6 +234,7 @@ impl Default for AppSettings {
             // AI Assist
             ai_backend: "Anthropic".to_string(),
             ai_model: "claude-haiku-4-5".to_string(),
+            ai_api_key: String::new(),
             ai_send_schema: true,
             ai_allow_row_samples: false,
             ai_explain_on_hover: true,

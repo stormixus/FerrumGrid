@@ -22,6 +22,25 @@ impl PostgresConnectionUrl {
     pub fn has_password(&self) -> bool {
         !self.password.is_empty()
     }
+
+    /// 폼 필드 → `postgres://user:pass@host:port/db[?sslmode=require]` URL.
+    /// `parse_postgres_connection_url` 의 역방향 (라운드트립).
+    pub fn to_url(&self) -> String {
+        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+        let user = utf8_percent_encode(&self.username, NON_ALPHANUMERIC).to_string();
+        let auth = if self.password.is_empty() {
+            user
+        } else {
+            let pass = utf8_percent_encode(&self.password, NON_ALPHANUMERIC).to_string();
+            format!("{user}:{pass}")
+        };
+        let db = utf8_percent_encode(&self.database, NON_ALPHANUMERIC).to_string();
+        let mut url = format!("postgres://{auth}@{}:{}/{}", self.host, self.port, db);
+        if self.use_tls {
+            url.push_str("?sslmode=require");
+        }
+        url
+    }
 }
 
 pub fn parse_postgres_connection_url(raw: &str) -> Option<PostgresConnectionUrl> {
@@ -160,5 +179,34 @@ mod tests {
     fn rejects_non_postgres_urls() {
         assert!(parse_postgres_connection_url("https://example.com").is_none());
         assert!(parse_postgres_connection_url("not a url").is_none());
+    }
+
+    #[test]
+    fn to_url_round_trips_through_parser() {
+        let original = PostgresConnectionUrl {
+            host: "db.example.com".to_string(),
+            port: 6543,
+            database: "my db".to_string(),
+            username: "user@mail".to_string(),
+            password: "p@ss/word".to_string(),
+            use_tls: true,
+        };
+        let url = original.to_url();
+        let parsed = parse_postgres_connection_url(&url).expect("round-trips");
+        assert_eq!(parsed, original);
+    }
+
+    #[test]
+    fn to_url_omits_empty_password_and_sslmode() {
+        let url = PostgresConnectionUrl {
+            host: "localhost".to_string(),
+            port: 5432,
+            database: "postgres".to_string(),
+            username: "postgres".to_string(),
+            password: String::new(),
+            use_tls: false,
+        }
+        .to_url();
+        assert_eq!(url, "postgres://postgres@localhost:5432/postgres");
     }
 }

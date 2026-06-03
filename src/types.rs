@@ -26,7 +26,34 @@ pub struct ConnectionConfig {
     #[serde(default)]
     pub password: String,
     pub use_tls: bool,
+    /// libpq sslmode: "" (=require), "require", "verify-ca", "verify-full".
+    #[serde(default)]
+    pub sslmode: String,
+    /// CA root 인증서 경로 (sslrootcert). verify-ca/verify-full 검증용.
+    #[serde(default)]
+    pub ssl_root_cert: Option<String>,
+    /// 클라이언트 인증서 경로 (sslcert, mTLS).
+    #[serde(default)]
+    pub ssl_client_cert: Option<String>,
+    /// 클라이언트 키 경로 (sslkey, mTLS, PKCS#8 PEM).
+    #[serde(default)]
+    pub ssl_client_key: Option<String>,
     pub color_tag: Option<String>,
+    /// 선택적 폴더/그룹명 (dev/staging/prod 등). None/빈 문자열 = 미분류.
+    #[serde(default)]
+    pub group: Option<String>,
+    /// 읽기 전용 모드 — INSERT/UPDATE/DELETE/DDL 을 클라이언트에서 차단.
+    #[serde(default)]
+    pub read_only: bool,
+    /// 프로덕션 표시 — 파괴적 문장 실행 전 typed 확인 + 에디터 경고 배지.
+    #[serde(default)]
+    pub is_production: bool,
+    /// 인증 방식: "" / "password" = 비밀번호, "rds-iam" = AWS RDS IAM 토큰.
+    #[serde(default)]
+    pub auth_mode: String,
+    /// AWS 리전 (rds-iam 시). 비면 AWS_DEFAULT_REGION / aws config 사용.
+    #[serde(default)]
+    pub aws_region: Option<String>,
     pub ssh_tunnel: Option<SshTunnelConfig>,
 }
 
@@ -232,7 +259,16 @@ impl Default for ConnectionConfig {
             username: "postgres".to_string(),
             password: String::new(),
             use_tls: false,
+            sslmode: String::new(),
+            ssl_root_cert: None,
+            ssl_client_cert: None,
+            ssl_client_key: None,
             color_tag: None,
+            group: None,
+            read_only: false,
+            is_production: false,
+            auth_mode: String::new(),
+            aws_region: None,
             ssh_tunnel: None,
         }
     }
@@ -243,6 +279,9 @@ pub struct SshTunnelConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
+    /// 개인키 파일 경로 (ssh -i). None 이면 ssh-agent / ~/.ssh/config 사용.
+    #[serde(default)]
+    pub key_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -520,6 +559,8 @@ pub struct TableInfo {
     /// 실패 또는 미지원 catalog (e.g., information_schema view).
     pub oid: Option<u32>,
     pub row_estimate: Option<u64>,
+    /// COMMENT ON TABLE/VIEW (obj_description). None 이면 설명 없음.
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -530,6 +571,8 @@ pub struct ColumnInfo {
     pub is_nullable: bool,
     pub default_value: Option<String>,
     pub is_primary_key: bool,
+    /// COMMENT ON COLUMN (col_description). None 이면 설명 없음.
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone)]

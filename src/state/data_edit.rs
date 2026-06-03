@@ -84,9 +84,27 @@ pub struct DataEditState {
     pub page_index: usize,
     pub page_index_input: String,
     pub selected_cell: Option<(usize, usize)>,
+    /// Shift+클릭 다중 셀 선택 영역 (anchor, focus) — (row, col) 쌍.
+    pub selection_range: Option<((usize, usize), (usize, usize))>,
+    /// 드래그 선택 시작 셀 (드래그 진행 중에만 Some).
+    pub drag_anchor: Option<(usize, usize)>,
     pub editing_cell: Option<(usize, usize)>,
     pub pending_deletes: HashSet<usize>,
     pub inserted_rows: HashSet<usize>,
+}
+
+impl DataEditState {
+    /// (row, col) 이 현재 선택 영역(직사각형) 안에 있는지.
+    pub fn cell_in_range(&self, row: usize, col: usize) -> bool {
+        match self.selection_range {
+            Some((a, b)) => {
+                let (r0, r1) = (a.0.min(b.0), a.0.max(b.0));
+                let (c0, c1) = (a.1.min(b.1), a.1.max(b.1));
+                row >= r0 && row <= r1 && col >= c0 && col <= c1
+            }
+            None => false,
+        }
+    }
 }
 
 impl Default for DataEditState {
@@ -101,6 +119,8 @@ impl Default for DataEditState {
             page_index: 0,
             page_index_input: "1".to_string(),
             selected_cell: None,
+            selection_range: None,
+            drag_anchor: None,
             editing_cell: None,
             pending_deletes: HashSet::new(),
             inserted_rows: HashSet::new(),
@@ -407,6 +427,20 @@ fn quote_literal(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cell_in_range_covers_rectangle_regardless_of_anchor_order() {
+        let mut s = DataEditState::default();
+        // anchor (3,4) -> focus (1,2): rectangle rows 1..=3, cols 2..=4
+        s.selection_range = Some(((3, 4), (1, 2)));
+        assert!(s.cell_in_range(1, 2));
+        assert!(s.cell_in_range(3, 4));
+        assert!(s.cell_in_range(2, 3));
+        assert!(!s.cell_in_range(0, 2));
+        assert!(!s.cell_in_range(2, 5));
+        s.selection_range = None;
+        assert!(!s.cell_in_range(2, 3));
+    }
 
     #[test]
     fn displays_timestamp_without_timezone_in_configured_timezone() {
