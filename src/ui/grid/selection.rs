@@ -96,12 +96,13 @@ pub(super) fn render_editable_cell(
     let dirty = snapshot.is_dirty();
     let error = validate_edit_value(&snapshot, &type_name, nullable, &enum_values);
     let selected = state.data_edit.selected_cell == Some(cell_key);
+    let in_range = state.data_edit.cell_in_range(row_idx, col_idx);
     let rect = ui.available_rect_before_wrap();
-    if selected {
+    if selected || in_range {
         ui.painter().rect_filled(
             rect,
             CornerRadius::ZERO,
-            theme::with_alpha(theme::accent_color(), 16),
+            theme::with_alpha(theme::accent_color(), if selected { 16 } else { 10 }),
         );
     }
     if dirty {
@@ -163,9 +164,19 @@ pub(super) fn render_editable_cell(
         };
 
         if response.double_clicked() && !relation_clicked {
+            state.data_edit.selection_range = None;
             select_data_cell(state, row_idx, col_idx, true);
         } else if response.clicked() && !relation_clicked {
-            select_data_cell(state, row_idx, col_idx, false);
+            let shift = ui.input(|i| i.modifiers.shift);
+            if shift {
+                // Shift+클릭: 기존 selected_cell 을 anchor 로 직사각형 선택.
+                if let Some(anchor) = state.data_edit.selected_cell {
+                    state.data_edit.selection_range = Some((anchor, (row_idx, col_idx)));
+                }
+            } else {
+                state.data_edit.selection_range = None;
+                select_data_cell(state, row_idx, col_idx, false);
+            }
         }
         if let Some(error) = error {
             show_dark_hover_tooltip(ui, response.id.with("error"), &response, &error);
