@@ -4238,6 +4238,14 @@ pub fn init() {
         "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
     );
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
+    en.insert("sessions_window_title", "Sessions");
+    en.insert("sessions_refresh", "Refresh");
+    en.insert("sessions_cancel", "Cancel");
+    en.insert("sessions_cancel_hint", "pg_cancel_backend — stop the running statement");
+    en.insert("sessions_terminate", "Terminate");
+    en.insert("sessions_terminate_hint", "pg_terminate_backend — drop the connection");
+    en.insert("sessions_confirm", "Confirm kill");
+    en.insert("sessions_no_connection", "No active connection");
     en.insert("explain_window_title", "Query Plan");
     en.insert(
         "explain_window_hint",
@@ -4563,6 +4571,14 @@ pub fn init() {
         "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
     );
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
+    ko.insert("sessions_window_title", "세션");
+    ko.insert("sessions_refresh", "새로고침");
+    ko.insert("sessions_cancel", "취소");
+    ko.insert("sessions_cancel_hint", "pg_cancel_backend — 실행 중 문장 취소");
+    ko.insert("sessions_terminate", "강제 종료");
+    ko.insert("sessions_terminate_hint", "pg_terminate_backend — 연결 종료");
+    ko.insert("sessions_confirm", "종료 확인");
+    ko.insert("sessions_no_connection", "활성 연결 없음");
     ko.insert("explain_window_title", "쿼리 플랜");
     ko.insert(
         "explain_window_hint",

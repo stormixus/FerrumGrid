@@ -17,6 +17,7 @@ pub mod invalidate;
 pub mod metadata;
 pub mod metadata_fk;
 pub mod queries;
+pub mod sessions;
 pub mod row_key;
 pub mod schema_diff;
 pub mod schema_diff_exec;

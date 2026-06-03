@@ -127,6 +127,16 @@ pub enum DbCommand {
         conn_id: ConnectionId,
         sql: String,
     },
+    /// pg_stat_activity 세션 목록 조회.
+    ListSessions {
+        conn_id: ConnectionId,
+    },
+    /// backend cancel(terminate=false) 또는 terminate(true).
+    KillBackend {
+        conn_id: ConnectionId,
+        pid: i32,
+        terminate: bool,
+    },
 }
 
 #[derive(Debug)]
@@ -267,6 +277,20 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         json: String,
     },
+    /// pg_stat_activity 세션 목록.
+    SessionList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        sessions: Vec<crate::db::sessions::SessionRow>,
+    },
+    /// backend cancel/terminate 결과.
+    BackendKilled {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        pid: i32,
+        terminated: bool,
+        ok: bool,
+    },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
     /// routing 용 (현재 app.rs handler 가 단일 drop_dialog 만 추적하므로 무시).
@@ -393,6 +417,11 @@ enum ConnCommand {
     RunExplain {
         sql: String,
     },
+    ListSessions,
+    KillBackend {
+        pid: i32,
+        terminate: bool,
+    },
     Shutdown,
 }
 
@@ -501,6 +530,23 @@ async fn dispatch_loop(
             DbCommand::RunExplain { conn_id, sql } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::RunExplain { sql }).await;
+                }
+            }
+            DbCommand::ListSessions { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListSessions).await;
+                }
+            }
+            DbCommand::KillBackend {
+                conn_id,
+                pid,
+                terminate,
+            } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle
+                        .task_tx
+                        .send(ConnCommand::KillBackend { pid, terminate })
+                        .await;
                 }
             }
             DbCommand::ListSchemas { conn_id } => {
@@ -1094,6 +1140,28 @@ async fn connection_task(
                     Ok(json) => DbResponse::ExplainPlan { conn_id, json },
                     Err(error) => DbResponse::Error { conn_id, error },
                 };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListSessions => {
+                let response = match crate::db::sessions::list_sessions(&client, conn_id).await {
+                    Ok(sessions) => DbResponse::SessionList { conn_id, sessions },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::KillBackend { pid, terminate } => {
+                let response =
+                    match crate::db::sessions::kill_backend(&client, pid, terminate, conn_id).await {
+                        Ok(ok) => DbResponse::BackendKilled {
+                            conn_id,
+                            pid,
+                            terminated: terminate,
+                            ok,
+                        },
+                        Err(error) => DbResponse::Error { conn_id, error },
+                    };
                 let _ = resp_tx.send(response);
                 ctx.request_repaint();
             }

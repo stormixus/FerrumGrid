@@ -212,6 +212,12 @@ pub struct AppState {
     /// EXPLAIN 플랜 트리 (파싱 결과). 창에 표시.
     pub explain_plan: Option<crate::db::explain::PlanNode>,
     pub show_explain_window: bool,
+    /// DBA 세션 모니터 창 상태.
+    pub show_sessions_window: bool,
+    pub sessions_needs_fetch: bool,
+    pub sessions: Vec<crate::db::sessions::SessionRow>,
+    /// terminate 확인 대기 중인 pid (2-step 확인).
+    pub sessions_confirm_terminate: Option<i32>,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -405,6 +411,10 @@ impl Default for AppState {
             find_match_idx: 0,
             explain_plan: None,
             show_explain_window: false,
+            show_sessions_window: false,
+            sessions_needs_fetch: false,
+            sessions: Vec::new(),
+            sessions_confirm_terminate: None,
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),

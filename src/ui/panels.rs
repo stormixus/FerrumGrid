@@ -580,6 +580,29 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                         state.show_settings_dialog = true;
                     }
 
+                    // DBA 세션 모니터 토글.
+                    let sessions_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::DATABASE,
+                                "tb_sessions",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("sessions_window_title"));
+                    if sessions_btn.clicked() {
+                        state.show_sessions_window = !state.show_sessions_window;
+                        if state.show_sessions_window {
+                            state.sessions_needs_fetch = true;
+                        }
+                    }
+
                     let vault_btn = ui.add(
                         egui::Button::image_and_text(
                             crate::ui::icon_image_tinted(ui, icons_svg::VAULT, "tb_vault2", 13.0, theme::text_muted()),

@@ -617,6 +617,25 @@ impl FerrumGridApp {
                         self.state.query_running = true;
                     }
                 }
+                DbResponse::SessionList { conn_id: _, sessions } => {
+                    self.state.sessions = sessions;
+                }
+                DbResponse::BackendKilled {
+                    conn_id: _,
+                    pid,
+                    terminated,
+                    ok,
+                } => {
+                    let verb = if terminated { "terminated" } else { "cancelled" };
+                    if ok {
+                        self.toasts.info(format!("Backend {pid} {verb}"));
+                    } else {
+                        self.toasts
+                            .error(format!("Failed to {verb} backend {pid} (already gone?)"));
+                    }
+                    // 목록 새로고침.
+                    self.state.sessions_needs_fetch = true;
+                }
                 DbResponse::ExplainPlan { conn_id: _, json } => {
                     self.state.query_running = false;
                     match crate::db::explain::parse_explain_json(&json) {
@@ -809,6 +828,7 @@ impl eframe::App for FerrumGridApp {
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         ui::explain_window::render_explain_window(ctx, &mut self.state);
+        ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
             ui::theme::configure_fonts(ctx, &self.settings.language);
