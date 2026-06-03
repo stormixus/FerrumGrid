@@ -101,12 +101,14 @@ pub(super) fn ensure_table_info_metadata(state: &mut AppState, bridge: &DbBridge
 pub(super) fn table_info_context(state: &AppState, source: &DataSource) -> Option<TableInfoContext> {
     let conn = state.connections.get(&source.conn_id)?;
     let key = (source.schema.clone(), source.table.clone());
-    let table_type = conn
+    let table_meta = conn
         .tables
         .get(&source.schema)
-        .and_then(|tables| tables.iter().find(|table| table.name == source.table))
+        .and_then(|tables| tables.iter().find(|table| table.name == source.table));
+    let table_type = table_meta
         .map(|table| table.table_type.clone())
         .unwrap_or_else(|| "TABLE".to_string());
+    let table_comment = table_meta.and_then(|table| table.comment.clone());
     let columns = conn
         .columns
         .get(&key)
@@ -133,6 +135,7 @@ pub(super) fn table_info_context(state: &AppState, source: &DataSource) -> Optio
         table_name: source.table.clone(),
         schema: source.schema.clone(),
         table_type,
+        table_comment,
         filter: source.filter.clone(),
         columns,
         indexes,
@@ -158,6 +161,7 @@ pub(super) fn result_columns_as_table_columns(state: &AppState) -> Vec<ColumnInf
                     is_nullable: true,
                     default_value: None,
                     is_primary_key: false,
+                    comment: None,
                 })
                 .collect()
         })
@@ -184,6 +188,15 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
             .monospace()
             .size(11.0),
     );
+    if let Some(comment) = &context.table_comment {
+        ui.add_space(theme::SPACE_XS);
+        ui.label(
+            RichText::new(comment)
+                .color(theme::text_secondary())
+                .italics()
+                .size(11.5),
+        );
+    }
     ui.add_space(theme::SPACE_SM);
 
     ui.horizontal_wrapped(|ui| {
@@ -298,6 +311,15 @@ pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoCo
                         .color(theme::accent_color())
                         .monospace()
                         .size(10.0),
+                    );
+                }
+                if let Some(comment) = &column.comment {
+                    ui.add_space(theme::SPACE_XS);
+                    ui.label(
+                        RichText::new(comment)
+                            .color(theme::text_secondary())
+                            .italics()
+                            .size(10.0),
                     );
                 }
             });

@@ -236,6 +236,8 @@ pub(super) struct TableInfoContext {
     pub(super) table_name: String,
     pub(super) schema: String,
     pub(super) table_type: String,
+    /// COMMENT ON TABLE/VIEW (obj_description). None 이면 설명 없음.
+    pub(super) table_comment: Option<String>,
     pub(super) filter: Option<DataFilter>,
     pub(super) columns: Vec<ColumnInfo>,
     pub(super) indexes: Vec<IndexInfo>,

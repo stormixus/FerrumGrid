@@ -520,6 +520,8 @@ pub struct TableInfo {
     /// 실패 또는 미지원 catalog (e.g., information_schema view).
     pub oid: Option<u32>,
     pub row_estimate: Option<u64>,
+    /// COMMENT ON TABLE/VIEW (obj_description). None 이면 설명 없음.
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -530,6 +532,8 @@ pub struct ColumnInfo {
     pub is_nullable: bool,
     pub default_value: Option<String>,
     pub is_primary_key: bool,
+    /// COMMENT ON COLUMN (col_description). None 이면 설명 없음.
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone)]

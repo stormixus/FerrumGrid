@@ -49,7 +49,8 @@ pub async fn list_tables(
     let rows = client
         .query(
             "SELECT t.table_name, t.table_type, c.oid::int8, \
-                    GREATEST(c.reltuples, 0)::int8 \
+                    GREATEST(c.reltuples, 0)::int8, \
+                    obj_description(c.oid) \
              FROM information_schema.tables t \
              LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = t.table_schema \
              LEFT JOIN pg_catalog.pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid \
@@ -67,6 +68,7 @@ pub async fn list_tables(
             table_type: r.get(1),
             oid: r.get::<_, Option<i64>>(2).map(|v| v as u32),
             row_estimate: r.get::<_, Option<i64>>(3).map(|v| v.max(0) as u64),
+            comment: r.get::<_, Option<String>>(4),
         })
         .collect();
 
@@ -74,7 +76,8 @@ pub async fn list_tables(
     let mat_rows = client
         .query(
             "SELECT m.matviewname, c.oid::int8, \
-                    GREATEST(c.reltuples, 0)::int8 \
+                    GREATEST(c.reltuples, 0)::int8, \
+                    obj_description(c.oid) \
              FROM pg_catalog.pg_matviews m \
              LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = m.schemaname \
              LEFT JOIN pg_catalog.pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid \
@@ -91,6 +94,7 @@ pub async fn list_tables(
             table_type: "MATERIALIZED VIEW".to_string(),
             oid: r.get::<_, Option<i64>>(1).map(|v| v as u32),
             row_estimate: r.get::<_, Option<i64>>(2).map(|v| v.max(0) as u64),
+            comment: r.get::<_, Option<String>>(3),
         });
     }
 
@@ -114,7 +118,8 @@ pub async fn list_columns(
                 COALESCE(enum_labels.labels, ARRAY[]::text[]) AS enum_values, \
                 c.is_nullable = 'YES' AS is_nullable, \
                 c.column_default, \
-                COALESCE(tc.constraint_type = 'PRIMARY KEY', false) AS is_pk \
+                COALESCE(tc.constraint_type = 'PRIMARY KEY', false) AS is_pk, \
+                col_description(format('%I.%I', c.table_schema, c.table_name)::regclass, c.ordinal_position::int) AS column_comment \
              FROM information_schema.columns c \
              LEFT JOIN pg_catalog.pg_namespace tn \
                 ON tn.nspname = c.udt_schema \
@@ -150,6 +155,7 @@ pub async fn list_columns(
             is_nullable: r.get(3),
             default_value: r.get(4),
             is_primary_key: r.get(5),
+            comment: r.get::<_, Option<String>>(6),
         })
         .collect())
 }
