@@ -4274,6 +4274,9 @@ pub fn init() {
     en.insert("privileges_grant", "Grant");
     en.insert("privileges_revoke", "Revoke");
     en.insert("catalog_window_title", "Catalog (sequences / types / extensions)");
+    en.insert("comment_editor_label", "Description (COMMENT)");
+    en.insert("comment_editor_hint", "Describe this table…");
+    en.insert("comment_editor_save", "Save comment");
     en.insert("catalog_install_ext", "Install extension");
     en.insert("catalog_confirm_drop", "Confirm DROP");
     en.insert("catalog_loading", "Loading…");
@@ -4651,6 +4654,9 @@ pub fn init() {
     ko.insert("privileges_grant", "부여");
     ko.insert("privileges_revoke", "회수");
     ko.insert("catalog_window_title", "카탈로그 (시퀀스 / 타입 / 익스텐션)");
+    ko.insert("comment_editor_label", "설명 (COMMENT)");
+    ko.insert("comment_editor_hint", "이 테이블 설명…");
+    ko.insert("comment_editor_save", "설명 저장");
     ko.insert("catalog_install_ext", "익스텐션 설치");
     ko.insert("catalog_confirm_drop", "DROP 확인");
     ko.insert("catalog_loading", "불러오는 중…");

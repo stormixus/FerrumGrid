@@ -226,6 +226,9 @@ pub struct AppState {
     /// CREATE EXTENSION 입력 + DROP 확인 대기 키 ("ext:name" / "seq:s.n" / "type:s.n").
     pub catalog_new_extension: String,
     pub catalog_confirm_drop: Option<String>,
+    /// 테이블 COMMENT 편집 버퍼 + 현재 편집 대상 (schema, table) — 대상 변경 시 재시드.
+    pub comment_edit_buffer: String,
+    pub comment_edit_for: Option<(String, String)>,
     /// 권한(GRANT/REVOKE) 브라우저 창 상태 + 폼.
     pub show_privileges_window: bool,
     pub privileges_needs_fetch: bool,
@@ -448,6 +451,8 @@ impl Default for AppState {
             catalog: None,
             catalog_new_extension: String::new(),
             catalog_confirm_drop: None,
+            comment_edit_buffer: String::new(),
+            comment_edit_for: None,
             show_privileges_window: false,
             privileges_needs_fetch: false,
             grants: Vec::new(),
