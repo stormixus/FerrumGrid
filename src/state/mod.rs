@@ -223,6 +223,9 @@ pub struct AppState {
     pub show_catalog_window: bool,
     pub catalog_needs_fetch: bool,
     pub catalog: Option<crate::db::catalog::CatalogObjects>,
+    /// CREATE EXTENSION 입력 + DROP 확인 대기 키 ("ext:name" / "seq:s.n" / "type:s.n").
+    pub catalog_new_extension: String,
+    pub catalog_confirm_drop: Option<String>,
     /// 권한(GRANT/REVOKE) 브라우저 창 상태 + 폼.
     pub show_privileges_window: bool,
     pub privileges_needs_fetch: bool,
@@ -443,6 +446,8 @@ impl Default for AppState {
             show_catalog_window: false,
             catalog_needs_fetch: false,
             catalog: None,
+            catalog_new_extension: String::new(),
+            catalog_confirm_drop: None,
             show_privileges_window: false,
             privileges_needs_fetch: false,
             grants: Vec::new(),

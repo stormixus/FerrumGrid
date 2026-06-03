@@ -4274,6 +4274,8 @@ pub fn init() {
     en.insert("privileges_grant", "Grant");
     en.insert("privileges_revoke", "Revoke");
     en.insert("catalog_window_title", "Catalog (sequences / types / extensions)");
+    en.insert("catalog_install_ext", "Install extension");
+    en.insert("catalog_confirm_drop", "Confirm DROP");
     en.insert("catalog_loading", "Loading…");
     en.insert("catalog_extensions", "Extensions");
     en.insert("catalog_enums", "Enum types");
@@ -4649,6 +4651,8 @@ pub fn init() {
     ko.insert("privileges_grant", "부여");
     ko.insert("privileges_revoke", "회수");
     ko.insert("catalog_window_title", "카탈로그 (시퀀스 / 타입 / 익스텐션)");
+    ko.insert("catalog_install_ext", "익스텐션 설치");
+    ko.insert("catalog_confirm_drop", "DROP 확인");
     ko.insert("catalog_loading", "불러오는 중…");
     ko.insert("catalog_extensions", "익스텐션");
     ko.insert("catalog_enums", "Enum 타입");
