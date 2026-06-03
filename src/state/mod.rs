@@ -229,6 +229,10 @@ pub struct AppState {
     /// 테이블 COMMENT 편집 버퍼 + 현재 편집 대상 (schema, table) — 대상 변경 시 재시드.
     pub comment_edit_buffer: String,
     pub comment_edit_for: Option<(String, String)>,
+    /// 컬럼 COMMENT 편집: 선택 컬럼명 + 버퍼 + 재시드 키 (schema, table, column).
+    pub column_comment_selected: String,
+    pub column_comment_buffer: String,
+    pub column_comment_for: Option<(String, String, String)>,
     /// 권한(GRANT/REVOKE) 브라우저 창 상태 + 폼.
     pub show_privileges_window: bool,
     pub privileges_needs_fetch: bool,
@@ -453,6 +457,9 @@ impl Default for AppState {
             catalog_confirm_drop: None,
             comment_edit_buffer: String::new(),
             comment_edit_for: None,
+            column_comment_selected: String::new(),
+            column_comment_buffer: String::new(),
+            column_comment_for: None,
             show_privileges_window: false,
             privileges_needs_fetch: false,
             grants: Vec::new(),

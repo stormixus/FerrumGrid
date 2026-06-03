@@ -111,6 +111,91 @@ fn render_data_schema_tab(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBr
     ensure_table_info_metadata(state, bridge, &source);
     render_info_table_overview(ui, state, &source);
     render_table_comment_editor(ui, state, bridge, &source);
+    render_column_comment_editor(ui, state, bridge, &source);
+}
+
+/// 컬럼 COMMENT 편집기 — 컬럼 선택 + `COMMENT ON COLUMN ... IS '...'`.
+fn render_column_comment_editor(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    source: &DataSource,
+) {
+    use crate::ui::theme;
+    let key = (source.schema.clone(), source.table.clone());
+    let columns: Vec<ColumnInfo> = state
+        .connections
+        .get(&source.conn_id)
+        .and_then(|c| c.columns.get(&key))
+        .cloned()
+        .unwrap_or_default();
+    if columns.is_empty() {
+        return;
+    }
+    // 선택 컬럼이 비었거나 목록에 없으면 첫 컬럼으로.
+    if !columns.iter().any(|c| c.name == state.column_comment_selected) {
+        state.column_comment_selected = columns[0].name.clone();
+        state.column_comment_for = None;
+    }
+    // (table, column) 변경 시 버퍼 재시드.
+    let sel_key = (
+        source.schema.clone(),
+        source.table.clone(),
+        state.column_comment_selected.clone(),
+    );
+    if state.column_comment_for.as_ref() != Some(&sel_key) {
+        state.column_comment_buffer = columns
+            .iter()
+            .find(|c| c.name == state.column_comment_selected)
+            .and_then(|c| c.comment.clone())
+            .unwrap_or_default();
+        state.column_comment_for = Some(sel_key);
+    }
+
+    ui.add_space(theme::SPACE_SM);
+    ui.horizontal(|ui| {
+        info_section_label(ui, &t("comment_column_label"));
+        egui::ComboBox::from_id_salt("col_comment_pick")
+            .selected_text(&state.column_comment_selected)
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for c in &columns {
+                    ui.selectable_value(
+                        &mut state.column_comment_selected,
+                        c.name.clone(),
+                        &c.name,
+                    );
+                }
+            });
+    });
+    ui.add_space(theme::SPACE_XS);
+    ui.add(
+        crate::ui::theme::multiline_mono_text_input(&mut state.column_comment_buffer)
+            .hint_text(t("comment_editor_hint"))
+            .desired_rows(2)
+            .desired_width(f32::INFINITY),
+    );
+    ui.add_space(theme::SPACE_XS);
+    if ui.add(theme::secondary_button(&t("comment_editor_save"))).clicked() {
+        if let Some(conn_id) = state.active_connection {
+            let body = state.column_comment_buffer.trim();
+            let value = if body.is_empty() {
+                "NULL".to_string()
+            } else {
+                format!("'{}'", body.replace('\'', "''"))
+            };
+            let sql = format!(
+                "COMMENT ON COLUMN \"{}\".\"{}\".\"{}\" IS {};",
+                source.schema, source.table, state.column_comment_selected, value
+            );
+            bridge.send(DbCommand::ApplyDdlWithInvalidation {
+                conn_id,
+                sql,
+                table_oid: None,
+                schema_to_refresh: Some(source.schema.clone()),
+            });
+        }
+    }
 }
 
 /// 테이블 COMMENT 편집기 — `COMMENT ON TABLE ... IS '...'` 발사. 대상이 바뀌면
