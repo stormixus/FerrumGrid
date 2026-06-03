@@ -614,6 +614,31 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             });
             ui.end_row();
 
+            field_label(ui, t("connection_auth_mode"));
+            ui.horizontal(|ui| {
+                ui.selectable_value(
+                    &mut dialog.auth_mode,
+                    "password".to_string(),
+                    t("connection_auth_password"),
+                );
+                ui.selectable_value(
+                    &mut dialog.auth_mode,
+                    "rds-iam".to_string(),
+                    t("connection_auth_rds_iam"),
+                );
+            });
+            ui.end_row();
+
+            if dialog.auth_mode == "rds-iam" {
+                field_label(ui, t("connection_aws_region"));
+                ui.add(
+                    theme::mono_text_input(&mut dialog.aws_region)
+                        .hint_text("us-east-1 (or leave blank for default)")
+                        .desired_width(f32::INFINITY),
+                );
+                ui.end_row();
+            }
+
             field_label(ui, t("connection_use_tls"));
             ui.horizontal(|ui| {
                 ui.checkbox(&mut dialog.use_tls, "");

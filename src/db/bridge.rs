@@ -802,6 +802,29 @@ async fn connection_task(
     ctx: eframe::egui::Context,
     cancel_token_tx: tokio::sync::watch::Sender<Option<tokio_postgres::CancelToken>>,
 ) {
+    let mut config = config;
+
+    // AWS RDS IAM 인증 — 실제 RDS 엔드포인트(터널 치환 전)로 토큰 생성 후
+    // password 자리에 사용. 토큰은 매 연결마다 새로 발급(~15분 만료).
+    if config.auth_mode == "rds-iam" {
+        match crate::db::iam::generate_rds_token(
+            &config.host,
+            config.port,
+            &config.username,
+            config.aws_region.as_deref(),
+            conn_id,
+        )
+        .await
+        {
+            Ok(token) => config.password = token,
+            Err(e) => {
+                let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
+                ctx.request_repaint();
+                return;
+            }
+        }
+    }
+
     // SSH 터널 설정 — 있으면 ssh 포워딩을 열고 host/port 를 로컬 포워딩으로
     // 치환한다. `_tunnel` 은 이 task(=연결) 수명 동안 살아있어야 한다.
     // (TLS + 터널 시 호스트명이 127.0.0.1 이 되므로 verify-full 은 실패할 수

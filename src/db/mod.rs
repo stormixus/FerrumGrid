@@ -12,6 +12,7 @@ pub mod catalog;
 pub mod edits;
 pub mod error;
 pub mod explain;
+pub mod iam;
 pub mod import;
 pub mod introspect;
 pub mod invalidate;

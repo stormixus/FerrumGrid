@@ -879,6 +879,9 @@ pub struct ConnectionDialogState {
     /// 읽기 전용 / 프로덕션 가드레일.
     pub read_only: bool,
     pub is_production: bool,
+    /// 인증 방식 ("password" / "rds-iam") + AWS 리전.
+    pub auth_mode: String,
+    pub aws_region: String,
     /// SSH 터널 설정 (system ssh 포워딩).
     pub ssh_enabled: bool,
     pub ssh_host: String,
@@ -915,6 +918,8 @@ impl Default for ConnectionDialogState {
             group: String::new(),
             read_only: false,
             is_production: false,
+            auth_mode: "password".to_string(),
+            aws_region: String::new(),
             ssh_enabled: false,
             ssh_host: String::new(),
             ssh_port: "22".to_string(),
@@ -966,6 +971,8 @@ impl ConnectionDialogState {
             ssl_client_key: opt_path(&self.ssl_client_key),
             read_only: self.read_only,
             is_production: self.is_production,
+            auth_mode: self.auth_mode.clone(),
+            aws_region: opt_path(&self.aws_region),
             ssh_tunnel: if self.ssh_enabled && !self.ssh_host.trim().is_empty() {
                 Some(crate::types::SshTunnelConfig {
                     host: self.ssh_host.trim().to_string(),
@@ -1009,6 +1016,12 @@ impl ConnectionDialogState {
             ssl_client_key: config.ssl_client_key.clone().unwrap_or_default(),
             read_only: config.read_only,
             is_production: config.is_production,
+            auth_mode: if config.auth_mode.is_empty() {
+                "password".to_string()
+            } else {
+                config.auth_mode.clone()
+            },
+            aws_region: config.aws_region.clone().unwrap_or_default(),
             ssh_enabled: config.ssh_tunnel.is_some(),
             ssh_host: config.ssh_tunnel.as_ref().map(|t| t.host.clone()).unwrap_or_default(),
             ssh_port: config

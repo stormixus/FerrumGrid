@@ -48,6 +48,12 @@ pub struct ConnectionConfig {
     /// 프로덕션 표시 — 파괴적 문장 실행 전 typed 확인 + 에디터 경고 배지.
     #[serde(default)]
     pub is_production: bool,
+    /// 인증 방식: "" / "password" = 비밀번호, "rds-iam" = AWS RDS IAM 토큰.
+    #[serde(default)]
+    pub auth_mode: String,
+    /// AWS 리전 (rds-iam 시). 비면 AWS_DEFAULT_REGION / aws config 사용.
+    #[serde(default)]
+    pub aws_region: Option<String>,
     pub ssh_tunnel: Option<SshTunnelConfig>,
 }
 
@@ -261,6 +267,8 @@ impl Default for ConnectionConfig {
             group: None,
             read_only: false,
             is_production: false,
+            auth_mode: String::new(),
+            aws_region: None,
             ssh_tunnel: None,
         }
     }

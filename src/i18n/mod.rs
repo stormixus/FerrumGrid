@@ -4178,6 +4178,10 @@ pub fn init() {
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_group", "Group");
+    en.insert("connection_auth_mode", "Auth");
+    en.insert("connection_auth_password", "Password");
+    en.insert("connection_auth_rds_iam", "AWS RDS IAM");
+    en.insert("connection_aws_region", "AWS Region");
     en.insert("connection_ssh_enable", "Tunnel via SSH (uses ssh keys/agent)");
     en.insert("connection_ssh_host", "SSH Host");
     en.insert("connection_ssh_user", "SSH User");
@@ -4546,6 +4550,10 @@ pub fn init() {
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_group", "그룹");
+    ko.insert("connection_auth_mode", "인증");
+    ko.insert("connection_auth_password", "비밀번호");
+    ko.insert("connection_auth_rds_iam", "AWS RDS IAM");
+    ko.insert("connection_aws_region", "AWS 리전");
     ko.insert("connection_ssh_enable", "SSH 터널 사용 (ssh 키/agent)");
     ko.insert("connection_ssh_host", "SSH 호스트");
     ko.insert("connection_ssh_user", "SSH 사용자");
