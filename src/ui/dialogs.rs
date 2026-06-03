@@ -659,17 +659,36 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
             ui.end_row();
 
             field_label(ui, t("connection_ssh_tunnel"));
-            ui.add_enabled(
-                false,
-                egui::Button::new(
-                    RichText::new(t("connection_coming_soon"))
-                        .color(theme::text_disabled())
-                        .size(11.0),
-                )
-                .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0, theme::border_subtle())),
-            );
+            ui.checkbox(&mut dialog.ssh_enabled, t("connection_ssh_enable"));
             ui.end_row();
+
+            if dialog.ssh_enabled {
+                field_label(ui, t("connection_ssh_host"));
+                ui.horizontal(|ui| {
+                    ui.add(
+                        theme::mono_text_input(&mut dialog.ssh_host)
+                            .hint_text("bastion.example.com")
+                            .desired_width(150.0),
+                    );
+                    ui.label(RichText::new(":").color(theme::text_muted()));
+                    ui.add(
+                        theme::mono_text_input(&mut dialog.ssh_port)
+                            .hint_text("22")
+                            .desired_width(50.0),
+                    );
+                });
+                ui.end_row();
+
+                field_label(ui, t("connection_ssh_user"));
+                ui.add(
+                    theme::mono_text_input(&mut dialog.ssh_user)
+                        .hint_text("ec2-user")
+                        .desired_width(f32::INFINITY),
+                );
+                ui.end_row();
+
+                cert_file_row(ui, t("connection_ssh_key"), &mut dialog.ssh_key);
+            }
         });
 }
 

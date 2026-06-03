@@ -20,6 +20,7 @@ pub mod metadata_fk;
 pub mod privileges;
 pub mod queries;
 pub mod sessions;
+pub mod ssh_tunnel;
 pub mod row_key;
 pub mod schema_diff;
 pub mod schema_diff_exec;

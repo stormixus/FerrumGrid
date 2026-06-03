@@ -879,6 +879,12 @@ pub struct ConnectionDialogState {
     /// 읽기 전용 / 프로덕션 가드레일.
     pub read_only: bool,
     pub is_production: bool,
+    /// SSH 터널 설정 (system ssh 포워딩).
+    pub ssh_enabled: bool,
+    pub ssh_host: String,
+    pub ssh_port: String,
+    pub ssh_user: String,
+    pub ssh_key: String,
     /// 연결 URL/DSN 빠른 입력 필드 (폼과 양방향 변환용 transient 버퍼).
     pub url_input: String,
     pub testing: bool,
@@ -909,6 +915,11 @@ impl Default for ConnectionDialogState {
             group: String::new(),
             read_only: false,
             is_production: false,
+            ssh_enabled: false,
+            ssh_host: String::new(),
+            ssh_port: "22".to_string(),
+            ssh_user: String::new(),
+            ssh_key: String::new(),
             url_input: String::new(),
             testing: false,
             test_result: None,
@@ -955,6 +966,16 @@ impl ConnectionDialogState {
             ssl_client_key: opt_path(&self.ssl_client_key),
             read_only: self.read_only,
             is_production: self.is_production,
+            ssh_tunnel: if self.ssh_enabled && !self.ssh_host.trim().is_empty() {
+                Some(crate::types::SshTunnelConfig {
+                    host: self.ssh_host.trim().to_string(),
+                    port: self.ssh_port.trim().parse().unwrap_or(22),
+                    username: self.ssh_user.trim().to_string(),
+                    key_path: opt_path(&self.ssh_key),
+                })
+            } else {
+                None
+            },
             color_tag: None,
             group: {
                 let g = self.group.trim();
@@ -964,7 +985,6 @@ impl ConnectionDialogState {
                     Some(g.to_string())
                 }
             },
-            ssh_tunnel: None,
         }
     }
 
@@ -989,6 +1009,23 @@ impl ConnectionDialogState {
             ssl_client_key: config.ssl_client_key.clone().unwrap_or_default(),
             read_only: config.read_only,
             is_production: config.is_production,
+            ssh_enabled: config.ssh_tunnel.is_some(),
+            ssh_host: config.ssh_tunnel.as_ref().map(|t| t.host.clone()).unwrap_or_default(),
+            ssh_port: config
+                .ssh_tunnel
+                .as_ref()
+                .map(|t| t.port.to_string())
+                .unwrap_or_else(|| "22".to_string()),
+            ssh_user: config
+                .ssh_tunnel
+                .as_ref()
+                .map(|t| t.username.clone())
+                .unwrap_or_default(),
+            ssh_key: config
+                .ssh_tunnel
+                .as_ref()
+                .and_then(|t| t.key_path.clone())
+                .unwrap_or_default(),
             group: config.group.clone().unwrap_or_default(),
             url_input: crate::connection_url::PostgresConnectionUrl {
                 host: config.host.clone(),

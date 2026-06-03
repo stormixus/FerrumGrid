@@ -271,6 +271,9 @@ pub struct SshTunnelConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
+    /// 개인키 파일 경로 (ssh -i). None 이면 ssh-agent / ~/.ssh/config 사용.
+    #[serde(default)]
+    pub key_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]

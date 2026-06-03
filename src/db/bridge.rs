@@ -802,6 +802,30 @@ async fn connection_task(
     ctx: eframe::egui::Context,
     cancel_token_tx: tokio::sync::watch::Sender<Option<tokio_postgres::CancelToken>>,
 ) {
+    // SSH 터널 설정 — 있으면 ssh 포워딩을 열고 host/port 를 로컬 포워딩으로
+    // 치환한다. `_tunnel` 은 이 task(=연결) 수명 동안 살아있어야 한다.
+    // (TLS + 터널 시 호스트명이 127.0.0.1 이 되므로 verify-full 은 실패할 수
+    //  있음 — sslmode=require 권장.)
+    let (config, _tunnel) = match &config.ssh_tunnel {
+        Some(tcfg) => {
+            match crate::db::ssh_tunnel::open_tunnel(tcfg, &config.host, config.port, conn_id).await
+            {
+                Ok(tunnel) => {
+                    let mut rewritten = config.clone();
+                    rewritten.host = "127.0.0.1".to_string();
+                    rewritten.port = tunnel.local_port;
+                    (rewritten, Some(tunnel))
+                }
+                Err(e) => {
+                    let _ = resp_tx.send(DbResponse::Error { conn_id, error: e });
+                    ctx.request_repaint();
+                    return;
+                }
+            }
+        }
+        None => (config, None),
+    };
+
     // Connect
     let client = if config.use_tls {
         match crate::db::connection::connect(&config).await {

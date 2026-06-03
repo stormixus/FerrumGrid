@@ -4178,6 +4178,10 @@ pub fn init() {
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_group", "Group");
+    en.insert("connection_ssh_enable", "Tunnel via SSH (uses ssh keys/agent)");
+    en.insert("connection_ssh_host", "SSH Host");
+    en.insert("connection_ssh_user", "SSH User");
+    en.insert("connection_ssh_key", "SSH Key");
     en.insert("connection_guardrails", "Guardrails");
     en.insert("connection_read_only", "Read-only (block writes/DDL)");
     en.insert("connection_production", "Production (confirm destructive writes)");
@@ -4542,6 +4546,10 @@ pub fn init() {
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_group", "그룹");
+    ko.insert("connection_ssh_enable", "SSH 터널 사용 (ssh 키/agent)");
+    ko.insert("connection_ssh_host", "SSH 호스트");
+    ko.insert("connection_ssh_user", "SSH 사용자");
+    ko.insert("connection_ssh_key", "SSH 키");
     ko.insert("connection_guardrails", "가드레일");
     ko.insert("connection_read_only", "읽기 전용 (쓰기/DDL 차단)");
     ko.insert("connection_production", "프로덕션 (파괴적 쓰기 확인)");
