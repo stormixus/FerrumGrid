@@ -18,7 +18,7 @@ pub fn render_editor(
     settings: &AppSettings,
 ) {
     render_tab_bar(ui, state, bridge);
-    render_toolbar(ui, state, bridge);
+    render_toolbar(ui, state, bridge, settings);
     render_editor_body(ui, state, bridge, settings);
 }
 
@@ -245,7 +245,12 @@ fn truncate_label(text: &str, max_chars: usize) -> String {
 // Toolbar
 // ---------------------------------------------------------------------------
 
-fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
+fn render_toolbar(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    bridge: &DbBridge,
+    settings: &AppSettings,
+) {
     let toolbar_frame = egui::Frame::new()
         .fill(theme::bg_shell())
         .inner_margin(Margin::symmetric(18, theme::SPACE_XS_I))
@@ -299,11 +304,16 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 }
             }
 
-            // Save button (secondary with icon)
-            ui.add(theme::secondary_icon_button(
-                crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save2", 12.0, theme::text_secondary()),
-                "Save",
-            ));
+            // Save button (secondary with icon) — format_on_save 시 버퍼 정렬.
+            let save_resp = ui
+                .add(theme::secondary_icon_button(
+                    crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save2", 12.0, theme::text_secondary()),
+                    "Save",
+                ))
+                .on_hover_text(t("editor_save_hint"));
+            if save_resp.clicked() && settings.format_on_save {
+                format_active_tab(state);
+            }
 
             // History button (ghost with icon)
             let history_label = if state.show_history_panel {
@@ -357,10 +367,16 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                     "EXPLAIN",
                 ));
 
-                ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::SIGMA, "ed_sigma2", 12.0, theme::text_muted()),
-                    "Format",
-                ));
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::SIGMA, "ed_sigma2", 12.0, theme::text_muted()),
+                        "Format",
+                    ))
+                    .on_hover_text(t("editor_format_hint"))
+                    .clicked()
+                {
+                    format_active_tab(state);
+                }
 
                 let sep_rect = ui
                     .allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover())
@@ -1217,6 +1233,20 @@ fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
     }
 }
 
+/// 활성 탭의 SQL 을 Postgres-aware 포매터로 정렬 (키워드 대문자 + 들여쓰기).
+fn format_active_tab(state: &mut AppState) {
+    if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+        if tab.content.trim().is_empty() {
+            return;
+        }
+        let opts = sqlformat::FormatOptions {
+            uppercase: Some(true),
+            ..Default::default()
+        };
+        tab.content = sqlformat::format(&tab.content, &sqlformat::QueryParams::None, &opts);
+    }
+}
+
 /// 선택 영역(있으면) 또는 커서 위치 문장을 실행. ⌘⇧↵ 단축키.
 fn execute_selection_or_statement(state: &mut AppState, bridge: &DbBridge) {
     let sql = state.editor_tabs.get(state.active_tab).and_then(|tab| {
@@ -1834,6 +1864,18 @@ mod run_selection_tests {
         let (out, count) = replace_all_matches("foo FOO foo", "foo", "bar");
         assert_eq!(out, "bar bar bar");
         assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn formatter_uppercases_keywords() {
+        let opts = sqlformat::FormatOptions {
+            uppercase: Some(true),
+            ..Default::default()
+        };
+        let out = sqlformat::format("select a from t where b=1", &sqlformat::QueryParams::None, &opts);
+        assert!(out.contains("SELECT"), "got: {out}");
+        assert!(out.contains("FROM"), "got: {out}");
+        assert!(out.contains("WHERE"), "got: {out}");
     }
 }
 

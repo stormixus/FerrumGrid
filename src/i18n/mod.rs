@@ -4231,6 +4231,9 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
     );
+    en.insert("editor_format", "Format");
+    en.insert("editor_format_hint", "Format SQL (keyword case + indent)");
+    en.insert("editor_save_hint", "Save — tidies SQL when 'format on save' is on");
     en.insert("editor_find", "Find");
     en.insert("editor_replace", "Replace");
     en.insert("editor_replace_one", "Replace");
@@ -4547,6 +4550,9 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
     );
+    ko.insert("editor_format", "정렬");
+    ko.insert("editor_format_hint", "SQL 정렬 (키워드 대문자 + 들여쓰기)");
+    ko.insert("editor_save_hint", "저장 — '저장 시 정렬' 설정 시 SQL 정렬");
     ko.insert("editor_find", "찾기");
     ko.insert("editor_replace", "바꾸기");
     ko.insert("editor_replace_one", "바꾸기");
