@@ -201,6 +201,14 @@ pub struct AppState {
     /// 활성 에디터의 선택 영역 (정렬된 char 인덱스). None = 선택 없음.
     /// 선택 영역 실행(run-selection)에 사용.
     pub editor_selection: Option<(usize, usize)>,
+    /// 에디터 찾기/바꾸기 바 표시 여부 (⌘F 로 토글).
+    pub find_open: bool,
+    /// 찾기 검색어 (대소문자 무시 부분 일치).
+    pub find_query: String,
+    /// 바꾸기 문자열.
+    pub find_replace: String,
+    /// 현재 포커스된 매치 인덱스 (next/prev 순환).
+    pub find_match_idx: usize,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -384,6 +392,10 @@ impl Default for AppState {
             active_tab: 0,
             editor_cursor_char: None,
             editor_selection: None,
+            find_open: false,
+            find_query: String::new(),
+            find_replace: String::new(),
+            find_match_idx: 0,
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),

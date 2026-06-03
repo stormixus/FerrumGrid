@@ -4231,6 +4231,10 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
     );
+    en.insert("editor_find", "Find");
+    en.insert("editor_replace", "Replace");
+    en.insert("editor_replace_one", "Replace");
+    en.insert("editor_replace_all", "Replace All");
     en.insert("query_cancel", "Cancel");
     en.insert("result_rows", "rows");
     en.insert("result_execution_time", "Execution time");
@@ -4543,6 +4547,10 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
     );
+    ko.insert("editor_find", "찾기");
+    ko.insert("editor_replace", "바꾸기");
+    ko.insert("editor_replace_one", "바꾸기");
+    ko.insert("editor_replace_all", "모두 바꾸기");
     ko.insert("query_cancel", "취소");
     ko.insert("result_rows", "행");
     ko.insert("result_execution_time", "실행 시간");

@@ -494,6 +494,17 @@ fn render_editor_body(
         };
         render_editor_meta(ui, &title, line_count, char_count);
 
+        // ⌘F 찾기/바꾸기 바 토글, Esc 로 닫기.
+        if ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::F)) {
+            state.find_open = !state.find_open;
+        }
+        if state.find_open && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            state.find_open = false;
+        }
+        if state.find_open {
+            render_find_bar(ui, state);
+        }
+
         let mut editor_rect = egui::Rect::NOTHING;
         let mut cursor_index = None;
         let mut selection_capture: Option<(usize, usize)> = None;
@@ -1262,6 +1273,160 @@ fn selected_or_statement_sql(
     }
 }
 
+/// 대소문자 무시(ASCII) 부분 일치로 모든 매치의 char 범위를 반환.
+/// (순수 함수 — 단위 테스트 대상)
+fn find_matches(content: &str, needle: &str) -> Vec<(usize, usize)> {
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    let hay: Vec<char> = content.chars().map(|c| c.to_ascii_lowercase()).collect();
+    let need: Vec<char> = needle.chars().map(|c| c.to_ascii_lowercase()).collect();
+    let mut out = Vec::new();
+    if need.len() > hay.len() {
+        return out;
+    }
+    let mut i = 0;
+    while i + need.len() <= hay.len() {
+        if hay[i..i + need.len()] == need[..] {
+            out.push((i, i + need.len()));
+            i += need.len();
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// `idx` 번째 매치 한 건만 `repl` 로 치환한 새 content (없으면 None).
+fn replace_one_match(content: &str, needle: &str, repl: &str, idx: usize) -> Option<String> {
+    let matches = find_matches(content, needle);
+    let (s, e) = *matches.get(idx)?;
+    let chars: Vec<char> = content.chars().collect();
+    let mut out: String = chars[..s].iter().collect();
+    out.push_str(repl);
+    out.extend(chars[e..].iter());
+    Some(out)
+}
+
+/// 모든 매치를 `repl` 로 치환. (새 content, 치환 횟수)
+fn replace_all_matches(content: &str, needle: &str, repl: &str) -> (String, usize) {
+    let matches = find_matches(content, needle);
+    if matches.is_empty() {
+        return (content.to_string(), 0);
+    }
+    let chars: Vec<char> = content.chars().collect();
+    let mut out = String::new();
+    let mut last = 0;
+    for (s, e) in &matches {
+        out.extend(chars[last..*s].iter());
+        out.push_str(repl);
+        last = *e;
+    }
+    out.extend(chars[last..].iter());
+    (out, matches.len())
+}
+
+fn select_editor_range(ctx: &egui::Context, tab_id: uuid::Uuid, start: usize, end: usize) {
+    let te_id = egui::Id::new(("sql_editor", tab_id));
+    if let Some(mut st) = egui::TextEdit::load_state(ctx, te_id) {
+        use egui::text::{CCursor, CCursorRange};
+        st.cursor.set_char_range(Some(CCursorRange::two(
+            CCursor::new(start),
+            CCursor::new(end),
+        )));
+        st.store(ctx, te_id);
+    }
+}
+
+/// 찾기/바꾸기 바. 활성 탭 content 에 대해 동작.
+fn render_find_bar(ui: &mut egui::Ui, state: &mut AppState) {
+    let active_tab = state.active_tab;
+    let (tab_id, content) = match state.editor_tabs.get(active_tab) {
+        Some(t) => (t.id, t.content.clone()),
+        None => return,
+    };
+    let matches = find_matches(&content, &state.find_query);
+    let n = matches.len();
+    if n == 0 {
+        state.find_match_idx = 0;
+    } else if state.find_match_idx >= n {
+        state.find_match_idx = n - 1;
+    }
+
+    let mut select_to: Option<(usize, usize)> = None;
+    let mut new_content: Option<String> = None;
+
+    egui::Frame::new()
+        .fill(theme::bg_dark())
+        .stroke(Stroke::new(1.0, theme::border_subtle()))
+        .inner_margin(Margin::symmetric(theme::SPACE_SM as i8, theme::SPACE_XS as i8))
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.add(
+                    theme::text_input(&mut state.find_query)
+                        .hint_text(t("editor_find"))
+                        .desired_width(160.0),
+                );
+                let count = if state.find_query.is_empty() {
+                    String::new()
+                } else if n == 0 {
+                    "0/0".to_string()
+                } else {
+                    format!("{}/{}", state.find_match_idx + 1, n)
+                };
+                ui.label(
+                    RichText::new(count)
+                        .color(theme::text_muted())
+                        .monospace()
+                        .size(11.0),
+                );
+                if ui.add(theme::secondary_button("◀")).clicked() && n > 0 {
+                    state.find_match_idx = (state.find_match_idx + n - 1) % n;
+                    select_to = Some(matches[state.find_match_idx]);
+                }
+                if ui.add(theme::secondary_button("▶")).clicked() && n > 0 {
+                    state.find_match_idx = (state.find_match_idx + 1) % n;
+                    select_to = Some(matches[state.find_match_idx]);
+                }
+
+                ui.separator();
+                ui.add(
+                    theme::text_input(&mut state.find_replace)
+                        .hint_text(t("editor_replace"))
+                        .desired_width(160.0),
+                );
+                if ui.add(theme::secondary_button(&t("editor_replace_one"))).clicked() && n > 0 {
+                    new_content = replace_one_match(
+                        &content,
+                        &state.find_query,
+                        &state.find_replace,
+                        state.find_match_idx,
+                    );
+                }
+                if ui.add(theme::secondary_button(&t("editor_replace_all"))).clicked() && n > 0 {
+                    new_content = Some(
+                        replace_all_matches(&content, &state.find_query, &state.find_replace).0,
+                    );
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("×").clicked() {
+                        state.find_open = false;
+                    }
+                });
+            });
+        });
+
+    if let Some(new) = new_content {
+        if let Some(tab) = state.editor_tabs.get_mut(active_tab) {
+            tab.content = new;
+        }
+    }
+    if let Some((s, e)) = select_to {
+        select_editor_range(ui.ctx(), tab_id, s, e);
+    }
+}
+
 /// `;` 로 구분된 문장 중 커서(char 인덱스)가 위치한 문장을 반환.
 /// 경계에 걸치면 왼쪽 문장 우선. 비어있으면 None.
 fn statement_under_cursor(content: &str, cursor_char: usize) -> Option<String> {
@@ -1644,6 +1809,31 @@ mod run_selection_tests {
         );
         // whitespace-only content -> None
         assert_eq!(selected_or_statement_sql("   \n  ", None, Some(0)), None);
+    }
+
+    #[test]
+    fn find_matches_is_case_insensitive_and_non_overlapping() {
+        let m = find_matches("Select select SELECT", "select");
+        assert_eq!(m, vec![(0, 6), (7, 13), (14, 20)]);
+        assert!(find_matches("abc", "").is_empty());
+        assert!(find_matches("abc", "xyz").is_empty());
+    }
+
+    #[test]
+    fn replace_one_only_touches_indexed_match() {
+        let (out, n) = (
+            replace_one_match("a foo b foo", "foo", "X", 1).unwrap(),
+            2,
+        );
+        assert_eq!(out, "a foo b X");
+        assert_eq!(find_matches("a foo b foo", "foo").len(), n);
+    }
+
+    #[test]
+    fn replace_all_replaces_every_match() {
+        let (out, count) = replace_all_matches("foo FOO foo", "foo", "bar");
+        assert_eq!(out, "bar bar bar");
+        assert_eq!(count, 3);
     }
 }
 
