@@ -4264,6 +4264,8 @@ pub fn init() {
     en.insert("ai_button_hint", "AI: describe a query in plain English -> SQL");
     en.insert("ai_prompt_hint", "users who signed up last week with no orders");
     en.insert("ai_generate", "Generate");
+    en.insert("ai_fix", "Fix with AI");
+    en.insert("ai_fix_hint", "Send the failed query + error to AI and replace it with a fix");
     en.insert("settings_row_api_key", "API key");
     en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
@@ -4645,6 +4647,8 @@ pub fn init() {
     ko.insert("ai_button_hint", "AI: 자연어로 쿼리 설명 -> SQL 생성");
     ko.insert("ai_prompt_hint", "지난주 가입했지만 주문이 없는 사용자");
     ko.insert("ai_generate", "생성");
+    ko.insert("ai_fix", "AI 수정");
+    ko.insert("ai_fix_hint", "실패한 쿼리 + 에러를 AI 에 보내 수정안으로 교체");
     ko.insert("settings_row_api_key", "API 키");
     ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");

@@ -219,6 +219,8 @@ pub struct AppState {
     pub ai_prompt_open: bool,
     pub ai_prompt_input: String,
     pub ai_job: std::sync::Arc<std::sync::Mutex<crate::ai::AiJob>>,
+    /// AI 결과를 활성 탭에 append 대신 replace (에러 auto-fix 시).
+    pub ai_replace_active_tab: bool,
     /// 카탈로그(시퀀스/enum/익스텐션) 브라우저 창 상태.
     pub show_catalog_window: bool,
     pub catalog_needs_fetch: bool,
@@ -450,6 +452,7 @@ impl Default for AppState {
             ai_prompt_open: false,
             ai_prompt_input: String::new(),
             ai_job: std::sync::Arc::new(std::sync::Mutex::new(crate::ai::AiJob::default())),
+            ai_replace_active_tab: false,
             show_catalog_window: false,
             catalog_needs_fetch: false,
             catalog: None,

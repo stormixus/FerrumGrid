@@ -396,6 +396,24 @@ fn render_toolbar(
                     state.ai_prompt_open = !state.ai_prompt_open;
                 }
 
+                // 쿼리 에러가 있으면 AI 수정 버튼 노출.
+                if state.last_error.is_some() {
+                    let running = state.ai_job.lock().map(|g| g.running).unwrap_or(false);
+                    if ui
+                        .add_enabled(
+                            !running,
+                            theme::ghost_icon_button(
+                                crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_ai_fix", 12.0, theme::ACCENT_RED),
+                                t("ai_fix"),
+                            ),
+                        )
+                        .on_hover_text(t("ai_fix_hint"))
+                        .clicked()
+                    {
+                        start_ai_fix_job(ui, state, settings);
+                    }
+                }
+
                 if ui
                     .add(theme::ghost_icon_button(
                         crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
@@ -1537,6 +1555,48 @@ fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
     });
 }
 
+/// 실패한 쿼리 + 에러를 AI 에 보내 수정안을 받아 활성 탭을 교체.
+fn start_ai_fix_job(ui: &egui::Ui, state: &mut AppState, settings: &AppSettings) {
+    let (sql, error) = match (
+        state
+            .editor_tabs
+            .get(state.active_tab)
+            .map(|t| t.content.trim().to_string())
+            .filter(|s| !s.is_empty()),
+        state.last_error.clone(),
+    ) {
+        (Some(sql), Some(error)) => (sql, error),
+        _ => return,
+    };
+    let job = state.ai_job.clone();
+    {
+        let mut g = job.lock().expect("ai_job lock");
+        if g.running {
+            return;
+        }
+        g.running = true;
+        g.result = None;
+    }
+    state.ai_replace_active_tab = true;
+    let backend = settings.ai_backend.clone();
+    let model = settings.ai_model.clone();
+    let key = settings.ai_api_key.clone();
+    let schema = if settings.ai_send_schema {
+        build_ai_schema_context(state)
+    } else {
+        String::new()
+    };
+    let ctx = ui.ctx().clone();
+    std::thread::spawn(move || {
+        let res = crate::ai::fix_sql(&backend, &model, &key, &schema, &sql, &error);
+        if let Ok(mut g) = job.lock() {
+            g.running = false;
+            g.result = Some(res);
+        }
+        ctx.request_repaint();
+    });
+}
+
 /// AI 작업 결과가 준비되면 활성 탭에 SQL 삽입 (또는 오류 표시).
 fn drain_ai_job(state: &mut AppState) {
     let result = state
@@ -1547,8 +1607,9 @@ fn drain_ai_job(state: &mut AppState) {
     if let Some(res) = result {
         match res {
             Ok(sql) => {
+                let replace = state.ai_replace_active_tab;
                 if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
-                    if tab.content.trim().is_empty() {
+                    if replace || tab.content.trim().is_empty() {
                         tab.content = sql;
                     } else {
                         if !tab.content.ends_with('\n') {
@@ -1559,9 +1620,14 @@ fn drain_ai_job(state: &mut AppState) {
                 }
                 state.ai_prompt_input.clear();
                 state.ai_prompt_open = false;
+                if replace {
+                    state.last_error = None;
+                }
+                state.ai_replace_active_tab = false;
             }
             Err(e) => {
                 state.last_error = Some(format!("AI: {e}"));
+                state.ai_replace_active_tab = false;
             }
         }
     }

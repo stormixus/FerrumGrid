@@ -32,6 +32,30 @@ pub fn generate_sql(
     chat(backend, model, api_key, &system, prompt).map(|s| strip_fences(&s))
 }
 
+/// 실패한 SQL + 에러 메시지를 받아 수정된 단일 SQL 문을 반환.
+pub fn fix_sql(
+    backend: &str,
+    model: &str,
+    api_key: &str,
+    schema: &str,
+    sql: &str,
+    error: &str,
+) -> Result<String, String> {
+    if api_key.trim().is_empty() {
+        return Err("No API key set (Settings → AI Assist)".to_string());
+    }
+    let mut system = String::from(
+        "You are a PostgreSQL expert. The user's SQL failed. Output ONLY the corrected, \
+         single valid PostgreSQL statement — no prose, no explanation, no markdown fences.",
+    );
+    if !schema.trim().is_empty() {
+        system.push_str("\n\nSchema:\n");
+        system.push_str(schema);
+    }
+    let user = format!("Failed SQL:\n{sql}\n\nPostgres error:\n{error}");
+    chat(backend, model, api_key, &system, &user).map(|s| strip_fences(&s))
+}
+
 /// EXPLAIN 플랜 텍스트를 받아 Postgres 튜닝 조언(프로즈)을 생성.
 pub fn interpret_plan(
     backend: &str,
