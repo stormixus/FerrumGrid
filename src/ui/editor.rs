@@ -387,6 +387,17 @@ fn render_toolbar(
 
                 if ui
                     .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_ai_btn", 12.0, theme::ACCENT_PURPLE),
+                        "AI",
+                    ))
+                    .on_hover_text(t("ai_button_hint"))
+                    .clicked()
+                {
+                    state.ai_prompt_open = !state.ai_prompt_open;
+                }
+
+                if ui
+                    .add(theme::ghost_icon_button(
                         crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
                         "EXPLAIN",
                     ))
@@ -562,6 +573,10 @@ fn render_editor_body(
         if state.find_open {
             render_find_bar(ui, state);
         }
+        if state.ai_prompt_open {
+            render_ai_bar(ui, state, settings);
+        }
+        drain_ai_job(state);
 
         let mut editor_rect = egui::Rect::NOTHING;
         let mut cursor_index = None;
@@ -1470,6 +1485,126 @@ fn select_editor_range(ctx: &egui::Context, tab_id: uuid::Uuid, start: usize, en
         )));
         st.store(ctx, te_id);
     }
+}
+
+/// 활성 연결의 로드된 테이블/컬럼으로 AI 프롬프트용 스키마 컨텍스트 구성.
+fn build_ai_schema_context(state: &AppState) -> String {
+    let Some(conn_id) = state.active_connection else {
+        return String::new();
+    };
+    let Some(conn) = state.connections.get(&conn_id) else {
+        return String::new();
+    };
+    let mut out = String::new();
+    for ((schema, table), cols) in conn.columns.iter().take(60) {
+        let defs: Vec<String> = cols
+            .iter()
+            .map(|c| format!("{} {}", c.name, c.data_type))
+            .collect();
+        out.push_str(&format!("{schema}.{table}({})\n", defs.join(", ")));
+    }
+    out
+}
+
+/// AI 작업 시작 — 별도 스레드에서 blocking HTTP 호출, 결과는 `ai_job` 슬롯으로.
+fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
+    let job = state.ai_job.clone();
+    {
+        let mut g = job.lock().expect("ai_job lock");
+        if g.running {
+            return;
+        }
+        g.running = true;
+        g.result = None;
+    }
+    let backend = settings.ai_backend.clone();
+    let model = settings.ai_model.clone();
+    let key = settings.ai_api_key.clone();
+    let schema = if settings.ai_send_schema {
+        build_ai_schema_context(state)
+    } else {
+        String::new()
+    };
+    let prompt = state.ai_prompt_input.clone();
+    let ctx = ui.ctx().clone();
+    std::thread::spawn(move || {
+        let res = crate::ai::generate_sql(&backend, &model, &key, &schema, &prompt);
+        if let Ok(mut g) = job.lock() {
+            g.running = false;
+            g.result = Some(res);
+        }
+        ctx.request_repaint();
+    });
+}
+
+/// AI 작업 결과가 준비되면 활성 탭에 SQL 삽입 (또는 오류 표시).
+fn drain_ai_job(state: &mut AppState) {
+    let result = state
+        .ai_job
+        .lock()
+        .ok()
+        .and_then(|mut g| g.result.take());
+    if let Some(res) = result {
+        match res {
+            Ok(sql) => {
+                if let Some(tab) = state.editor_tabs.get_mut(state.active_tab) {
+                    if tab.content.trim().is_empty() {
+                        tab.content = sql;
+                    } else {
+                        if !tab.content.ends_with('\n') {
+                            tab.content.push('\n');
+                        }
+                        tab.content.push_str(&sql);
+                    }
+                }
+                state.ai_prompt_input.clear();
+                state.ai_prompt_open = false;
+            }
+            Err(e) => {
+                state.last_error = Some(format!("AI: {e}"));
+            }
+        }
+    }
+}
+
+/// AI text-to-SQL 프롬프트 바.
+fn render_ai_bar(ui: &mut egui::Ui, state: &mut AppState, settings: &AppSettings) {
+    let running = state.ai_job.lock().map(|g| g.running).unwrap_or(false);
+    egui::Frame::new()
+        .fill(theme::bg_dark())
+        .stroke(Stroke::new(1.0, theme::ACCENT_PURPLE))
+        .inner_margin(Margin::symmetric(theme::SPACE_SM as i8, theme::SPACE_XS as i8))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("AI \u{25b8}")
+                        .color(theme::ACCENT_PURPLE)
+                        .strong()
+                        .size(11.0),
+                );
+                let resp = ui.add(
+                    theme::text_input(&mut state.ai_prompt_input)
+                        .hint_text(t("ai_prompt_hint"))
+                        .desired_width(340.0),
+                );
+                let submit =
+                    resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let gen = ui
+                    .add_enabled(!running, theme::secondary_button(&t("ai_generate")))
+                    .clicked();
+                if running {
+                    ui.spinner();
+                }
+                if (gen || submit) && !running {
+                    start_ai_job(ui, state, settings);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("\u{00d7}").clicked() {
+                        state.ai_prompt_open = false;
+                    }
+                });
+            });
+        });
 }
 
 /// 찾기/바꾸기 바. 활성 탭 content 에 대해 동작.

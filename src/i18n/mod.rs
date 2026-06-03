@@ -4253,6 +4253,11 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
     );
+    en.insert("ai_button_hint", "AI: describe a query in plain English -> SQL");
+    en.insert("ai_prompt_hint", "users who signed up last week with no orders");
+    en.insert("ai_generate", "Generate");
+    en.insert("settings_row_api_key", "API key");
+    en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
     en.insert("sessions_window_title", "Sessions");
     en.insert("sessions_refresh", "Refresh");
@@ -4602,6 +4607,11 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
     );
+    ko.insert("ai_button_hint", "AI: 자연어로 쿼리 설명 -> SQL 생성");
+    ko.insert("ai_prompt_hint", "지난주 가입했지만 주문이 없는 사용자");
+    ko.insert("ai_generate", "생성");
+    ko.insert("settings_row_api_key", "API 키");
+    ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
     ko.insert("sessions_window_title", "세션");
     ko.insert("sessions_refresh", "새로고침");

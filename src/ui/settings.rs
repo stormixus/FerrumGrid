@@ -920,6 +920,15 @@ fn render_ai_assist_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSet
             });
     });
 
+    settings_row(ui, &t("settings_row_api_key"), &t("settings_desc_api_key"), |ui| {
+        ui.add(
+            egui::TextEdit::singleline(&mut draft.ai_api_key)
+                .password(true)
+                .hint_text("sk-… / anthropic key")
+                .desired_width(220.0),
+        );
+    });
+
     settings_row(ui, &t("settings_row_send_schema"), &t("settings_desc_send_schema"), |ui| {
         settings_toggle(ui, "ai_send_schema", &mut draft.ai_send_schema);
     });
