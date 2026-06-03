@@ -203,10 +203,7 @@ fn stabilize_info_panel_resize_cursor(ctx: &egui::Context, state: &AppState) {
         .read_response(resize_id)
         .is_some_and(|response| response.hovered() || response.dragged());
     let pointer_near_splitter = egui::containers::panel::PanelState::load(ctx, panel_id)
-        .and_then(|panel| {
-            ctx.input(|input| input.pointer.hover_pos())
-                .map(|pos| (panel, pos))
-        })
+        .zip(ctx.input(|input| input.pointer.hover_pos()))
         .is_some_and(|(panel, pos)| {
             let grab_radius = ctx.style().interaction.resize_grab_radius_side.max(10.0);
             let splitter = panel.rect.left();
