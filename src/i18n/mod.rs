@@ -4281,6 +4281,7 @@ pub fn init() {
     en.insert("comment_editor_hint", "Describe this table…");
     en.insert("comment_editor_save", "Save comment");
     en.insert("catalog_install_ext", "Install extension");
+    en.insert("catalog_new_seq", "Create sequence");
     en.insert("catalog_confirm_drop", "Confirm DROP");
     en.insert("catalog_loading", "Loading…");
     en.insert("catalog_extensions", "Extensions");
@@ -4664,6 +4665,7 @@ pub fn init() {
     ko.insert("comment_editor_hint", "이 테이블 설명…");
     ko.insert("comment_editor_save", "설명 저장");
     ko.insert("catalog_install_ext", "익스텐션 설치");
+    ko.insert("catalog_new_seq", "시퀀스 생성");
     ko.insert("catalog_confirm_drop", "DROP 확인");
     ko.insert("catalog_loading", "불러오는 중…");
     ko.insert("catalog_extensions", "익스텐션");

@@ -227,6 +227,7 @@ pub struct AppState {
     pub catalog: Option<crate::db::catalog::CatalogObjects>,
     /// CREATE EXTENSION 입력 + DROP 확인 대기 키 ("ext:name" / "seq:s.n" / "type:s.n").
     pub catalog_new_extension: String,
+    pub catalog_new_sequence: String,
     pub catalog_confirm_drop: Option<String>,
     /// 테이블 COMMENT 편집 버퍼 + 현재 편집 대상 (schema, table) — 대상 변경 시 재시드.
     pub comment_edit_buffer: String,
@@ -457,6 +458,7 @@ impl Default for AppState {
             catalog_needs_fetch: false,
             catalog: None,
             catalog_new_extension: String::new(),
+            catalog_new_sequence: String::new(),
             catalog_confirm_drop: None,
             comment_edit_buffer: String::new(),
             comment_edit_for: None,

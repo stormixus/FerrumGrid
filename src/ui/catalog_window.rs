@@ -49,6 +49,30 @@ pub fn render_catalog_window(ctx: &egui::Context, state: &mut AppState, bridge: 
                 }
             });
             ui.add_space(theme::SPACE_XS);
+            ui.horizontal(|ui| {
+                ui.add(
+                    theme::mono_text_input(&mut state.catalog_new_sequence)
+                        .hint_text("schema.seq_name (or seq_name)")
+                        .desired_width(200.0),
+                );
+                let raw = state.catalog_new_sequence.trim().to_string();
+                if ui
+                    .add_enabled(!raw.is_empty(), theme::secondary_button(&t("catalog_new_seq")))
+                    .clicked()
+                {
+                    let (schema, name) = raw
+                        .split_once('.')
+                        .map(|(s, n)| (s.to_string(), n.to_string()))
+                        .unwrap_or_else(|| ("public".to_string(), raw.clone()));
+                    ddl = Some(format!(
+                        "CREATE SEQUENCE \"{}\".\"{}\";",
+                        schema.replace('"', ""),
+                        name.replace('"', "")
+                    ));
+                    state.catalog_new_sequence.clear();
+                }
+            });
+            ui.add_space(theme::SPACE_XS);
 
             egui::ScrollArea::both()
                 .auto_shrink([false, false])
