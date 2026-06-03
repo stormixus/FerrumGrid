@@ -603,6 +603,29 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                         }
                     }
 
+                    // 카탈로그(시퀀스/enum/익스텐션) 브라우저 토글.
+                    let catalog_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::SCHEMA,
+                                "tb_catalog",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("catalog_window_title"));
+                    if catalog_btn.clicked() {
+                        state.show_catalog_window = !state.show_catalog_window;
+                        if state.show_catalog_window {
+                            state.catalog_needs_fetch = true;
+                        }
+                    }
+
                     let vault_btn = ui.add(
                         egui::Button::image_and_text(
                             crate::ui::icon_image_tinted(ui, icons_svg::VAULT, "tb_vault2", 13.0, theme::text_muted()),

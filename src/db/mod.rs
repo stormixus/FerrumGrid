@@ -8,6 +8,7 @@ pub mod dangling_tx;
 pub mod dependencies;
 pub mod ddl;
 pub mod ddl_create;
+pub mod catalog;
 pub mod edits;
 pub mod error;
 pub mod explain;

@@ -219,6 +219,10 @@ pub struct AppState {
     pub ai_prompt_open: bool,
     pub ai_prompt_input: String,
     pub ai_job: std::sync::Arc<std::sync::Mutex<crate::ai::AiJob>>,
+    /// 카탈로그(시퀀스/enum/익스텐션) 브라우저 창 상태.
+    pub show_catalog_window: bool,
+    pub catalog_needs_fetch: bool,
+    pub catalog: Option<crate::db::catalog::CatalogObjects>,
     /// DBA 세션 모니터 창 상태.
     pub show_sessions_window: bool,
     pub sessions_needs_fetch: bool,
@@ -429,6 +433,9 @@ impl Default for AppState {
             ai_prompt_open: false,
             ai_prompt_input: String::new(),
             ai_job: std::sync::Arc::new(std::sync::Mutex::new(crate::ai::AiJob::default())),
+            show_catalog_window: false,
+            catalog_needs_fetch: false,
+            catalog: None,
             show_sessions_window: false,
             sessions_needs_fetch: false,
             sessions: Vec::new(),

@@ -5,6 +5,7 @@ pub mod command_palette;
 pub mod diagnostics_panel;
 pub mod dialogs;
 pub mod drop_dialog;
+pub mod catalog_window;
 pub mod editor;
 pub mod er_diagram;
 pub mod explain_window;

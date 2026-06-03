@@ -4259,6 +4259,11 @@ pub fn init() {
     en.insert("settings_row_api_key", "API key");
     en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
+    en.insert("catalog_window_title", "Catalog (sequences / types / extensions)");
+    en.insert("catalog_loading", "Loading…");
+    en.insert("catalog_extensions", "Extensions");
+    en.insert("catalog_enums", "Enum types");
+    en.insert("catalog_sequences", "Sequences");
     en.insert("sessions_window_title", "Sessions");
     en.insert("sessions_refresh", "Refresh");
     en.insert("sessions_cancel", "Cancel");
@@ -4615,6 +4620,11 @@ pub fn init() {
     ko.insert("settings_row_api_key", "API 키");
     ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
+    ko.insert("catalog_window_title", "카탈로그 (시퀀스 / 타입 / 익스텐션)");
+    ko.insert("catalog_loading", "불러오는 중…");
+    ko.insert("catalog_extensions", "익스텐션");
+    ko.insert("catalog_enums", "Enum 타입");
+    ko.insert("catalog_sequences", "시퀀스");
     ko.insert("sessions_window_title", "세션");
     ko.insert("sessions_refresh", "새로고침");
     ko.insert("sessions_cancel", "취소");

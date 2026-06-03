@@ -131,6 +131,10 @@ pub enum DbCommand {
     ListSessions {
         conn_id: ConnectionId,
     },
+    /// 카탈로그 객체(시퀀스/enum/익스텐션) 조회.
+    ListCatalog {
+        conn_id: ConnectionId,
+    },
     /// backend cancel(terminate=false) 또는 terminate(true).
     KillBackend {
         conn_id: ConnectionId,
@@ -283,6 +287,12 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         sessions: Vec<crate::db::sessions::SessionRow>,
     },
+    /// 카탈로그 객체 목록.
+    CatalogList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        catalog: crate::db::catalog::CatalogObjects,
+    },
     /// backend cancel/terminate 결과.
     BackendKilled {
         #[allow(dead_code)]
@@ -418,6 +428,7 @@ enum ConnCommand {
         sql: String,
     },
     ListSessions,
+    ListCatalog,
     KillBackend {
         pid: i32,
         terminate: bool,
@@ -535,6 +546,11 @@ async fn dispatch_loop(
             DbCommand::ListSessions { conn_id } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::ListSessions).await;
+                }
+            }
+            DbCommand::ListCatalog { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListCatalog).await;
                 }
             }
             DbCommand::KillBackend {
@@ -1146,6 +1162,14 @@ async fn connection_task(
             ConnCommand::ListSessions => {
                 let response = match crate::db::sessions::list_sessions(&client, conn_id).await {
                     Ok(sessions) => DbResponse::SessionList { conn_id, sessions },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListCatalog => {
+                let response = match crate::db::catalog::list_catalog(&client, conn_id).await {
+                    Ok(catalog) => DbResponse::CatalogList { conn_id, catalog },
                     Err(error) => DbResponse::Error { conn_id, error },
                 };
                 let _ = resp_tx.send(response);
