@@ -626,6 +626,29 @@ fn render_main_toolbar(ctx: &egui::Context, state: &mut AppState) {
                         }
                     }
 
+                    // 권한(GRANT/REVOKE) 브라우저 토글.
+                    let priv_btn = ui
+                        .add(
+                            egui::Button::image(crate::ui::icon_image_tinted(
+                                ui,
+                                icons_svg::VAULT,
+                                "tb_privileges",
+                                14.0,
+                                theme::text_muted(),
+                            ))
+                            .fill(Color32::TRANSPARENT)
+                            .stroke(Stroke::NONE)
+                            .corner_radius(CornerRadius::same(theme::RADIUS_MD))
+                            .min_size(egui::vec2(26.0, 26.0)),
+                        )
+                        .on_hover_text(t("privileges_window_title"));
+                    if priv_btn.clicked() {
+                        state.show_privileges_window = !state.show_privileges_window;
+                        if state.show_privileges_window {
+                            state.privileges_needs_fetch = true;
+                        }
+                    }
+
                     let vault_btn = ui.add(
                         egui::Button::image_and_text(
                             crate::ui::icon_image_tinted(ui, icons_svg::VAULT, "tb_vault2", 13.0, theme::text_muted()),

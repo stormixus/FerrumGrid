@@ -9,6 +9,7 @@ pub mod catalog_window;
 pub mod editor;
 pub mod er_diagram;
 pub mod explain_window;
+pub mod privileges_window;
 pub mod sessions_window;
 pub mod grid;
 pub mod grid_dispatch;

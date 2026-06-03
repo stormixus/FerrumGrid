@@ -623,6 +623,9 @@ impl FerrumGridApp {
                 DbResponse::CatalogList { conn_id: _, catalog } => {
                     self.state.catalog = Some(catalog);
                 }
+                DbResponse::GrantList { conn_id: _, grants } => {
+                    self.state.grants = grants;
+                }
                 DbResponse::BackendKilled {
                     conn_id: _,
                     pid,
@@ -835,6 +838,7 @@ impl eframe::App for FerrumGridApp {
         ui::explain_window::render_explain_window(ctx, &mut self.state, &self.settings);
         ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
         ui::catalog_window::render_catalog_window(ctx, &mut self.state, bridge);
+        ui::privileges_window::render_privileges_window(ctx, &mut self.state, bridge);
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
             ui::theme::configure_fonts(ctx, &self.settings.language);

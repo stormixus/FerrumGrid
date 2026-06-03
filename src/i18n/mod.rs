@@ -4259,6 +4259,12 @@ pub fn init() {
     en.insert("settings_row_api_key", "API key");
     en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
+    en.insert("privileges_window_title", "Privileges (GRANT / REVOKE)");
+    en.insert("privileges_priv", "Privilege");
+    en.insert("privileges_on", "on");
+    en.insert("privileges_grantee", "to");
+    en.insert("privileges_grant", "Grant");
+    en.insert("privileges_revoke", "Revoke");
     en.insert("catalog_window_title", "Catalog (sequences / types / extensions)");
     en.insert("catalog_loading", "Loading…");
     en.insert("catalog_extensions", "Extensions");
@@ -4620,6 +4626,12 @@ pub fn init() {
     ko.insert("settings_row_api_key", "API 키");
     ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
+    ko.insert("privileges_window_title", "권한 (GRANT / REVOKE)");
+    ko.insert("privileges_priv", "권한");
+    ko.insert("privileges_on", "대상");
+    ko.insert("privileges_grantee", "부여 대상");
+    ko.insert("privileges_grant", "부여");
+    ko.insert("privileges_revoke", "회수");
     ko.insert("catalog_window_title", "카탈로그 (시퀀스 / 타입 / 익스텐션)");
     ko.insert("catalog_loading", "불러오는 중…");
     ko.insert("catalog_extensions", "익스텐션");

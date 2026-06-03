@@ -17,6 +17,7 @@ pub mod introspect;
 pub mod invalidate;
 pub mod metadata;
 pub mod metadata_fk;
+pub mod privileges;
 pub mod queries;
 pub mod sessions;
 pub mod row_key;

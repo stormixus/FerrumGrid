@@ -135,6 +135,10 @@ pub enum DbCommand {
     ListCatalog {
         conn_id: ConnectionId,
     },
+    /// 객체 단위 권한(ACL) 조회.
+    ListGrants {
+        conn_id: ConnectionId,
+    },
     /// backend cancel(terminate=false) 또는 terminate(true).
     KillBackend {
         conn_id: ConnectionId,
@@ -293,6 +297,12 @@ pub enum DbResponse {
         conn_id: ConnectionId,
         catalog: crate::db::catalog::CatalogObjects,
     },
+    /// 객체 단위 권한 목록.
+    GrantList {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        grants: Vec<crate::db::privileges::GrantRow>,
+    },
     /// backend cancel/terminate 결과.
     BackendKilled {
         #[allow(dead_code)]
@@ -429,6 +439,7 @@ enum ConnCommand {
     },
     ListSessions,
     ListCatalog,
+    ListGrants,
     KillBackend {
         pid: i32,
         terminate: bool,
@@ -551,6 +562,11 @@ async fn dispatch_loop(
             DbCommand::ListCatalog { conn_id } => {
                 if let Some(handle) = connections.get(&conn_id) {
                     let _ = handle.task_tx.send(ConnCommand::ListCatalog).await;
+                }
+            }
+            DbCommand::ListGrants { conn_id } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::ListGrants).await;
                 }
             }
             DbCommand::KillBackend {
@@ -1170,6 +1186,14 @@ async fn connection_task(
             ConnCommand::ListCatalog => {
                 let response = match crate::db::catalog::list_catalog(&client, conn_id).await {
                     Ok(catalog) => DbResponse::CatalogList { conn_id, catalog },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::ListGrants => {
+                let response = match crate::db::privileges::list_grants(&client, conn_id).await {
+                    Ok(grants) => DbResponse::GrantList { conn_id, grants },
                     Err(error) => DbResponse::Error { conn_id, error },
                 };
                 let _ = resp_tx.send(response);
