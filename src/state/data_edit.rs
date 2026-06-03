@@ -86,6 +86,8 @@ pub struct DataEditState {
     pub selected_cell: Option<(usize, usize)>,
     /// Shift+클릭 다중 셀 선택 영역 (anchor, focus) — (row, col) 쌍.
     pub selection_range: Option<((usize, usize), (usize, usize))>,
+    /// 드래그 선택 시작 셀 (드래그 진행 중에만 Some).
+    pub drag_anchor: Option<(usize, usize)>,
     pub editing_cell: Option<(usize, usize)>,
     pub pending_deletes: HashSet<usize>,
     pub inserted_rows: HashSet<usize>,
@@ -118,6 +120,7 @@ impl Default for DataEditState {
             page_index_input: "1".to_string(),
             selected_cell: None,
             selection_range: None,
+            drag_anchor: None,
             editing_cell: None,
             pending_deletes: HashSet::new(),
             inserted_rows: HashSet::new(),
