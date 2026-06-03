@@ -4227,6 +4227,10 @@ pub fn init() {
     en.insert("vault_unlocked_status", "Personal Vault unlocked");
     en.insert("query_editor_placeholder", "Enter your SQL query here...");
     en.insert("query_execute", "Execute");
+    en.insert(
+        "query_execute_selection_hint",
+        "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
+    );
     en.insert("query_cancel", "Cancel");
     en.insert("result_rows", "rows");
     en.insert("result_execution_time", "Execution time");
@@ -4535,6 +4539,10 @@ pub fn init() {
     ko.insert("vault_unlocked_status", "Personal Vault 잠금 해제됨");
     ko.insert("query_editor_placeholder", "SQL 쿼리를 입력하세요...");
     ko.insert("query_execute", "실행");
+    ko.insert(
+        "query_execute_selection_hint",
+        "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
+    );
     ko.insert("query_cancel", "취소");
     ko.insert("result_rows", "행");
     ko.insert("result_execution_time", "실행 시간");

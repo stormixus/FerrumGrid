@@ -195,6 +195,12 @@ pub struct AppState {
     pub active_workspace_tab: usize,
     pub editor_tabs: Vec<EditorTab>,
     pub active_tab: usize,
+    /// 활성 에디터의 커서 char 위치 (매 프레임 TextEdit 출력에서 갱신).
+    /// 커서 위치 문장 실행(run-statement)에 사용.
+    pub editor_cursor_char: Option<usize>,
+    /// 활성 에디터의 선택 영역 (정렬된 char 인덱스). None = 선택 없음.
+    /// 선택 영역 실행(run-selection)에 사용.
+    pub editor_selection: Option<(usize, usize)>,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -376,6 +382,8 @@ impl Default for AppState {
             active_workspace_tab: 0,
             editor_tabs: vec![EditorTab::new("Query 1")],
             active_tab: 0,
+            editor_cursor_char: None,
+            editor_selection: None,
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),

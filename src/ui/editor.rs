@@ -277,14 +277,25 @@ fn render_toolbar(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
                 ui.spinner();
             } else {
                 let run_label = format!("  {}  \u{2318}\u{21B5}  ", t("query_execute"));
-                let run_btn = ui.add(theme::primary_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::PLAY_SM, "ed_play2", 12.0, Color32::WHITE),
-                    run_label,
-                ));
-                let shortcut_fired = can_execute
-                    && ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Enter));
-                if shortcut_fired || (run_btn.clicked() && can_execute) {
+                let run_btn = ui
+                    .add(theme::primary_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::PLAY_SM, "ed_play2", 12.0, Color32::WHITE),
+                        run_label,
+                    ))
+                    .on_hover_text(t("query_execute_selection_hint"));
+                // ⌘↵ = 전체 실행, ⌘⇧↵ = 선택 영역 또는 커서 위치 문장 실행.
+                let run_all_fired = can_execute
+                    && ui.input(|i| {
+                        i.modifiers.command && !i.modifiers.shift && i.key_pressed(egui::Key::Enter)
+                    });
+                let run_sel_fired = can_execute
+                    && ui.input(|i| {
+                        i.modifiers.command && i.modifiers.shift && i.key_pressed(egui::Key::Enter)
+                    });
+                if run_all_fired || (run_btn.clicked() && can_execute) {
                     execute_current_query(state, bridge);
+                } else if run_sel_fired {
+                    execute_selection_or_statement(state, bridge);
                 }
             }
 
@@ -485,6 +496,8 @@ fn render_editor_body(
 
         let mut editor_rect = egui::Rect::NOTHING;
         let mut cursor_index = None;
+        let mut selection_capture: Option<(usize, usize)> = None;
+        let mut cursor_capture: Option<usize> = None;
         let mut content_snapshot = String::new();
         let tab_id = state.editor_tabs[active_tab].id;
 
@@ -577,6 +590,18 @@ fn render_editor_body(
                                 editor_rect = output.response.rect;
                                 cursor_index =
                                     output.cursor_range.map(|range| range.primary.ccursor.index);
+                                // run-selection / run-statement 용 커서·선택 영역을
+                                // AppState 에 저장 (toolbar 단축키에서 소비).
+                                if let Some(range) = output.cursor_range {
+                                    let p = range.primary.ccursor.index;
+                                    let s = range.secondary.ccursor.index;
+                                    selection_capture = if p == s {
+                                        None
+                                    } else {
+                                        Some((p.min(s), p.max(s)))
+                                    };
+                                }
+                                cursor_capture = cursor_index;
                                 content_snapshot = tab.content.clone();
                             });
                     });
@@ -642,6 +667,9 @@ fn render_editor_body(
                 }
             }
         }
+
+        state.editor_selection = selection_capture;
+        state.editor_cursor_char = cursor_capture;
     });
 }
 
@@ -1169,21 +1197,92 @@ pub(crate) fn toggle_explicit_tx_for_sql(state: &mut AppState, sql: &str) {
 }
 
 fn execute_current_query(state: &mut AppState, bridge: &DbBridge) {
+    let sql = state
+        .editor_tabs
+        .get(state.active_tab)
+        .map(|tab| tab.content.trim().to_string());
+    if let Some(sql) = sql {
+        execute_sql_text(state, bridge, sql);
+    }
+}
+
+/// 선택 영역(있으면) 또는 커서 위치 문장을 실행. ⌘⇧↵ 단축키.
+fn execute_selection_or_statement(state: &mut AppState, bridge: &DbBridge) {
+    let sql = state.editor_tabs.get(state.active_tab).and_then(|tab| {
+        selected_or_statement_sql(&tab.content, state.editor_selection, state.editor_cursor_char)
+    });
+    if let Some(sql) = sql {
+        execute_sql_text(state, bridge, sql);
+    }
+}
+
+/// 주어진 SQL 문자열을 실행 (전체/선택/문장 공통 경로).
+fn execute_sql_text(state: &mut AppState, bridge: &DbBridge, sql: String) {
+    if sql.is_empty() {
+        return;
+    }
     if let Some(conn_id) = state.active_connection {
-        if let Some(tab) = state.editor_tabs.get(state.active_tab) {
-            let sql = tab.content.trim().to_string();
-            if !sql.is_empty() {
-                toggle_explicit_tx_for_sql(state, &sql);
-                state.query_running = true;
-                state.last_error = None;
-                bridge.send(DbCommand::ExecuteQuery {
-                    conn_id,
-                    sql,
-                    row_limit: Some(state.default_row_limit),
-                });
+        toggle_explicit_tx_for_sql(state, &sql);
+        state.query_running = true;
+        state.last_error = None;
+        bridge.send(DbCommand::ExecuteQuery {
+            conn_id,
+            sql,
+            row_limit: Some(state.default_row_limit),
+        });
+    }
+}
+
+/// 실행할 SQL 결정: 선택 영역 우선, 없으면 커서 위치 문장, 그것도 없으면 전체.
+/// 모두 공백이면 None. (순수 함수 — 단위 테스트 대상)
+fn selected_or_statement_sql(
+    content: &str,
+    selection: Option<(usize, usize)>,
+    cursor: Option<usize>,
+) -> Option<String> {
+    if let Some((a, b)) = selection {
+        if b > a {
+            let sel: String = content.chars().skip(a).take(b - a).collect();
+            let trimmed = sel.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
             }
         }
     }
+    if let Some(cur) = cursor {
+        if let Some(stmt) = statement_under_cursor(content, cur) {
+            return Some(stmt);
+        }
+    }
+    let whole = content.trim();
+    if whole.is_empty() {
+        None
+    } else {
+        Some(whole.to_string())
+    }
+}
+
+/// `;` 로 구분된 문장 중 커서(char 인덱스)가 위치한 문장을 반환.
+/// 경계에 걸치면 왼쪽 문장 우선. 비어있으면 None.
+fn statement_under_cursor(content: &str, cursor_char: usize) -> Option<String> {
+    let chars: Vec<char> = content.chars().collect();
+    let total = chars.len();
+    let cur = cursor_char.min(total);
+    let mut seg_start = 0usize;
+    for i in 0..=total {
+        let at_sep = i < total && chars[i] == ';';
+        if at_sep || i == total {
+            if cur >= seg_start && cur <= i {
+                let seg: String = chars[seg_start..i].iter().collect();
+                let trimmed = seg.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+            seg_start = i + 1;
+        }
+    }
+    None
 }
 
 
@@ -1499,6 +1598,53 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
 #[inline]
 fn fmt(font_id: egui::FontId, color: Color32) -> egui::text::TextFormat {
     egui::text::TextFormat::simple(font_id, color)
+}
+
+#[cfg(test)]
+mod run_selection_tests {
+    use super::*;
+
+    #[test]
+    fn statement_under_cursor_picks_segment_containing_cursor() {
+        let sql = "SELECT 1; SELECT 2; SELECT 3";
+        // cursor inside the 2nd statement (char index ~12)
+        assert_eq!(
+            statement_under_cursor(sql, 12).as_deref(),
+            Some("SELECT 2")
+        );
+        // cursor in the 1st
+        assert_eq!(statement_under_cursor(sql, 2).as_deref(), Some("SELECT 1"));
+        // cursor in the last (no trailing ;)
+        assert_eq!(statement_under_cursor(sql, 26).as_deref(), Some("SELECT 3"));
+    }
+
+    #[test]
+    fn statement_under_cursor_at_boundary_prefers_left() {
+        let sql = "SELECT 1;SELECT 2";
+        // cursor exactly at the ';' (index 8) -> left statement
+        assert_eq!(statement_under_cursor(sql, 8).as_deref(), Some("SELECT 1"));
+    }
+
+    #[test]
+    fn selection_wins_over_statement() {
+        let sql = "SELECT 1; SELECT 2;";
+        // select "SELECT 2" (chars 10..18)
+        assert_eq!(
+            selected_or_statement_sql(sql, Some((10, 18)), Some(0)).as_deref(),
+            Some("SELECT 2")
+        );
+    }
+
+    #[test]
+    fn empty_selection_falls_back_to_statement_then_whole() {
+        let sql = "SELECT 42";
+        assert_eq!(
+            selected_or_statement_sql(sql, None, Some(3)).as_deref(),
+            Some("SELECT 42")
+        );
+        // whitespace-only content -> None
+        assert_eq!(selected_or_statement_sql("   \n  ", None, Some(0)), None);
+    }
 }
 
 #[cfg(test)]
