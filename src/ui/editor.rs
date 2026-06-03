@@ -481,7 +481,8 @@ fn render_editor_body(
                     .stroke(Stroke::new(1.0, theme::border_subtle())),
             )
             .show_inside(ui, |ui| {
-                render_history_panel(ui, state);
+                let slow_ms = parse_threshold_ms(&settings.slow_query_threshold);
+                render_history_panel(ui, state, slow_ms);
             });
     }
 
@@ -1667,7 +1668,19 @@ fn highlight_sql(text: &str, wrap_width: f32, font_size: f32) -> egui::text::Lay
     job
 }
 
-fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
+/// "500ms" / "1s" / "2000" 같은 임계값 문자열을 ms 로 파싱.
+fn parse_threshold_ms(s: &str) -> Option<u128> {
+    let s = s.trim();
+    if let Some(num) = s.strip_suffix("ms") {
+        num.trim().parse::<u128>().ok()
+    } else if let Some(num) = s.strip_suffix('s') {
+        num.trim().parse::<f64>().ok().map(|v| (v * 1000.0) as u128)
+    } else {
+        s.parse::<u128>().ok()
+    }
+}
+
+fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState, slow_ms: Option<u128>) {
     ui.horizontal(|ui| {
         ui.strong(RichText::new("Query History").size(12.0));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1734,11 +1747,25 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState) {
                                     .size(9.5)
                                     .monospace(),
                             );
+                            let is_slow = slow_ms
+                                .map(|t| entry.duration_ms > t)
+                                .unwrap_or(false);
                             ui.label(
                                 RichText::new(format!("{}ms", entry.duration_ms))
-                                    .color(theme::accent_color())
+                                    .color(if is_slow {
+                                        theme::ACCENT_RED
+                                    } else {
+                                        theme::accent_color()
+                                    })
                                     .size(9.5),
                             );
+                            if is_slow {
+                                ui.label(
+                                    RichText::new("slow")
+                                        .color(theme::ACCENT_RED)
+                                        .size(9.0),
+                                );
+                            }
                             ui.label(
                                 RichText::new(format!(
                                     "{} {}",
@@ -1864,6 +1891,15 @@ mod run_selection_tests {
         let (out, count) = replace_all_matches("foo FOO foo", "foo", "bar");
         assert_eq!(out, "bar bar bar");
         assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn parse_threshold_ms_handles_units() {
+        assert_eq!(parse_threshold_ms("500ms"), Some(500));
+        assert_eq!(parse_threshold_ms("1s"), Some(1000));
+        assert_eq!(parse_threshold_ms("5s"), Some(5000));
+        assert_eq!(parse_threshold_ms("2000"), Some(2000));
+        assert_eq!(parse_threshold_ms("garbage"), None);
     }
 
     #[test]
