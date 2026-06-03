@@ -4270,6 +4270,9 @@ pub fn init() {
     en.insert("settings_desc_api_key", "BYOK — stored locally; required for AI text-to-SQL");
     en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
     en.insert("privileges_window_title", "Privileges (GRANT / REVOKE)");
+    en.insert("privileges_obj_table", "Table");
+    en.insert("privileges_obj_sequence", "Sequence");
+    en.insert("privileges_obj_functions", "All functions in schema");
     en.insert("privileges_priv", "Privilege");
     en.insert("privileges_on", "on");
     en.insert("privileges_grantee", "to");
@@ -4654,6 +4657,9 @@ pub fn init() {
     ko.insert("settings_desc_api_key", "BYOK — 로컬 저장. AI text-to-SQL 에 필요");
     ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
     ko.insert("privileges_window_title", "권한 (GRANT / REVOKE)");
+    ko.insert("privileges_obj_table", "테이블");
+    ko.insert("privileges_obj_sequence", "시퀀스");
+    ko.insert("privileges_obj_functions", "스키마 내 모든 함수");
     ko.insert("privileges_priv", "권한");
     ko.insert("privileges_on", "대상");
     ko.insert("privileges_grantee", "부여 대상");

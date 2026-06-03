@@ -1,0 +1,11 @@
+# Pinned toolchain so CI clippy lints are deterministic.
+#
+# CI used dtolnay/rust-toolchain@stable + `cargo clippy -- -D warnings`, which
+# meant every stable Rust release could introduce new lints that fail CI on
+# untouched code (e.g. clippy 1.96 added `manual_option_zip`). Pinning here makes
+# the lint set change only when this file is deliberately bumped, and keeps local
+# `cargo` in lockstep with CI. Bump intentionally, then fix any new lints in the
+# same PR.
+[toolchain]
+channel = "1.96.0"
+components = ["clippy", "rustfmt"]

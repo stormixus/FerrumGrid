@@ -2,6 +2,20 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.4.1] - 2026-06-03
+
+### Added
+
+- GRANT/REVOKE now works on sequences (`USAGE`) and functions (`EXECUTE`),
+  not just tables — the Privileges window has an object-type selector with
+  the right privileges and syntax per type.
+
+### Changed
+
+- Pinned the Rust toolchain (`rust-toolchain.toml` + CI) to 1.96.0 so clippy
+  lints are deterministic and a new stable Rust release can no longer break
+  CI on untouched code.
+
 ## [0.4.0] - 2026-06-03
 
 A large feature release adding 23 capabilities from a full codebase review, with the

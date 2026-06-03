@@ -243,6 +243,8 @@ pub struct AppState {
     pub grant_form_target: String,
     pub grant_form_grantee: String,
     pub grant_form_privilege: String,
+    /// GRANT 대상 객체 종류: "table" / "sequence" / "functions".
+    pub grant_form_object: String,
     /// DBA 세션 모니터 창 상태.
     pub show_sessions_window: bool,
     pub sessions_needs_fetch: bool,
@@ -471,6 +473,7 @@ impl Default for AppState {
             grant_form_target: String::new(),
             grant_form_grantee: String::new(),
             grant_form_privilege: "SELECT".to_string(),
+            grant_form_object: "table".to_string(),
             show_sessions_window: false,
             sessions_needs_fetch: false,
             sessions: Vec::new(),

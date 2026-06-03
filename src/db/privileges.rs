@@ -41,12 +41,25 @@ pub async fn list_grants(client: &Client, conn_id: ConnectionId) -> Result<Vec<G
         .collect())
 }
 
-/// `GRANT/REVOKE <priv> ON <schema>.<table> TO/FROM <grantee>` 생성.
+/// GRANT/REVOKE 대상 객체 종류.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GrantObject {
+    Table,
+    Sequence,
+    /// 스키마 내 모든 함수 (`ON ALL FUNCTIONS IN SCHEMA`). `name` 무시.
+    AllFunctions,
+}
+
+/// `GRANT/REVOKE <priv> ON <object> TO/FROM <grantee>` 생성.
+/// - Table:        `ON "s"."n"`
+/// - Sequence:     `ON SEQUENCE "s"."n"`
+/// - AllFunctions: `ON ALL FUNCTIONS IN SCHEMA "s"` (name 무시)
 pub fn build_grant_sql(
     grant: bool,
     privilege: &str,
+    object: GrantObject,
     schema: &str,
-    table: &str,
+    name: &str,
     grantee: &str,
 ) -> String {
     let (verb, dir) = if grant {
@@ -60,11 +73,16 @@ pub fn build_grant_sql(
     } else {
         quote_ident(grantee)
     };
-    format!(
-        "{verb} {privilege} ON {}.{} {dir} {target};",
-        quote_ident(schema),
-        quote_ident(table),
-    )
+    let on = match object {
+        GrantObject::Table => format!("{}.{}", quote_ident(schema), quote_ident(name)),
+        GrantObject::Sequence => {
+            format!("SEQUENCE {}.{}", quote_ident(schema), quote_ident(name))
+        }
+        GrantObject::AllFunctions => {
+            format!("ALL FUNCTIONS IN SCHEMA {}", quote_ident(schema))
+        }
+    };
+    format!("{verb} {privilege} ON {on} {dir} {target};")
 }
 
 #[cfg(test)]
@@ -74,7 +92,7 @@ mod tests {
     #[test]
     fn grant_sql_quotes_identifiers() {
         assert_eq!(
-            build_grant_sql(true, "SELECT", "public", "users", "app_ro"),
+            build_grant_sql(true, "SELECT", GrantObject::Table, "public", "users", "app_ro"),
             "GRANT SELECT ON \"public\".\"users\" TO \"app_ro\";"
         );
     }
@@ -82,8 +100,20 @@ mod tests {
     #[test]
     fn revoke_and_public_keyword() {
         assert_eq!(
-            build_grant_sql(false, "ALL", "s", "t", "PUBLIC"),
+            build_grant_sql(false, "ALL", GrantObject::Table, "s", "t", "PUBLIC"),
             "REVOKE ALL ON \"s\".\"t\" FROM PUBLIC;"
+        );
+    }
+
+    #[test]
+    fn sequence_and_function_objects() {
+        assert_eq!(
+            build_grant_sql(true, "USAGE", GrantObject::Sequence, "public", "id_seq", "app"),
+            "GRANT USAGE ON SEQUENCE \"public\".\"id_seq\" TO \"app\";"
+        );
+        assert_eq!(
+            build_grant_sql(true, "EXECUTE", GrantObject::AllFunctions, "api", "", "app"),
+            "GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA \"api\" TO \"app\";"
         );
     }
 }
