@@ -27,6 +27,9 @@ pub struct ConnectionConfig {
     pub password: String,
     pub use_tls: bool,
     pub color_tag: Option<String>,
+    /// 선택적 폴더/그룹명 (dev/staging/prod 등). None/빈 문자열 = 미분류.
+    #[serde(default)]
+    pub group: Option<String>,
     pub ssh_tunnel: Option<SshTunnelConfig>,
 }
 
@@ -233,6 +236,7 @@ impl Default for ConnectionConfig {
             password: String::new(),
             use_tls: false,
             color_tag: None,
+            group: None,
             ssh_tunnel: None,
         }
     }

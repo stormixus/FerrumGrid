@@ -785,6 +785,8 @@ pub struct ConnectionDialogState {
     pub password: String,
     pub show_password: bool,
     pub use_tls: bool,
+    /// 선택적 폴더/그룹명 (dev/staging/prod 등). 빈 문자열 = 미분류.
+    pub group: String,
     pub testing: bool,
     pub test_result: Option<Result<String, String>>,
     pub editing_id: Option<ConnectionId>,
@@ -806,6 +808,7 @@ impl Default for ConnectionDialogState {
             password: String::new(),
             show_password: false,
             use_tls: false,
+            group: String::new(),
             testing: false,
             test_result: None,
             editing_id: None,
@@ -836,6 +839,14 @@ impl ConnectionDialogState {
             password: self.password.clone(),
             use_tls: self.use_tls,
             color_tag: None,
+            group: {
+                let g = self.group.trim();
+                if g.is_empty() {
+                    None
+                } else {
+                    Some(g.to_string())
+                }
+            },
             ssh_tunnel: None,
         }
     }
@@ -851,6 +862,7 @@ impl ConnectionDialogState {
             password: config.password.clone(),
             show_password: false,
             use_tls: config.use_tls,
+            group: config.group.clone().unwrap_or_default(),
             testing: false,
             test_result: None,
             editing_id: Some(config.id),
