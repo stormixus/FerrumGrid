@@ -2,6 +2,51 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.4.0] - 2026-06-03
+
+A large feature release adding 23 capabilities from a full codebase review, with the
+"lean single binary" identity preserved (only two new pure-Rust deps; SSH and AWS
+IAM use the OS `ssh`/`aws` clients instead of heavy SDKs).
+
+### Added
+
+- **AI text-to-SQL (BYOK)**: describe a query in plain English and get schema-grounded
+  PostgreSQL via OpenAI or Anthropic (your own key, reuses the existing HTTP client).
+- **AI EXPLAIN interpreter**: one click turns a query plan into terse, actionable tuning
+  hints (bottleneck node, seq scans, row-estimate skew, suggested index).
+- **EXPLAIN plan tree viewer**: run `EXPLAIN (FORMAT JSON)` (plan-only, never executes the
+  query) and read an indented node tree with cost/rows; hottest nodes colored by cost.
+- **DBA session monitor**: live `pg_stat_activity` grid with one-click `pg_cancel_backend`
+  and `pg_terminate_backend` (behind a typed confirm).
+- **Catalog browser**: sequences, enum types, and installed extensions — previously invisible.
+- **Object-level GRANT/REVOKE**: per-object ACL viewer plus a grant/revoke form.
+- **CSV import** into a table via `COPY ... FROM STDIN` (Postgres parses the file).
+- **Export breadth**: Excel (.xlsx) with native cell types, copy-as-Markdown, clipboard-as-INSERT.
+- **SSH tunneling** via the system `ssh` client (key/agent auth) to reach Postgres behind a bastion.
+- **AWS RDS/Aurora IAM auth**: passwordless, auto-rotating tokens via the `aws` CLI.
+- **Full TLS material**: `sslmode` (require/verify-ca/verify-full), custom CA root, and client
+  cert/key for mTLS.
+- **Connection groups/folders**, an editable **connection URL/DSN** field, and a **searchable
+  query-history** filter.
+- **Snippets library**: save the current query and insert snippets by name (replaces the
+  placeholder tab).
+- **Editor**: run selection / statement-under-cursor (`Cmd+Shift+Enter`), find & replace
+  (`Cmd+F`), and a working SQL formatter wired to the Format button and `format_on_save`.
+- **Multi-cell selection** (`Shift+click`) with a spreadsheet-style sum/avg/count/min/max footer.
+- **COMMENT ON** descriptions surfaced for tables and columns.
+- **Scheduled automation tasks now persist** to disk (survive restarts).
+- **Slow-query flagging** in history using the (previously dead) threshold setting.
+
+### Added (safety)
+
+- **Per-connection read-only mode** blocks writes/DDL at the client; **production** connections
+  require typing `production` before a destructive statement (DROP/TRUNCATE, or UPDATE/DELETE
+  with no WHERE), with READ-ONLY/PRODUCTION badges in the editor.
+
+### Fixed
+
+- Editing and re-saving a connection no longer wipes its color tag.
+
 ## [0.3.9] - 2026-05-26
 
 ### Added
