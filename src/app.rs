@@ -617,6 +617,18 @@ impl FerrumGridApp {
                         self.state.query_running = true;
                     }
                 }
+                DbResponse::ExplainPlan { conn_id: _, json } => {
+                    self.state.query_running = false;
+                    match crate::db::explain::parse_explain_json(&json) {
+                        Some(plan) => {
+                            self.state.explain_plan = Some(plan);
+                            self.state.show_explain_window = true;
+                        }
+                        None => {
+                            self.toasts.error("Failed to parse EXPLAIN plan");
+                        }
+                    }
+                }
                 DbResponse::TransferProgress { progress } => {
                     self.state.transfer.progress = Some(progress);
                 }
@@ -796,6 +808,7 @@ impl eframe::App for FerrumGridApp {
         ui::backup_dialogs::render_backup_wizard(ctx, &mut self.state, bridge, &self.settings);
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
+        ui::explain_window::render_explain_window(ctx, &mut self.state);
         if ui::settings::render_settings_window(ctx, &mut self.state, &mut self.settings) {
             self.native_menu.refresh_locale();
             ui::theme::configure_fonts(ctx, &self.settings.language);

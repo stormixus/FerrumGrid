@@ -362,10 +362,28 @@ fn render_toolbar(
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
 
-                ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
-                    "EXPLAIN",
-                ));
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::BRAIN, "ed_brain2", 12.0, theme::text_muted()),
+                        "EXPLAIN",
+                    ))
+                    .on_hover_text(t("editor_explain_hint"))
+                    .clicked()
+                {
+                    if let Some(conn_id) = state.active_connection {
+                        let sql = state.editor_tabs.get(state.active_tab).and_then(|tab| {
+                            selected_or_statement_sql(
+                                &tab.content,
+                                state.editor_selection,
+                                state.editor_cursor_char,
+                            )
+                        });
+                        if let Some(sql) = sql {
+                            state.query_running = true;
+                            bridge.send(crate::db::bridge::DbCommand::RunExplain { conn_id, sql });
+                        }
+                    }
+                }
 
                 if ui
                     .add(theme::ghost_icon_button(

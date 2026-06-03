@@ -7,6 +7,7 @@ pub mod dialogs;
 pub mod drop_dialog;
 pub mod editor;
 pub mod er_diagram;
+pub mod explain_window;
 pub mod grid;
 pub mod grid_dispatch;
 pub mod icons_svg;

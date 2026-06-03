@@ -209,6 +209,9 @@ pub struct AppState {
     pub find_replace: String,
     /// 현재 포커스된 매치 인덱스 (next/prev 순환).
     pub find_match_idx: usize,
+    /// EXPLAIN 플랜 트리 (파싱 결과). 창에 표시.
+    pub explain_plan: Option<crate::db::explain::PlanNode>,
+    pub show_explain_window: bool,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -400,6 +403,8 @@ impl Default for AppState {
             find_query: String::new(),
             find_replace: String::new(),
             find_match_idx: 0,
+            explain_plan: None,
+            show_explain_window: false,
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),

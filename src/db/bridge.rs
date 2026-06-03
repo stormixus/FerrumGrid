@@ -122,6 +122,11 @@ pub enum DbCommand {
         table: String,
         path: std::path::PathBuf,
     },
+    /// `EXPLAIN (FORMAT JSON) <sql>` 실행 (plan-only, 쿼리 미실행).
+    RunExplain {
+        conn_id: ConnectionId,
+        sql: String,
+    },
 }
 
 #[derive(Debug)]
@@ -256,6 +261,12 @@ pub enum DbResponse {
         table: String,
         rows: u64,
     },
+    /// EXPLAIN 플랜 JSON 문자열. `conn_id` 는 future per-connection routing 용.
+    ExplainPlan {
+        #[allow(dead_code)]
+        conn_id: ConnectionId,
+        json: String,
+    },
     /// US-K1 — `FetchDependents` 응답. `deps` 는 표시용 string list, `truncated`
     /// 는 51 개 이상이었음을 의미. `conn_id` / `refobjid` 는 future per-dialog
     /// routing 용 (현재 app.rs handler 가 단일 drop_dialog 만 추적하므로 무시).
@@ -379,6 +390,9 @@ enum ConnCommand {
         table: String,
         path: std::path::PathBuf,
     },
+    RunExplain {
+        sql: String,
+    },
     Shutdown,
 }
 
@@ -482,6 +496,11 @@ async fn dispatch_loop(
                             path,
                         })
                         .await;
+                }
+            }
+            DbCommand::RunExplain { conn_id, sql } => {
+                if let Some(handle) = connections.get(&conn_id) {
+                    let _ = handle.task_tx.send(ConnCommand::RunExplain { sql }).await;
                 }
             }
             DbCommand::ListSchemas { conn_id } => {
@@ -1065,6 +1084,14 @@ async fn connection_task(
                         table,
                         rows,
                     },
+                    Err(error) => DbResponse::Error { conn_id, error },
+                };
+                let _ = resp_tx.send(response);
+                ctx.request_repaint();
+            }
+            ConnCommand::RunExplain { sql } => {
+                let response = match crate::db::explain::run_explain(&client, &sql, conn_id).await {
+                    Ok(json) => DbResponse::ExplainPlan { conn_id, json },
                     Err(error) => DbResponse::Error { conn_id, error },
                 };
                 let _ = resp_tx.send(response);

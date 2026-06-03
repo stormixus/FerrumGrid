@@ -4237,6 +4237,12 @@ pub fn init() {
         "query_execute_selection_hint",
         "⌘↵ run all · ⌘⇧↵ run selection / statement under cursor",
     );
+    en.insert("editor_explain_hint", "EXPLAIN (plan only — does not run the query)");
+    en.insert("explain_window_title", "Query Plan");
+    en.insert(
+        "explain_window_hint",
+        "EXPLAIN (FORMAT JSON) — estimated cost & rows. Hottest nodes in red.",
+    );
     en.insert("editor_format", "Format");
     en.insert("editor_format_hint", "Format SQL (keyword case + indent)");
     en.insert("editor_save_hint", "Save — tidies SQL when 'format on save' is on");
@@ -4555,6 +4561,12 @@ pub fn init() {
     ko.insert(
         "query_execute_selection_hint",
         "⌘↵ 전체 실행 · ⌘⇧↵ 선택 영역/커서 위치 문장 실행",
+    );
+    ko.insert("editor_explain_hint", "EXPLAIN (플랜만 — 쿼리 미실행)");
+    ko.insert("explain_window_title", "쿼리 플랜");
+    ko.insert(
+        "explain_window_hint",
+        "EXPLAIN (FORMAT JSON) — 예상 비용 및 행 수. 비용 큰 노드는 빨강.",
     );
     ko.insert("editor_format", "정렬");
     ko.insert("editor_format_hint", "SQL 정렬 (키워드 대문자 + 들여쓰기)");
