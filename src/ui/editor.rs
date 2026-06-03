@@ -358,6 +358,29 @@ fn render_toolbar(
                 render_badge_info(ui, "auto-commit");
             }
 
+            // 연결 가드레일 배지.
+            let (ro, prod) = state
+                .active_connection
+                .and_then(|id| state.connections.get(&id))
+                .map(|c| (c.config.read_only, c.config.is_production))
+                .unwrap_or((false, false));
+            if ro {
+                ui.label(
+                    RichText::new(t("badge_read_only"))
+                        .color(theme::ACCENT_YELLOW)
+                        .strong()
+                        .size(11.0),
+                );
+            }
+            if prod {
+                ui.label(
+                    RichText::new(t("badge_production"))
+                        .color(theme::ACCENT_RED)
+                        .strong()
+                        .size(11.0),
+                );
+            }
+
             // Right side: cursor info + Format + EXPLAIN
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = theme::SPACE_SM;
@@ -1276,21 +1299,83 @@ fn execute_selection_or_statement(state: &mut AppState, bridge: &DbBridge) {
     }
 }
 
-/// 주어진 SQL 문자열을 실행 (전체/선택/문장 공통 경로).
+/// 문장 분류 — 가드레일 판정용.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StmtKind {
+    Read,
+    Write,
+    /// DROP/TRUNCATE, 또는 WHERE 없는 UPDATE/DELETE.
+    Destructive,
+}
+
+/// SQL 첫 키워드(및 WHERE 유무)로 문장 종류를 분류. (순수 함수)
+fn classify_statement(sql: &str) -> StmtKind {
+    let upper = sql.trim_start().to_uppercase();
+    let first = upper.split_whitespace().next().unwrap_or("");
+    if matches!(first, "DROP" | "TRUNCATE") {
+        return StmtKind::Destructive;
+    }
+    if (first == "UPDATE" || first == "DELETE") && !upper.contains(" WHERE ") {
+        return StmtKind::Destructive;
+    }
+    let write = matches!(
+        first,
+        "INSERT"
+            | "UPDATE"
+            | "DELETE"
+            | "CREATE"
+            | "ALTER"
+            | "GRANT"
+            | "REVOKE"
+            | "COMMENT"
+            | "REINDEX"
+            | "VACUUM"
+            | "MERGE"
+            | "REFRESH"
+            | "COPY"
+    );
+    if write {
+        StmtKind::Write
+    } else {
+        StmtKind::Read
+    }
+}
+
+/// 주어진 SQL 문자열을 실행 (전체/선택/문장 공통 경로). 연결의 read-only /
+/// production 가드레일을 적용한다.
 fn execute_sql_text(state: &mut AppState, bridge: &DbBridge, sql: String) {
     if sql.is_empty() {
         return;
     }
-    if let Some(conn_id) = state.active_connection {
-        toggle_explicit_tx_for_sql(state, &sql);
-        state.query_running = true;
-        state.last_error = None;
-        bridge.send(DbCommand::ExecuteQuery {
-            conn_id,
-            sql,
-            row_limit: Some(state.default_row_limit),
-        });
+    let Some(conn_id) = state.active_connection else {
+        return;
+    };
+    let (read_only, is_prod) = state
+        .connections
+        .get(&conn_id)
+        .map(|c| (c.config.read_only, c.config.is_production))
+        .unwrap_or((false, false));
+    let kind = classify_statement(&sql);
+
+    if read_only && kind != StmtKind::Read {
+        state.last_error = Some(t("guard_read_only_blocked"));
+        return;
     }
+    if is_prod && kind == StmtKind::Destructive {
+        // typed 확인을 거치도록 보류 (확인 창이 force 실행).
+        state.pending_prod_confirm = Some(sql);
+        state.prod_confirm_input.clear();
+        return;
+    }
+
+    toggle_explicit_tx_for_sql(state, &sql);
+    state.query_running = true;
+    state.last_error = None;
+    bridge.send(DbCommand::ExecuteQuery {
+        conn_id,
+        sql,
+        row_limit: Some(state.default_row_limit),
+    });
 }
 
 /// 실행할 SQL 결정: 선택 영역 우선, 없으면 커서 위치 문장, 그것도 없으면 전체.
@@ -1909,6 +1994,22 @@ mod run_selection_tests {
         let (out, count) = replace_all_matches("foo FOO foo", "foo", "bar");
         assert_eq!(out, "bar bar bar");
         assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn classify_statement_detects_kind() {
+        assert_eq!(classify_statement("SELECT * FROM t"), StmtKind::Read);
+        assert_eq!(classify_statement("  with x as (..) select 1"), StmtKind::Read);
+        assert_eq!(classify_statement("INSERT INTO t VALUES (1)"), StmtKind::Write);
+        assert_eq!(
+            classify_statement("UPDATE t SET a=1 WHERE id=2"),
+            StmtKind::Write
+        );
+        // missing WHERE -> destructive
+        assert_eq!(classify_statement("UPDATE t SET a=1"), StmtKind::Destructive);
+        assert_eq!(classify_statement("DELETE FROM t"), StmtKind::Destructive);
+        assert_eq!(classify_statement("DROP TABLE t"), StmtKind::Destructive);
+        assert_eq!(classify_statement("truncate t"), StmtKind::Destructive);
     }
 
     #[test]

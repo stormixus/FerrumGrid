@@ -821,6 +821,7 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
+        ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
         ui::migration_wizard::render_migration_wizard(ctx, &mut self.state, bridge);

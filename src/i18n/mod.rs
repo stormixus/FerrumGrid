@@ -4178,6 +4178,18 @@ pub fn init() {
     en.insert("connection_saved", "Saved Connections");
     en.insert("connection_name", "Name");
     en.insert("connection_group", "Group");
+    en.insert("connection_guardrails", "Guardrails");
+    en.insert("connection_read_only", "Read-only (block writes/DDL)");
+    en.insert("connection_production", "Production (confirm destructive writes)");
+    en.insert("badge_read_only", "READ-ONLY");
+    en.insert("badge_production", "\u{26a0} PRODUCTION");
+    en.insert("guard_read_only_blocked", "Blocked: this connection is read-only");
+    en.insert("guard_prod_confirm_title", "Production safeguard");
+    en.insert(
+        "guard_prod_confirm_body",
+        "Destructive statement on a PRODUCTION connection. Type 'production' to run it.",
+    );
+    en.insert("guard_prod_confirm_run", "Run on production");
     en.insert("connection_sslmode", "SSL Mode");
     en.insert("connection_ssl_root_cert", "CA Root Cert");
     en.insert("connection_ssl_client_cert", "Client Cert");
@@ -4512,6 +4524,18 @@ pub fn init() {
     ko.insert("connection_saved", "저장된 연결");
     ko.insert("connection_name", "이름");
     ko.insert("connection_group", "그룹");
+    ko.insert("connection_guardrails", "가드레일");
+    ko.insert("connection_read_only", "읽기 전용 (쓰기/DDL 차단)");
+    ko.insert("connection_production", "프로덕션 (파괴적 쓰기 확인)");
+    ko.insert("badge_read_only", "읽기 전용");
+    ko.insert("badge_production", "\u{26a0} 프로덕션");
+    ko.insert("guard_read_only_blocked", "차단됨: 읽기 전용 연결입니다");
+    ko.insert("guard_prod_confirm_title", "프로덕션 보호");
+    ko.insert(
+        "guard_prod_confirm_body",
+        "프로덕션 연결의 파괴적 문장입니다. 실행하려면 'production' 을 입력하세요.",
+    );
+    ko.insert("guard_prod_confirm_run", "프로덕션에서 실행");
     ko.insert("connection_sslmode", "SSL 모드");
     ko.insert("connection_ssl_root_cert", "CA 루트 인증서");
     ko.insert("connection_ssl_client_cert", "클라이언트 인증서");

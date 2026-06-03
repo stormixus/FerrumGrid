@@ -42,6 +42,12 @@ pub struct ConnectionConfig {
     /// 선택적 폴더/그룹명 (dev/staging/prod 등). None/빈 문자열 = 미분류.
     #[serde(default)]
     pub group: Option<String>,
+    /// 읽기 전용 모드 — INSERT/UPDATE/DELETE/DDL 을 클라이언트에서 차단.
+    #[serde(default)]
+    pub read_only: bool,
+    /// 프로덕션 표시 — 파괴적 문장 실행 전 typed 확인 + 에디터 경고 배지.
+    #[serde(default)]
+    pub is_production: bool,
     pub ssh_tunnel: Option<SshTunnelConfig>,
 }
 
@@ -253,6 +259,8 @@ impl Default for ConnectionConfig {
             ssl_client_key: None,
             color_tag: None,
             group: None,
+            read_only: false,
+            is_production: false,
             ssh_tunnel: None,
         }
     }

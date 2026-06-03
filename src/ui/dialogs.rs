@@ -651,6 +651,13 @@ fn render_form_fields(ui: &mut egui::Ui, dialog: &mut ConnectionDialogState) {
                 cert_file_row(ui, t("connection_ssl_client_key"), &mut dialog.ssl_client_key);
             }
 
+            field_label(ui, t("connection_guardrails"));
+            ui.vertical(|ui| {
+                ui.checkbox(&mut dialog.read_only, t("connection_read_only"));
+                ui.checkbox(&mut dialog.is_production, t("connection_production"));
+            });
+            ui.end_row();
+
             field_label(ui, t("connection_ssh_tunnel"));
             ui.add_enabled(
                 false,
@@ -805,6 +812,73 @@ fn render_action_buttons(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             }
         });
     });
+}
+
+/// 프로덕션 연결에서 파괴적 문장 실행 전 typed 확인 모달.
+pub fn render_prod_confirm_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
+    let Some(sql) = state.pending_prod_confirm.clone() else {
+        return;
+    };
+    let mut run = false;
+    let mut cancel = false;
+
+    egui::Window::new(t("guard_prod_confirm_title"))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .show(ctx, |ui| {
+            ui.label(
+                RichText::new(t("guard_prod_confirm_body"))
+                    .color(theme::ACCENT_RED)
+                    .strong()
+                    .size(12.0),
+            );
+            ui.add_space(theme::SPACE_SM);
+            let preview: String = sql.chars().take(200).collect();
+            ui.label(
+                RichText::new(preview)
+                    .monospace()
+                    .color(theme::text_muted())
+                    .size(11.0),
+            );
+            ui.add_space(theme::SPACE_MD);
+            ui.add(
+                theme::mono_text_input(&mut state.prod_confirm_input)
+                    .hint_text("production")
+                    .desired_width(220.0),
+            );
+            ui.add_space(theme::SPACE_SM);
+            let ok = state.prod_confirm_input.trim().eq_ignore_ascii_case("production");
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(ok, theme::secondary_button(&t("guard_prod_confirm_run")))
+                    .clicked()
+                {
+                    run = true;
+                }
+                if ui.add(theme::secondary_button(&t("connection_cancel"))).clicked() {
+                    cancel = true;
+                }
+            });
+        });
+
+    if run {
+        if let Some(conn_id) = state.active_connection {
+            state.query_running = true;
+            state.last_error = None;
+            bridge.send(DbCommand::ExecuteQuery {
+                conn_id,
+                sql,
+                row_limit: Some(state.default_row_limit),
+            });
+        }
+        state.pending_prod_confirm = None;
+        state.prod_confirm_input.clear();
+    }
+    if cancel {
+        state.pending_prod_confirm = None;
+        state.prod_confirm_input.clear();
+    }
 }
 
 // ---------------------------------------------------------------------------

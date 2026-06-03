@@ -218,6 +218,10 @@ pub struct AppState {
     pub sessions: Vec<crate::db::sessions::SessionRow>,
     /// terminate 확인 대기 중인 pid (2-step 확인).
     pub sessions_confirm_terminate: Option<i32>,
+    /// 프로덕션 파괴적 문장 — typed 확인 대기 중인 SQL.
+    pub pending_prod_confirm: Option<String>,
+    /// 프로덕션 확인 입력 ("production" 일치 시 실행 허용).
+    pub prod_confirm_input: String,
     pub current_result: Option<QueryResult>,
     pub current_result_truncated: bool,
     pub data_edit: DataEditState,
@@ -415,6 +419,8 @@ impl Default for AppState {
             sessions_needs_fetch: false,
             sessions: Vec::new(),
             sessions_confirm_terminate: None,
+            pending_prod_confirm: None,
+            prod_confirm_input: String::new(),
             current_result: None,
             current_result_truncated: false,
             data_edit: DataEditState::default(),
@@ -834,6 +840,9 @@ pub struct ConnectionDialogState {
     pub ssl_client_key: String,
     /// 선택적 폴더/그룹명 (dev/staging/prod 등). 빈 문자열 = 미분류.
     pub group: String,
+    /// 읽기 전용 / 프로덕션 가드레일.
+    pub read_only: bool,
+    pub is_production: bool,
     /// 연결 URL/DSN 빠른 입력 필드 (폼과 양방향 변환용 transient 버퍼).
     pub url_input: String,
     pub testing: bool,
@@ -862,6 +871,8 @@ impl Default for ConnectionDialogState {
             ssl_client_cert: String::new(),
             ssl_client_key: String::new(),
             group: String::new(),
+            read_only: false,
+            is_production: false,
             url_input: String::new(),
             testing: false,
             test_result: None,
@@ -906,6 +917,8 @@ impl ConnectionDialogState {
             ssl_root_cert: opt_path(&self.ssl_root_cert),
             ssl_client_cert: opt_path(&self.ssl_client_cert),
             ssl_client_key: opt_path(&self.ssl_client_key),
+            read_only: self.read_only,
+            is_production: self.is_production,
             color_tag: None,
             group: {
                 let g = self.group.trim();
@@ -938,6 +951,8 @@ impl ConnectionDialogState {
             ssl_root_cert: config.ssl_root_cert.clone().unwrap_or_default(),
             ssl_client_cert: config.ssl_client_cert.clone().unwrap_or_default(),
             ssl_client_key: config.ssl_client_key.clone().unwrap_or_default(),
+            read_only: config.read_only,
+            is_production: config.is_production,
             group: config.group.clone().unwrap_or_default(),
             url_input: crate::connection_url::PostgresConnectionUrl {
                 host: config.host.clone(),
