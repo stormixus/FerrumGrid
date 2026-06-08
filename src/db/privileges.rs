@@ -8,6 +8,7 @@ use crate::types::ConnectionId;
 
 #[derive(Debug, Clone)]
 pub struct GrantRow {
+    pub object_type: String,
     pub schema: String,
     pub table: String,
     pub grantee: String,
@@ -18,25 +19,49 @@ fn quote_ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
 }
 
-/// user 스키마의 테이블/뷰 권한 부여 현황 (information_schema.role_table_grants).
+pub fn list_grants_sql() -> &'static str {
+    "SELECT object_type, object_schema, object_name, grantee, privilege_type \
+     FROM ( \
+       SELECT 'table' AS object_type, table_schema AS object_schema, table_name AS object_name, grantee, privilege_type \
+       FROM information_schema.role_table_grants \
+       WHERE table_schema NOT IN ('pg_catalog', 'information_schema') \
+       UNION ALL \
+       SELECT 'sequence' AS object_type, n.nspname AS object_schema, c.relname AS object_name, \
+              COALESCE(r.rolname, 'PUBLIC') AS grantee, acl.privilege_type::text AS privilege_type \
+       FROM pg_catalog.pg_class c \
+       JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace \
+       CROSS JOIN LATERAL pg_catalog.aclexplode(c.relacl) AS acl \
+       LEFT JOIN pg_catalog.pg_roles r ON r.oid = acl.grantee \
+       WHERE c.relkind = 'S' \
+         AND n.nspname NOT IN ('pg_catalog', 'information_schema') \
+       UNION ALL \
+       SELECT 'function' AS object_type, n.nspname AS object_schema, \
+              p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')' AS object_name, \
+              COALESCE(r.rolname, 'PUBLIC') AS grantee, acl.privilege_type::text AS privilege_type \
+       FROM pg_catalog.pg_proc p \
+       JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace \
+       CROSS JOIN LATERAL pg_catalog.aclexplode(p.proacl) AS acl \
+       LEFT JOIN pg_catalog.pg_roles r ON r.oid = acl.grantee \
+       WHERE p.prokind IN ('f', 'a', 'w') \
+         AND n.nspname NOT IN ('pg_catalog', 'information_schema') \
+     ) grants \
+     ORDER BY object_schema, object_name, grantee, privilege_type, object_type"
+}
+
+/// user 스키마의 객체 권한 부여 현황.
 pub async fn list_grants(client: &Client, conn_id: ConnectionId) -> Result<Vec<GrantRow>, DbError> {
     let rows = client
-        .query(
-            "SELECT table_schema, table_name, grantee, privilege_type \
-             FROM information_schema.role_table_grants \
-             WHERE table_schema NOT IN ('pg_catalog', 'information_schema') \
-             ORDER BY table_schema, table_name, grantee, privilege_type",
-            &[],
-        )
+        .query(list_grants_sql(), &[])
         .await
         .map_err(|e| DbError::from_pg(&e, conn_id))?;
     Ok(rows
         .iter()
         .map(|r| GrantRow {
-            schema: r.get(0),
-            table: r.get(1),
-            grantee: r.get(2),
-            privilege: r.get(3),
+            object_type: r.get(0),
+            schema: r.get(1),
+            table: r.get(2),
+            grantee: r.get(3),
+            privilege: r.get(4),
         })
         .collect())
 }
@@ -92,7 +117,14 @@ mod tests {
     #[test]
     fn grant_sql_quotes_identifiers() {
         assert_eq!(
-            build_grant_sql(true, "SELECT", GrantObject::Table, "public", "users", "app_ro"),
+            build_grant_sql(
+                true,
+                "SELECT",
+                GrantObject::Table,
+                "public",
+                "users",
+                "app_ro"
+            ),
             "GRANT SELECT ON \"public\".\"users\" TO \"app_ro\";"
         );
     }
@@ -108,12 +140,31 @@ mod tests {
     #[test]
     fn sequence_and_function_objects() {
         assert_eq!(
-            build_grant_sql(true, "USAGE", GrantObject::Sequence, "public", "id_seq", "app"),
+            build_grant_sql(
+                true,
+                "USAGE",
+                GrantObject::Sequence,
+                "public",
+                "id_seq",
+                "app"
+            ),
             "GRANT USAGE ON SEQUENCE \"public\".\"id_seq\" TO \"app\";"
         );
         assert_eq!(
             build_grant_sql(true, "EXECUTE", GrantObject::AllFunctions, "api", "", "app"),
             "GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA \"api\" TO \"app\";"
         );
+    }
+
+    #[test]
+    fn grants_list_query_covers_supported_object_types() {
+        let sql = list_grants_sql();
+
+        assert!(sql.contains("role_table_grants"));
+        assert!(sql.contains("'table'"));
+        assert!(sql.contains("'sequence'"));
+        assert!(sql.contains("'function'"));
+        assert!(sql.contains("pg_catalog.pg_class"));
+        assert!(sql.contains("pg_catalog.pg_proc"));
     }
 }

@@ -11,8 +11,16 @@ use crate::ui::theme;
 
 /// 객체 종류별 (코드, 라벨키, 허용 권한 목록).
 const OBJECT_TYPES: &[(&str, &str, &[&str])] = &[
-    ("table", "privileges_obj_table", &["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "ALL"]),
-    ("sequence", "privileges_obj_sequence", &["USAGE", "SELECT", "UPDATE", "ALL"]),
+    (
+        "table",
+        "privileges_obj_table",
+        &["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "ALL"],
+    ),
+    (
+        "sequence",
+        "privileges_obj_sequence",
+        &["USAGE", "SELECT", "UPDATE", "ALL"],
+    ),
     ("functions", "privileges_obj_functions", &["EXECUTE", "ALL"]),
 ];
 
@@ -22,6 +30,36 @@ fn privileges_for(object: &str) -> &'static [&'static str] {
         .find(|(code, _, _)| *code == object)
         .map(|(_, _, privs)| *privs)
         .unwrap_or(OBJECT_TYPES[0].2)
+}
+
+fn parse_schema_name_target(target: &str) -> Option<(String, String)> {
+    let (schema, name) = target.trim().split_once('.')?;
+    let schema = schema.trim();
+    let name = name.trim();
+    if schema.is_empty() || name.is_empty() {
+        return None;
+    }
+    Some((schema.to_string(), name.to_string()))
+}
+
+fn parse_grant_target(object: &str, target: &str) -> Option<(GrantObject, String, String)> {
+    match object {
+        "sequence" => {
+            let (schema, name) = parse_schema_name_target(target)?;
+            Some((GrantObject::Sequence, schema, name))
+        }
+        "functions" => {
+            let schema = target.trim();
+            if schema.is_empty() || schema.contains('.') {
+                return None;
+            }
+            Some((GrantObject::AllFunctions, schema.to_string(), String::new()))
+        }
+        _ => {
+            let (schema, name) = parse_schema_name_target(target)?;
+            Some((GrantObject::Table, schema, name))
+        }
+    }
 }
 
 pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridge: &DbBridge) {
@@ -50,7 +88,6 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
                 .inner_margin(egui::Margin::same(theme::SPACE_SM as i8))
                 .corner_radius(egui::CornerRadius::same(theme::RADIUS_MD))
                 .show(ui, |ui| {
-                    let is_functions = state.grant_form_object == "functions";
                     ui.horizontal_wrapped(|ui| {
                         // 객체 종류 선택 — 종류가 바뀌면 권한 목록도 바뀐다.
                         egui::ComboBox::from_id_salt("grant_object")
@@ -71,6 +108,7 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
                             });
                         // 선택 권한이 현 객체에 유효하지 않으면 첫 권한으로 보정.
                         let privs = privileges_for(&state.grant_form_object);
+                        let is_functions = state.grant_form_object == "functions";
                         if !privs.contains(&state.grant_form_privilege.as_str()) {
                             state.grant_form_privilege = privs[0].to_string();
                         }
@@ -86,13 +124,25 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
                                     );
                                 }
                             });
-                        ui.label(RichText::new(t("privileges_on")).size(11.0).color(theme::text_muted()));
+                        ui.label(
+                            RichText::new(t("privileges_on"))
+                                .size(11.0)
+                                .color(theme::text_muted()),
+                        );
                         ui.add(
                             theme::mono_text_input(&mut state.grant_form_target)
-                                .hint_text(if is_functions { "schema" } else { "schema.table" })
+                                .hint_text(if is_functions {
+                                    "schema"
+                                } else {
+                                    "schema.table"
+                                })
                                 .desired_width(160.0),
                         );
-                        ui.label(RichText::new(t("privileges_grantee")).size(11.0).color(theme::text_muted()));
+                        ui.label(
+                            RichText::new(t("privileges_grantee"))
+                                .size(11.0)
+                                .color(theme::text_muted()),
+                        );
                         ui.add(
                             theme::mono_text_input(&mut state.grant_form_grantee)
                                 .hint_text("role / PUBLIC")
@@ -100,8 +150,11 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
                         );
                         // functions = 스키마만 필요, 그 외 = schema.name 필요.
                         let valid = !state.grant_form_grantee.trim().is_empty()
-                            && !state.grant_form_target.trim().is_empty()
-                            && (is_functions || state.grant_form_target.contains('.'));
+                            && parse_grant_target(
+                                &state.grant_form_object,
+                                &state.grant_form_target,
+                            )
+                            .is_some();
                         if ui
                             .add_enabled(valid, theme::secondary_button(&t("privileges_grant")))
                             .clicked()
@@ -119,7 +172,10 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
 
             ui.add_space(theme::SPACE_XS);
             ui.horizontal(|ui| {
-                if ui.add(theme::secondary_button(&t("sessions_refresh"))).clicked() {
+                if ui
+                    .add(theme::secondary_button(&t("sessions_refresh")))
+                    .clicked()
+                {
                     refresh = true;
                 }
                 ui.label(
@@ -148,9 +204,12 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
                             ui.end_row();
                             for g in &state.grants {
                                 ui.label(
-                                    RichText::new(format!("{}.{}", g.schema, g.table))
-                                        .monospace()
-                                        .size(11.0),
+                                    RichText::new(format!(
+                                        "{} {}.{}",
+                                        g.object_type, g.schema, g.table
+                                    ))
+                                    .monospace()
+                                    .size(11.0),
                                 );
                                 ui.label(RichText::new(&g.grantee).size(11.0));
                                 ui.label(
@@ -166,26 +225,10 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
 
     if let Some(grant) = apply {
         if let Some(conn_id) = state.active_connection {
-            let (object, schema, name) = match state.grant_form_object.as_str() {
-                "sequence" => {
-                    let (s, n) = state
-                        .grant_form_target
-                        .split_once('.')
-                        .unwrap_or(("public", state.grant_form_target.as_str()));
-                    (GrantObject::Sequence, s.to_string(), n.to_string())
-                }
-                "functions" => (
-                    GrantObject::AllFunctions,
-                    state.grant_form_target.trim().to_string(),
-                    String::new(),
-                ),
-                _ => {
-                    let (s, n) = state
-                        .grant_form_target
-                        .split_once('.')
-                        .unwrap_or(("public", state.grant_form_target.as_str()));
-                    (GrantObject::Table, s.to_string(), n.to_string())
-                }
+            let Some((object, schema, name)) =
+                parse_grant_target(&state.grant_form_object, &state.grant_form_target)
+            else {
+                return;
             };
             let sql = build_grant_sql(
                 grant,
@@ -210,5 +253,41 @@ pub fn render_privileges_window(ctx: &egui::Context, state: &mut AppState, bridg
     }
     if !open {
         state.show_privileges_window = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grant_target_parser_accepts_sequence_schema_name() {
+        assert_eq!(
+            parse_grant_target("sequence", "public.id_seq"),
+            Some((
+                GrantObject::Sequence,
+                "public".to_string(),
+                "id_seq".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn grant_target_parser_rejects_incomplete_schema_name_targets() {
+        assert_eq!(parse_grant_target("table", "public."), None);
+        assert_eq!(parse_grant_target("sequence", ".id_seq"), None);
+    }
+
+    #[test]
+    fn grant_target_parser_rejects_dotted_function_schema() {
+        assert_eq!(parse_grant_target("functions", "public.users"), None);
+    }
+
+    #[test]
+    fn grant_target_parser_accepts_function_schema_only() {
+        assert_eq!(
+            parse_grant_target("functions", "api"),
+            Some((GrantObject::AllFunctions, "api".to_string(), String::new()))
+        );
     }
 }
