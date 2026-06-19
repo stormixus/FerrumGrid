@@ -1165,17 +1165,17 @@ mod alter_ddl_tests {
         let ddl = generate_alter_ddl(&td, "public.users");
         // Since unit tests run concurrently in parallel, another thread could toggle the active language
         // (e.g. CURRENT_LANG = Language::Korean). We assert that the output matches any valid translation.
-        let valid_ddls = vec![
-            "-- No changes detected".to_string(),
-            "-- 변경 사항이 감지되지 않았습니다".to_string(),
-            "-- 変更は検出されませんでした".to_string(),
-            "-- 未检测到变更".to_string(),
-            "-- No se detectaron cambios".to_string(),
-            "-- Aucun changement détecté".to_string(),
-            "-- Keine Änderungen erkannt".to_string(),
+        let valid_ddls = [
+            "-- No changes detected",
+            "-- 변경 사항이 감지되지 않았습니다",
+            "-- 変更は検出されませんでした",
+            "-- 未检测到变更",
+            "-- No se detectaron cambios",
+            "-- Aucun changement détecté",
+            "-- Keine Änderungen erkannt",
         ];
         assert!(
-            valid_ddls.contains(&ddl),
+            valid_ddls.contains(&ddl.as_str()),
             "Expected DDL to be one of the translations, but got: {:?}",
             ddl
         );

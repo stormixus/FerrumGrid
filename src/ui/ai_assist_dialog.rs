@@ -1,6 +1,6 @@
 use eframe::egui::{self, Margin, RichText, Stroke, TextEdit};
 
-use crate::ai::{collect_schema_context, generate_sql};
+use crate::ai::{collect_schema_context, generate_sql_with_tables};
 use crate::i18n::t;
 use crate::state::AppState;
 use crate::storage::settings::AppSettings;
@@ -31,11 +31,7 @@ pub fn poll_ai_assist(state: &mut AppState) {
     }
 }
 
-pub fn render_ai_assist_dialog(
-    ctx: &egui::Context,
-    state: &mut AppState,
-    settings: &AppSettings,
-) {
+pub fn render_ai_assist_dialog(ctx: &egui::Context, state: &mut AppState, settings: &AppSettings) {
     if !state.ai_assist.open {
         return;
     }
@@ -82,7 +78,11 @@ pub fn render_ai_assist_dialog(
             }
 
             if let Some(err) = state.ai_assist.error.as_ref() {
-                ui.label(RichText::new(err).color(theme::accent_red_soft()).size(12.0));
+                ui.label(
+                    RichText::new(err)
+                        .color(theme::accent_red_soft())
+                        .size(12.0),
+                );
             }
 
             if !state.ai_assist.generated_sql.is_empty() {
@@ -110,7 +110,10 @@ pub fn render_ai_assist_dialog(
             ui.horizontal(|ui| {
                 let can_generate = !state.ai_assist.generating && settings.ai_assistant_enabled;
                 if ui
-                    .add_enabled(can_generate, theme::primary_button(&t("ai_assist_generate")))
+                    .add_enabled(
+                        can_generate,
+                        theme::primary_button(&t("ai_assist_generate")),
+                    )
                     .clicked()
                 {
                     start_generation(state, settings);
@@ -162,7 +165,7 @@ fn start_generation(state: &mut AppState, settings: &AppSettings) {
     state.ai_assist.result_rx = Some(rx);
 
     std::thread::spawn(move || {
-        let result = generate_sql(&prompt, &schema, &settings);
+        let result = generate_sql_with_tables(&prompt, &schema, &settings);
         let _ = tx.send(result);
     });
 }

@@ -99,7 +99,8 @@ pub fn render_settings_window(
     let pref_h = (screen.height() * 0.80).clamp(PREF_MIN_HEIGHT, PREF_MAX_HEIGHT);
 
     // Dim overlay behind settings
-    let overlay_layer = egui::LayerId::new(egui::Order::Foreground, egui::Id::new("settings_overlay"));
+    let overlay_layer =
+        egui::LayerId::new(egui::Order::Foreground, egui::Id::new("settings_overlay"));
     ctx.layer_painter(overlay_layer)
         .rect_filled(screen, 0.0, Color32::from_black_alpha(115));
 
@@ -125,8 +126,7 @@ pub fn render_settings_window(
 
             // Sidebar + Content area
             let body_height = pref_h - HEADER_HEIGHT - FOOTER_HEIGHT;
-            let (body_rect, _) =
-                ui.allocate_exact_size(vec2(pref_w, body_height), Sense::hover());
+            let (body_rect, _) = ui.allocate_exact_size(vec2(pref_w, body_height), Sense::hover());
 
             // Left: sidebar navigation
             let nav_rect = Rect::from_min_size(body_rect.left_top(), vec2(NAV_WIDTH, body_height));
@@ -185,7 +185,8 @@ pub fn render_settings_window(
     match close_action {
         CloseAction::None => false,
         CloseAction::Cancel => {
-            settings.dark_mode = theme::apply_appearance(ctx, &settings.appearance, &settings.accent_color);
+            settings.dark_mode =
+                theme::apply_appearance(ctx, &settings.appearance, &settings.accent_color);
             set_language(Language::from_code(&settings.language));
             state.settings_draft = None;
             state.show_settings_dialog = false;
@@ -194,7 +195,8 @@ pub fn render_settings_window(
         }
         CloseAction::RestoreDefaults => {
             let mut defaults = storage::settings::AppSettings::default();
-            defaults.dark_mode = theme::apply_appearance(ctx, &defaults.appearance, &defaults.accent_color);
+            defaults.dark_mode =
+                theme::apply_appearance(ctx, &defaults.appearance, &defaults.accent_color);
             state.settings_draft = Some(defaults);
             ctx.request_repaint();
             false
@@ -236,11 +238,25 @@ fn preview_draft_appearance(ctx: &egui::Context, state: &mut AppState) {
     set_language(Language::from_code(&draft.language));
 }
 
-fn render_header(ui: &mut egui::Ui, width: f32, _state: &mut AppState, close_action: &mut CloseAction) {
+fn render_header(
+    ui: &mut egui::Ui,
+    width: f32,
+    _state: &mut AppState,
+    close_action: &mut CloseAction,
+) {
     let (rect, _) = ui.allocate_exact_size(vec2(width, HEADER_HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
 
-    painter.rect_filled(rect, CornerRadius { nw: 10, ne: 10, sw: 0, se: 0 }, theme::bg_shell());
+    painter.rect_filled(
+        rect,
+        CornerRadius {
+            nw: 10,
+            ne: 10,
+            sw: 0,
+            se: 0,
+        },
+        theme::bg_shell(),
+    );
     painter.hline(
         rect.x_range(),
         rect.bottom() - 1.0,
@@ -264,10 +280,8 @@ fn render_header(ui: &mut egui::Ui, width: f32, _state: &mut AppState, close_act
     );
 
     // Close button
-    let close_rect = Rect::from_center_size(
-        pos2(rect.right() - 24.0, rect.center().y),
-        vec2(20.0, 20.0),
-    );
+    let close_rect =
+        Rect::from_center_size(pos2(rect.right() - 24.0, rect.center().y), vec2(20.0, 20.0));
     let close_resp = ui.interact(close_rect, ui.id().with("settings_close"), Sense::click());
     painter.text(
         close_rect.center(),
@@ -318,7 +332,11 @@ fn render_sidebar(ui: &mut egui::Ui, state: &mut AppState) {
                     Align2::LEFT_CENTER,
                     icon,
                     FontId::proportional(12.0),
-                    if active { active_accent() } else { theme::text_muted() },
+                    if active {
+                        active_accent()
+                    } else {
+                        theme::text_muted()
+                    },
                 );
                 // Label
                 ui.painter().text(
@@ -341,7 +359,8 @@ fn render_content(
     draft: &mut storage::settings::AppSettings,
 ) {
     let content_height = ui.available_height();
-    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), content_height), Sense::hover());
+    let (rect, _) =
+        ui.allocate_exact_size(vec2(ui.available_width(), content_height), Sense::hover());
     ui.painter_at(rect)
         .rect_filled(rect, CornerRadius::same(0), content_bg());
 
@@ -382,92 +401,144 @@ fn render_general_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
     // --- Appearance section ---
     settings_section(ui, &t("settings_sec_appearance"));
 
-    settings_row(ui, &t("settings_row_theme"), &t("settings_desc_theme"), |ui| {
-        render_appearance_combo(ui, "settings_appearance_general", draft);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_theme"),
+        &t("settings_desc_theme"),
+        |ui| {
+            render_appearance_combo(ui, "settings_appearance_general", draft);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_accent"), &t("settings_desc_accent"), |ui| {
-        let swatches = [
-            ("emerald", theme::ACCENT_EMERALD),
-            ("blue", theme::ACCENT_BLUE),
-            ("purple", theme::ACCENT_PURPLE),
-            ("yellow", theme::ACCENT_YELLOW),
-            ("red", theme::ACCENT_RED),
-        ];
-        for (name, color) in swatches.iter() {
-            let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
-            ui.painter().rect_filled(r, CornerRadius::same(10), *color);
-            if draft.accent_color == *name {
-                ui.painter().rect_stroke(
-                    r.expand(2.0),
-                    CornerRadius::same(12),
-                    Stroke::new(1.5, theme::text_primary()),
-                    StrokeKind::Outside,
-                );
+    settings_row(
+        ui,
+        &t("settings_row_accent"),
+        &t("settings_desc_accent"),
+        |ui| {
+            let swatches = [
+                ("emerald", theme::ACCENT_EMERALD),
+                ("blue", theme::ACCENT_BLUE),
+                ("purple", theme::ACCENT_PURPLE),
+                ("yellow", theme::ACCENT_YELLOW),
+                ("red", theme::ACCENT_RED),
+            ];
+            for (name, color) in swatches.iter() {
+                let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
+                ui.painter().rect_filled(r, CornerRadius::same(10), *color);
+                if draft.accent_color == *name {
+                    ui.painter().rect_stroke(
+                        r.expand(2.0),
+                        CornerRadius::same(12),
+                        Stroke::new(1.5, theme::text_primary()),
+                        StrokeKind::Outside,
+                    );
+                }
+                if resp.clicked() {
+                    draft.accent_color = name.to_string();
+                }
+                ui.add_space(4.0);
             }
-            if resp.clicked() {
-                draft.accent_color = name.to_string();
-            }
-            ui.add_space(4.0);
-        }
-    });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_density"), &t("settings_desc_density"), |ui| {
-        let density_opts = ["compact", "default", "comfortable"];
-        let density_labels = [t("settings_chip_compact"), t("settings_chip_default"), t("settings_chip_comfortable")];
-        let density_label_refs: Vec<&str> = density_labels.iter().map(|s| s.as_str()).collect();
-        let mut sel = density_opts.iter().position(|o| *o == draft.density).unwrap_or(1);
-        settings_chips(ui, "density", &density_label_refs, &mut sel);
-        draft.density = density_opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_density"),
+        &t("settings_desc_density"),
+        |ui| {
+            let density_opts = ["compact", "default", "comfortable"];
+            let density_labels = [
+                t("settings_chip_compact"),
+                t("settings_chip_default"),
+                t("settings_chip_comfortable"),
+            ];
+            let density_label_refs: Vec<&str> = density_labels.iter().map(|s| s.as_str()).collect();
+            let mut sel = density_opts
+                .iter()
+                .position(|o| *o == draft.density)
+                .unwrap_or(1);
+            settings_chips(ui, "density", &density_label_refs, &mut sel);
+            draft.density = density_opts[sel].to_string();
+        },
+    );
 
     // --- Workflow section ---
     settings_section(ui, &t("settings_sec_workflow"));
 
-    settings_row(ui, &t("settings_row_autocommit"), &t("settings_desc_autocommit"), |ui| {
-        settings_toggle(ui, "general_autocommit", &mut draft.auto_commit);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autocommit"),
+        &t("settings_desc_autocommit"),
+        |ui| {
+            settings_toggle(ui, "general_autocommit", &mut draft.auto_commit);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_warn_dangling"), &t("settings_desc_warn_dangling"), |ui| {
-        settings_toggle(ui, "general_warn_dangling", &mut draft.warn_dangling_tx);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_warn_dangling"),
+        &t("settings_desc_warn_dangling"),
+        |ui| {
+            settings_toggle(ui, "general_warn_dangling", &mut draft.warn_dangling_tx);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_confirm_drop"), &t("settings_desc_confirm_drop"), |ui| {
-        settings_toggle(ui, "general_confirm_drop", &mut draft.confirm_destructive);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_confirm_drop"),
+        &t("settings_desc_confirm_drop"),
+        |ui| {
+            settings_toggle(ui, "general_confirm_drop", &mut draft.confirm_destructive);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_result_limit"), &t("settings_desc_result_limit"), |ui| {
-        let limits = ["100", "500", "1 000", "5 000", "10 000", "50 000"];
-        let limit_vals: [usize; 6] = [100, 500, 1_000, 5_000, 10_000, 50_000];
-        let current_label = match draft.default_row_limit {
-            100 => "100",
-            500 => "500",
-            1_000 => "1 000",
-            5_000 => "5 000",
-            10_000 => "10 000",
-            50_000 => "50 000",
-            _ => "1 000",
-        };
-        ComboBox::from_id_salt("general_row_limit")
-            .width(120.0)
-            .selected_text(current_label)
-            .show_ui(ui, |ui| {
-                for (lbl, val) in limits.iter().zip(limit_vals.iter()) {
-                    ui.selectable_value(&mut draft.default_row_limit, *val, *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_result_limit"),
+        &t("settings_desc_result_limit"),
+        |ui| {
+            let limits = ["100", "500", "1 000", "5 000", "10 000", "50 000"];
+            let limit_vals: [usize; 6] = [100, 500, 1_000, 5_000, 10_000, 50_000];
+            let current_label = match draft.default_row_limit {
+                100 => "100",
+                500 => "500",
+                1_000 => "1 000",
+                5_000 => "5 000",
+                10_000 => "10 000",
+                50_000 => "50 000",
+                _ => "1 000",
+            };
+            ComboBox::from_id_salt("general_row_limit")
+                .width(120.0)
+                .selected_text(current_label)
+                .show_ui(ui, |ui| {
+                    for (lbl, val) in limits.iter().zip(limit_vals.iter()) {
+                        ui.selectable_value(&mut draft.default_row_limit, *val, *lbl);
+                    }
+                });
+        },
+    );
 
     // --- Startup section ---
     settings_section(ui, &t("settings_sec_startup"));
 
-    settings_row(ui, &t("settings_row_reopen_tabs"), &t("settings_desc_reopen_tabs"), |ui| {
-        settings_toggle(ui, "general_reopen", &mut draft.reopen_tabs);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_reopen_tabs"),
+        &t("settings_desc_reopen_tabs"),
+        |ui| {
+            settings_toggle(ui, "general_reopen", &mut draft.reopen_tabs);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_autoconnect"), &t("settings_desc_autoconnect"), |ui| {
-        settings_toggle(ui, "general_autoconnect", &mut draft.auto_connect_vault);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autoconnect"),
+        &t("settings_desc_autoconnect"),
+        |ui| {
+            settings_toggle(ui, "general_autoconnect", &mut draft.auto_connect_vault);
+        },
+    );
 }
 
 // =============================================================================
@@ -478,78 +549,128 @@ fn render_editor_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
     // --- Font section ---
     settings_section(ui, &t("settings_sec_font"));
 
-    settings_row(ui, &t("settings_row_family"), &t("settings_desc_family"), |ui| {
-        let families = ["SF Mono", "JetBrains Mono", "Fira Code", "Menlo", "Monaco"];
-        ComboBox::from_id_salt("editor_font_family")
-            .width(160.0)
-            .selected_text(&draft.font_family)
-            .show_ui(ui, |ui| {
-                for f in families.iter() {
-                    ui.selectable_value(&mut draft.font_family, f.to_string(), *f);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_family"),
+        &t("settings_desc_family"),
+        |ui| {
+            let families = ["SF Mono", "JetBrains Mono", "Fira Code", "Menlo", "Monaco"];
+            ComboBox::from_id_salt("editor_font_family")
+                .width(160.0)
+                .selected_text(&draft.font_family)
+                .show_ui(ui, |ui| {
+                    for f in families.iter() {
+                        ui.selectable_value(&mut draft.font_family, f.to_string(), *f);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_size"), &t("settings_desc_size"), |ui| {
-        let sizes = ["10", "11", "12", "13", "14", "16", "18"];
-        let size_vals: [f32; 7] = [10.0, 11.0, 12.0, 13.0, 14.0, 16.0, 18.0];
-        let current = format!("{}", draft.font_size as i32);
-        ComboBox::from_id_salt("editor_font_size")
-            .width(80.0)
-            .selected_text(&current)
-            .show_ui(ui, |ui| {
-                for (lbl, val) in sizes.iter().zip(size_vals.iter()) {
-                    ui.selectable_value(&mut draft.font_size, *val, *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_size"),
+        &t("settings_desc_size"),
+        |ui| {
+            let sizes = ["10", "11", "12", "13", "14", "16", "18"];
+            let size_vals: [f32; 7] = [10.0, 11.0, 12.0, 13.0, 14.0, 16.0, 18.0];
+            let current = format!("{}", draft.font_size as i32);
+            ComboBox::from_id_salt("editor_font_size")
+                .width(80.0)
+                .selected_text(&current)
+                .show_ui(ui, |ui| {
+                    for (lbl, val) in sizes.iter().zip(size_vals.iter()) {
+                        ui.selectable_value(&mut draft.font_size, *val, *lbl);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_ligatures"), &t("settings_desc_ligatures"), |ui| {
-        settings_toggle(ui, "editor_ligatures", &mut draft.font_ligatures);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_ligatures"),
+        &t("settings_desc_ligatures"),
+        |ui| {
+            settings_toggle(ui, "editor_ligatures", &mut draft.font_ligatures);
+        },
+    );
 
     // --- Editing section ---
     settings_section(ui, &t("settings_sec_editing"));
 
-    settings_row(ui, &t("settings_row_autocomplete"), &t("settings_desc_autocomplete"), |ui| {
-        settings_toggle(ui, "editor_autocomplete", &mut draft.enable_code_completion);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autocomplete"),
+        &t("settings_desc_autocomplete"),
+        |ui| {
+            settings_toggle(ui, "editor_autocomplete", &mut draft.enable_code_completion);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_format_save"), &t("settings_desc_format_save"), |ui| {
-        settings_toggle(ui, "editor_format_save", &mut draft.format_on_save);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_format_save"),
+        &t("settings_desc_format_save"),
+        |ui| {
+            settings_toggle(ui, "editor_format_save", &mut draft.format_on_save);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_tab_size"), &t("settings_desc_tab_size"), |ui| {
-        let tab_opts: [usize; 3] = [2, 4, 8];
-        let current_label = format!("{}", draft.tab_size);
-        ComboBox::from_id_salt("editor_tab_size")
-            .width(80.0)
-            .selected_text(&current_label)
-            .show_ui(ui, |ui| {
-                for val in tab_opts.iter() {
-                    ui.selectable_value(&mut draft.tab_size, *val, format!("{}", val));
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_tab_size"),
+        &t("settings_desc_tab_size"),
+        |ui| {
+            let tab_opts: [usize; 3] = [2, 4, 8];
+            let current_label = format!("{}", draft.tab_size);
+            ComboBox::from_id_salt("editor_tab_size")
+                .width(80.0)
+                .selected_text(&current_label)
+                .show_ui(ui, |ui| {
+                    for val in tab_opts.iter() {
+                        ui.selectable_value(&mut draft.tab_size, *val, format!("{}", val));
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_show_ws"), &t("settings_desc_show_ws"), |ui| {
-        settings_toggle(ui, "editor_show_ws", &mut draft.show_whitespace);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_show_ws"),
+        &t("settings_desc_show_ws"),
+        |ui| {
+            settings_toggle(ui, "editor_show_ws", &mut draft.show_whitespace);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_word_wrap"), &t("settings_desc_word_wrap"), |ui| {
-        settings_toggle(ui, "editor_word_wrap", &mut draft.word_wrap);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_word_wrap"),
+        &t("settings_desc_word_wrap"),
+        |ui| {
+            settings_toggle(ui, "editor_word_wrap", &mut draft.word_wrap);
+        },
+    );
 
     // --- AI Inline section ---
     settings_section(ui, &t("settings_sec_ai_inline"));
 
-    settings_row(ui, &t("settings_row_suggest_type"), &t("settings_desc_suggest_type"), |ui| {
-        settings_toggle(ui, "editor_ai_type", &mut draft.ai_suggest_inline);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_suggest_type"),
+        &t("settings_desc_suggest_type"),
+        |ui| {
+            settings_toggle(ui, "editor_ai_type", &mut draft.ai_suggest_inline);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_suggest_hold"), &t("settings_desc_suggest_hold"), |ui| {
-        settings_toggle(ui, "editor_ai_hold", &mut draft.ai_suggest_on_hold);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_suggest_hold"),
+        &t("settings_desc_suggest_hold"),
+        |ui| {
+            settings_toggle(ui, "editor_ai_hold", &mut draft.ai_suggest_on_hold);
+        },
+    );
 }
 
 // =============================================================================
@@ -560,96 +681,172 @@ fn render_data_grid_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSet
     // --- Display section ---
     settings_section(ui, &t("settings_sec_display"));
 
-    settings_row(ui, &t("settings_row_row_height"), &t("settings_desc_row_height"), |ui| {
-        let rh_opts = ["24px", "28px", "32px"];
-        let rh_labels = [t("settings_chip_short"), t("settings_chip_default"), t("settings_chip_tall")];
-        let rh_label_refs: Vec<&str> = rh_labels.iter().map(|s| s.as_str()).collect();
-        let mut sel = rh_opts.iter().position(|o| *o == draft.grid_row_height).unwrap_or(1);
-        settings_chips(ui, "grid_row_height", &rh_label_refs, &mut sel);
-        draft.grid_row_height = rh_opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_row_height"),
+        &t("settings_desc_row_height"),
+        |ui| {
+            let rh_opts = ["24px", "28px", "32px"];
+            let rh_labels = [
+                t("settings_chip_short"),
+                t("settings_chip_default"),
+                t("settings_chip_tall"),
+            ];
+            let rh_label_refs: Vec<&str> = rh_labels.iter().map(|s| s.as_str()).collect();
+            let mut sel = rh_opts
+                .iter()
+                .position(|o| *o == draft.grid_row_height)
+                .unwrap_or(1);
+            settings_chips(ui, "grid_row_height", &rh_label_refs, &mut sel);
+            draft.grid_row_height = rh_opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_show_rownum"), &t("settings_desc_show_rownum"), |ui| {
-        settings_toggle(ui, "grid_show_rownum", &mut draft.show_line_numbers);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_show_rownum"),
+        &t("settings_desc_show_rownum"),
+        |ui| {
+            settings_toggle(ui, "grid_show_rownum", &mut draft.show_line_numbers);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_color_null"), &t("settings_desc_color_null"), |ui| {
-        settings_toggle(ui, "grid_color_null", &mut draft.color_null_cells);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_color_null"),
+        &t("settings_desc_color_null"),
+        |ui| {
+            settings_toggle(ui, "grid_color_null", &mut draft.color_null_cells);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_color_fk"), &t("settings_desc_color_fk"), |ui| {
-        settings_toggle(ui, "grid_color_fk", &mut draft.color_fk_cells);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_color_fk"),
+        &t("settings_desc_color_fk"),
+        |ui| {
+            settings_toggle(ui, "grid_color_fk", &mut draft.color_fk_cells);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_tabular_nums"), &t("settings_desc_tabular_nums"), |ui| {
-        settings_toggle(ui, "grid_tabular", &mut draft.tabular_numbers);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_tabular_nums"),
+        &t("settings_desc_tabular_nums"),
+        |ui| {
+            settings_toggle(ui, "grid_tabular", &mut draft.tabular_numbers);
+        },
+    );
 
     // --- Editing section ---
     settings_section(ui, &t("settings_sec_editing"));
 
-    settings_row(ui, &t("settings_row_edit_dblclick"), &t("settings_desc_edit_dblclick"), |ui| {
-        settings_toggle(ui, "grid_edit_dbl", &mut draft.edit_on_double_click);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_edit_dblclick"),
+        &t("settings_desc_edit_dblclick"),
+        |ui| {
+            settings_toggle(ui, "grid_edit_dbl", &mut draft.edit_on_double_click);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_autocommit_cells"), &t("settings_desc_autocommit_cells"), |ui| {
-        settings_toggle(ui, "grid_auto_commit", &mut draft.auto_commit_cells);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autocommit_cells"),
+        &t("settings_desc_autocommit_cells"),
+        |ui| {
+            settings_toggle(ui, "grid_auto_commit", &mut draft.auto_commit_cells);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_confirm_bulk"), &t("settings_desc_confirm_bulk"), |ui| {
-        settings_toggle(ui, "grid_confirm_bulk", &mut draft.confirm_bulk_delete);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_confirm_bulk"),
+        &t("settings_desc_confirm_bulk"),
+        |ui| {
+            settings_toggle(ui, "grid_confirm_bulk", &mut draft.confirm_bulk_delete);
+        },
+    );
 
     // --- Truncation section ---
     settings_section(ui, &t("settings_sec_truncation"));
 
-    settings_row(ui, &t("settings_row_long_text"), &t("settings_desc_long_text"), |ui| {
-        let preview_opts = ["64 chars", "128 chars", "160 chars", "256 chars", "512 chars"];
-        ComboBox::from_id_salt("grid_text_preview")
-            .width(120.0)
-            .selected_text(&draft.long_text_preview)
-            .show_ui(ui, |ui| {
-                for o in preview_opts.iter() {
-                    ui.selectable_value(&mut draft.long_text_preview, o.to_string(), *o);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_long_text"),
+        &t("settings_desc_long_text"),
+        |ui| {
+            let preview_opts = [
+                "64 chars",
+                "128 chars",
+                "160 chars",
+                "256 chars",
+                "512 chars",
+            ];
+            ComboBox::from_id_salt("grid_text_preview")
+                .width(120.0)
+                .selected_text(&draft.long_text_preview)
+                .show_ui(ui, |ui| {
+                    for o in preview_opts.iter() {
+                        ui.selectable_value(&mut draft.long_text_preview, o.to_string(), *o);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_json_cells"), &t("settings_desc_json_cells"), |ui| {
-        let json_opts = ["Single-line", "Collapsed", "Pretty"];
-        let mut sel = json_opts.iter().position(|o| *o == draft.json_cell_display).unwrap_or(0);
-        settings_chips(ui, "grid_json", &json_opts, &mut sel);
-        draft.json_cell_display = json_opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_json_cells"),
+        &t("settings_desc_json_cells"),
+        |ui| {
+            let json_opts = ["Single-line", "Collapsed", "Pretty"];
+            let mut sel = json_opts
+                .iter()
+                .position(|o| *o == draft.json_cell_display)
+                .unwrap_or(0);
+            settings_chips(ui, "grid_json", &json_opts, &mut sel);
+            draft.json_cell_display = json_opts[sel].to_string();
+        },
+    );
 
     // --- Existing wired settings from old Records tab ---
     settings_section(ui, &t("settings_sec_query_defaults"));
 
-    settings_row(ui, &t("settings_row_default_limit"), &t("settings_desc_default_limit"), |ui| {
-        let mut row_limit = draft.default_row_limit as i64;
-        if ui
-            .add(
-                egui::DragValue::new(&mut row_limit)
-                    .range(1..=1_000_000)
-                    .speed(100)
-                    .max_decimals(0),
-            )
-            .changed()
-        {
-            draft.default_row_limit = row_limit.clamp(1, 1_000_000) as usize;
-        }
-    });
+    settings_row(
+        ui,
+        &t("settings_row_default_limit"),
+        &t("settings_desc_default_limit"),
+        |ui| {
+            let mut row_limit = draft.default_row_limit as i64;
+            if ui
+                .add(
+                    egui::DragValue::new(&mut row_limit)
+                        .range(1..=1_000_000)
+                        .speed(100)
+                        .max_decimals(0),
+                )
+                .changed()
+            {
+                draft.default_row_limit = row_limit.clamp(1, 1_000_000) as usize;
+            }
+        },
+    );
 
-    settings_row(ui, &t("settings_row_data_tz"), &t("settings_desc_data_tz"), |ui| {
-        ComboBox::from_id_salt("settings_data_timezone_combo")
-            .width(200.0)
-            .selected_text(data_timezone_label(&draft.data_timezone))
-            .show_ui(ui, |ui| {
-                for (code, label) in data_timezone_options() {
-                    ui.selectable_value(&mut draft.data_timezone, (*code).to_string(), *label);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_data_tz"),
+        &t("settings_desc_data_tz"),
+        |ui| {
+            ComboBox::from_id_salt("settings_data_timezone_combo")
+                .width(200.0)
+                .selected_text(data_timezone_label(&draft.data_timezone))
+                .show_ui(ui, |ui| {
+                    for (code, label) in data_timezone_options() {
+                        ui.selectable_value(&mut draft.data_timezone, (*code).to_string(), *label);
+                    }
+                });
+        },
+    );
 }
 
 // =============================================================================
@@ -659,90 +856,128 @@ fn render_data_grid_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSet
 fn render_connections_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_pool"));
 
-    settings_row(ui, &t("settings_row_min_conn"), &t("settings_desc_min_conn"), |ui| {
-        let pool_opts: [usize; 4] = [1, 2, 5, 10];
-        let current_label = format!("{}", draft.pool_min);
-        ComboBox::from_id_salt("conn_min")
-            .width(80.0)
-            .selected_text(&current_label)
-            .show_ui(ui, |ui| {
-                for val in pool_opts.iter() {
-                    ui.selectable_value(&mut draft.pool_min, *val, format!("{}", val));
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_min_conn"),
+        &t("settings_desc_min_conn"),
+        |ui| {
+            let pool_opts: [usize; 4] = [1, 2, 5, 10];
+            let current_label = format!("{}", draft.pool_min);
+            ComboBox::from_id_salt("conn_min")
+                .width(80.0)
+                .selected_text(&current_label)
+                .show_ui(ui, |ui| {
+                    for val in pool_opts.iter() {
+                        ui.selectable_value(&mut draft.pool_min, *val, format!("{}", val));
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_max_conn"), &t("settings_desc_max_conn"), |ui| {
-        let pool_opts: [usize; 4] = [5, 10, 20, 50];
-        let current_label = format!("{}", draft.pool_max);
-        ComboBox::from_id_salt("conn_max")
-            .width(80.0)
-            .selected_text(&current_label)
-            .show_ui(ui, |ui| {
-                for val in pool_opts.iter() {
-                    ui.selectable_value(&mut draft.pool_max, *val, format!("{}", val));
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_max_conn"),
+        &t("settings_desc_max_conn"),
+        |ui| {
+            let pool_opts: [usize; 4] = [5, 10, 20, 50];
+            let current_label = format!("{}", draft.pool_max);
+            ComboBox::from_id_salt("conn_max")
+                .width(80.0)
+                .selected_text(&current_label)
+                .show_ui(ui, |ui| {
+                    for val in pool_opts.iter() {
+                        ui.selectable_value(&mut draft.pool_max, *val, format!("{}", val));
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_idle_timeout"), &t("settings_desc_idle_timeout"), |ui| {
-        let idle_opts = ["30s", "1m", "2m", "5m", "15m"];
-        let idle_labels = ["30 s", "1 min", "2 min", "5 min", "15 min"];
-        ComboBox::from_id_salt("conn_idle")
-            .width(100.0)
-            .selected_text(&draft.idle_timeout)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in idle_opts.iter().zip(idle_labels.iter()) {
-                    ui.selectable_value(&mut draft.idle_timeout, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_idle_timeout"),
+        &t("settings_desc_idle_timeout"),
+        |ui| {
+            let idle_opts = ["30s", "1m", "2m", "5m", "15m"];
+            let idle_labels = ["30 s", "1 min", "2 min", "5 min", "15 min"];
+            ComboBox::from_id_salt("conn_idle")
+                .width(100.0)
+                .selected_text(&draft.idle_timeout)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in idle_opts.iter().zip(idle_labels.iter()) {
+                        ui.selectable_value(&mut draft.idle_timeout, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
     settings_section(ui, &t("settings_sec_defaults"));
 
     settings_row(ui, &t("settings_row_ssl"), &t("settings_desc_ssl"), |ui| {
         let ssl_opts = ["disable", "prefer", "require", "verify-full"];
         let ssl_labels = ["Disable", "Prefer", "Require", "Verify-Full"];
-        let mut sel = ssl_opts.iter().position(|o| *o == draft.ssl_mode).unwrap_or(2);
+        let mut sel = ssl_opts
+            .iter()
+            .position(|o| *o == draft.ssl_mode)
+            .unwrap_or(2);
         settings_chips(ui, "conn_ssl", &ssl_labels, &mut sel);
         draft.ssl_mode = ssl_opts[sel].to_string();
     });
 
-    settings_row(ui, &t("settings_row_stmt_timeout"), &t("settings_desc_stmt_timeout"), |ui| {
-        let stmt_opts = ["5s", "15s", "30s", "1m", "none"];
-        let stmt_labels = ["5 s", "15 s", "30 s", "1 min", "None"];
-        ComboBox::from_id_salt("conn_stmt_timeout")
-            .width(100.0)
-            .selected_text(&draft.statement_timeout)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in stmt_opts.iter().zip(stmt_labels.iter()) {
-                    ui.selectable_value(&mut draft.statement_timeout, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_stmt_timeout"),
+        &t("settings_desc_stmt_timeout"),
+        |ui| {
+            let stmt_opts = ["5s", "15s", "30s", "1m", "none"];
+            let stmt_labels = ["5 s", "15 s", "30 s", "1 min", "None"];
+            ComboBox::from_id_salt("conn_stmt_timeout")
+                .width(100.0)
+                .selected_text(&draft.statement_timeout)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in stmt_opts.iter().zip(stmt_labels.iter()) {
+                        ui.selectable_value(&mut draft.statement_timeout, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_lock_timeout"), &t("settings_desc_lock_timeout"), |ui| {
-        let lock_opts = ["1s", "5s", "15s", "30s"];
-        let lock_labels = ["1 s", "5 s", "15 s", "30 s"];
-        ComboBox::from_id_salt("conn_lock_timeout")
-            .width(100.0)
-            .selected_text(&draft.lock_timeout)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in lock_opts.iter().zip(lock_labels.iter()) {
-                    ui.selectable_value(&mut draft.lock_timeout, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_lock_timeout"),
+        &t("settings_desc_lock_timeout"),
+        |ui| {
+            let lock_opts = ["1s", "5s", "15s", "30s"];
+            let lock_labels = ["1 s", "5 s", "15 s", "30 s"];
+            ComboBox::from_id_salt("conn_lock_timeout")
+                .width(100.0)
+                .selected_text(&draft.lock_timeout)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in lock_opts.iter().zip(lock_labels.iter()) {
+                        ui.selectable_value(&mut draft.lock_timeout, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
     settings_section(ui, &t("settings_sec_replicas"));
 
-    settings_row(ui, &t("settings_row_auto_route"), &t("settings_desc_auto_route"), |ui| {
-        settings_toggle(ui, "conn_auto_route", &mut draft.auto_route_replicas);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_auto_route"),
+        &t("settings_desc_auto_route"),
+        |ui| {
+            settings_toggle(ui, "conn_auto_route", &mut draft.auto_route_replicas);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_show_lag"), &t("settings_desc_show_lag"), |ui| {
-        settings_toggle(ui, "conn_show_lag", &mut draft.show_replica_lag);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_show_lag"),
+        &t("settings_desc_show_lag"),
+        |ui| {
+            settings_toggle(ui, "conn_show_lag", &mut draft.show_replica_lag);
+        },
+    );
 }
 
 // =============================================================================
@@ -752,63 +987,121 @@ fn render_connections_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppS
 fn render_vault_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_storage"));
 
-    settings_row(ui, &t("settings_row_vault_loc"), &t("settings_desc_vault_loc"), |ui| {
-        ComboBox::from_id_salt("vault_location")
-            .width(160.0)
-            .selected_text(&draft.vault_location)
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut draft.vault_location, "~/Library/FerrumGrid/vault.db".to_string(), "~/Library/FerrumGrid/vault.db");
-                ui.selectable_value(&mut draft.vault_location, "Encrypted file".to_string(), "Encrypted file");
-                ui.selectable_value(&mut draft.vault_location, "Custom path".to_string(), "Custom path");
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_vault_loc"),
+        &t("settings_desc_vault_loc"),
+        |ui| {
+            ComboBox::from_id_salt("vault_location")
+                .width(160.0)
+                .selected_text(&draft.vault_location)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut draft.vault_location,
+                        "~/Library/FerrumGrid/vault.db".to_string(),
+                        "~/Library/FerrumGrid/vault.db",
+                    );
+                    ui.selectable_value(
+                        &mut draft.vault_location,
+                        "Encrypted file".to_string(),
+                        "Encrypted file",
+                    );
+                    ui.selectable_value(
+                        &mut draft.vault_location,
+                        "Custom path".to_string(),
+                        "Custom path",
+                    );
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_master_key"), &t("settings_desc_master_key"), |ui| {
-        let opts = ["Keychain", "Password", "Hardware"];
-        let mut sel = opts.iter().position(|o| *o == draft.master_key_type).unwrap_or(0);
-        settings_chips(ui, "vault_master_key", &opts, &mut sel);
-        draft.master_key_type = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_master_key"),
+        &t("settings_desc_master_key"),
+        |ui| {
+            let opts = ["Keychain", "Password", "Hardware"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.master_key_type)
+                .unwrap_or(0);
+            settings_chips(ui, "vault_master_key", &opts, &mut sel);
+            draft.master_key_type = opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_autolock"), &t("settings_desc_autolock"), |ui| {
-        let opts = ["1m", "5m", "15m", "Never"];
-        let labels = ["1 min", "5 min", "15 min", "Never"];
-        ComboBox::from_id_salt("vault_autolock")
-            .width(100.0)
-            .selected_text(&draft.auto_lock_after)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in opts.iter().zip(labels.iter()) {
-                    ui.selectable_value(&mut draft.auto_lock_after, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autolock"),
+        &t("settings_desc_autolock"),
+        |ui| {
+            let opts = ["1m", "5m", "15m", "Never"];
+            let labels = ["1 min", "5 min", "15 min", "Never"];
+            ComboBox::from_id_salt("vault_autolock")
+                .width(100.0)
+                .selected_text(&draft.auto_lock_after)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in opts.iter().zip(labels.iter()) {
+                        ui.selectable_value(&mut draft.auto_lock_after, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
     settings_section(ui, &t("settings_sec_audit"));
 
-    settings_row(ui, &t("settings_row_log_cred"), &t("settings_desc_log_cred"), |ui| {
-        settings_toggle(ui, "vault_log_cred", &mut draft.log_credential_use);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_log_cred"),
+        &t("settings_desc_log_cred"),
+        |ui| {
+            settings_toggle(ui, "vault_log_cred", &mut draft.log_credential_use);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_redact_ss"), &t("settings_desc_redact_ss"), |ui| {
-        settings_toggle(ui, "vault_redact", &mut draft.redact_screenshots);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_redact_ss"),
+        &t("settings_desc_redact_ss"),
+        |ui| {
+            settings_toggle(ui, "vault_redact", &mut draft.redact_screenshots);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_block_clip"), &t("settings_desc_block_clip"), |ui| {
-        settings_toggle(ui, "vault_block_clip", &mut draft.block_clipboard_key);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_block_clip"),
+        &t("settings_desc_block_clip"),
+        |ui| {
+            settings_toggle(ui, "vault_block_clip", &mut draft.block_clipboard_key);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_sharing"));
 
-    settings_row(ui, &t("settings_row_team_sync"), &t("settings_desc_team_sync"), |ui| {
-        settings_toggle(ui, "vault_team_sync", &mut draft.team_vault_sync);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_team_sync"),
+        &t("settings_desc_team_sync"),
+        |ui| {
+            settings_toggle(ui, "vault_team_sync", &mut draft.team_vault_sync);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_export_fmt"), &t("settings_desc_export_fmt"), |ui| {
-        let opts = [".vault", "JSON", "CSV"];
-        let mut sel = opts.iter().position(|o| *o == draft.export_format).unwrap_or(0);
-        settings_chips(ui, "vault_export_fmt", &opts, &mut sel);
-        draft.export_format = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_export_fmt"),
+        &t("settings_desc_export_fmt"),
+        |ui| {
+            let opts = [".vault", "JSON", "CSV"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.export_format)
+                .unwrap_or(0);
+            settings_chips(ui, "vault_export_fmt", &opts, &mut sel);
+            draft.export_format = opts[sel].to_string();
+        },
+    );
 }
 
 // =============================================================================
@@ -818,80 +1111,131 @@ fn render_vault_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetting
 fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_auto_backup"));
 
-    settings_row(ui, &t("settings_row_daily"), &t("settings_desc_daily"), |ui| {
-        settings_toggle(ui, "backup_daily", &mut draft.daily_snapshot);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_daily"),
+        &t("settings_desc_daily"),
+        |ui| {
+            settings_toggle(ui, "backup_daily", &mut draft.daily_snapshot);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_weekly"), &t("settings_desc_weekly"), |ui| {
-        settings_toggle(ui, "backup_weekly", &mut draft.weekly_archive);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_weekly"),
+        &t("settings_desc_weekly"),
+        |ui| {
+            settings_toggle(ui, "backup_weekly", &mut draft.weekly_archive);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_predeploy"), &t("settings_desc_predeploy"), |ui| {
-        settings_toggle(ui, "backup_predeploy", &mut draft.pre_deploy_hook);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_predeploy"),
+        &t("settings_desc_predeploy"),
+        |ui| {
+            settings_toggle(ui, "backup_predeploy", &mut draft.pre_deploy_hook);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_retention"), &t("settings_desc_retention"), |ui| {
-        let opts = ["7 days", "14 days", "30 days", "90 days", "1 year"];
-        ComboBox::from_id_salt("backup_retention")
-            .width(100.0)
-            .selected_text(&draft.backup_retention)
-            .show_ui(ui, |ui| {
-                for o in opts.iter() {
-                    ui.selectable_value(&mut draft.backup_retention, o.to_string(), *o);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_retention"),
+        &t("settings_desc_retention"),
+        |ui| {
+            let opts = ["7 days", "14 days", "30 days", "90 days", "1 year"];
+            ComboBox::from_id_salt("backup_retention")
+                .width(100.0)
+                .selected_text(&draft.backup_retention)
+                .show_ui(ui, |ui| {
+                    for o in opts.iter() {
+                        ui.selectable_value(&mut draft.backup_retention, o.to_string(), *o);
+                    }
+                });
+        },
+    );
 
     settings_section(ui, &t("settings_sec_storage"));
 
-    settings_row(ui, &t("settings_row_backup_folder"), &t("settings_desc_backup_folder"), |ui| {
-        let display = if draft.backup_directory.trim().is_empty() {
-            "(default: ~/Documents)".to_string()
-        } else {
-            draft.backup_directory.clone()
-        };
-        ui.label(
-            RichText::new(display)
-                .monospace()
-                .size(11.0)
-                .color(theme::text_muted()),
-        );
-        if ui.small_button(t("settings_browse")).clicked() {
-            let mut dialog = rfd::FileDialog::new();
-            let initial = if draft.backup_directory.trim().is_empty() {
-                std::env::home_dir()
-                    .map(|h| h.join("Documents"))
-                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+    settings_row(
+        ui,
+        &t("settings_row_backup_folder"),
+        &t("settings_desc_backup_folder"),
+        |ui| {
+            let display = if draft.backup_directory.trim().is_empty() {
+                "(default: ~/Documents)".to_string()
             } else {
-                std::path::PathBuf::from(&draft.backup_directory)
+                draft.backup_directory.clone()
             };
-            dialog = dialog.set_directory(initial);
-            if let Some(path) = dialog.pick_folder() {
-                draft.backup_directory = path.display().to_string();
+            ui.label(
+                RichText::new(display)
+                    .monospace()
+                    .size(11.0)
+                    .color(theme::text_muted()),
+            );
+            if ui.small_button(t("settings_browse")).clicked() {
+                let mut dialog = rfd::FileDialog::new();
+                let initial = if draft.backup_directory.trim().is_empty() {
+                    std::env::home_dir()
+                        .map(|h| h.join("Documents"))
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                } else {
+                    std::path::PathBuf::from(&draft.backup_directory)
+                };
+                dialog = dialog.set_directory(initial);
+                if let Some(path) = dialog.pick_folder() {
+                    draft.backup_directory = path.display().to_string();
+                }
             }
-        }
-    });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_compression"), &t("settings_desc_compression"), |ui| {
-        let opts = ["none", "gzip", "zstd"];
-        let mut sel = opts.iter().position(|o| *o == draft.backup_compression).unwrap_or(2);
-        settings_chips(ui, "backup_compress", &opts, &mut sel);
-        draft.backup_compression = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_compression"),
+        &t("settings_desc_compression"),
+        |ui| {
+            let opts = ["none", "gzip", "zstd"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.backup_compression)
+                .unwrap_or(2);
+            settings_chips(ui, "backup_compress", &opts, &mut sel);
+            draft.backup_compression = opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_verify_dump"), &t("settings_desc_verify_dump"), |ui| {
-        settings_toggle(ui, "backup_verify", &mut draft.verify_after_dump);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_verify_dump"),
+        &t("settings_desc_verify_dump"),
+        |ui| {
+            settings_toggle(ui, "backup_verify", &mut draft.verify_after_dump);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_restore"));
 
-    settings_row(ui, &t("settings_row_restore_copy"), &t("settings_desc_restore_copy"), |ui| {
-        settings_toggle(ui, "backup_restore_copy", &mut draft.always_restore_copy);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_restore_copy"),
+        &t("settings_desc_restore_copy"),
+        |ui| {
+            settings_toggle(ui, "backup_restore_copy", &mut draft.always_restore_copy);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_require_name"), &t("settings_desc_require_name"), |ui| {
-        settings_toggle(ui, "backup_require_name", &mut draft.require_typing_name);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_require_name"),
+        &t("settings_desc_require_name"),
+        |ui| {
+            settings_toggle(ui, "backup_require_name", &mut draft.require_typing_name);
+        },
+    );
+
+    settings_section(ui, "Custom automation");
+    render_custom_settings(ui, draft);
 }
 
 // =============================================================================
@@ -901,69 +1245,165 @@ fn render_backup_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettin
 fn render_ai_assist_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_provider"));
 
-    settings_row(ui, &t("settings_row_backend"), &t("settings_desc_backend"), |ui| {
-        let opts = ["Local", "OpenAI", "Anthropic"];
-        let mut sel = opts.iter().position(|o| *o == draft.ai_backend).unwrap_or(2);
-        settings_chips(ui, "ai_backend", &opts, &mut sel);
-        draft.ai_backend = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_ai_assistant"),
+        &t("settings_desc_ai_assistant"),
+        |ui| {
+            settings_toggle(ui, "ai_assistant_enabled", &mut draft.ai_assistant_enabled);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_model"), &t("settings_desc_model"), |ui| {
-        ComboBox::from_id_salt("ai_model")
-            .width(150.0)
-            .selected_text(&draft.ai_model)
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut draft.ai_model, "gpt-4o".to_string(), "GPT-4o");
-                ui.selectable_value(&mut draft.ai_model, "claude-sonnet-4-5".to_string(), "Claude Sonnet");
-                ui.selectable_value(&mut draft.ai_model, "claude-haiku-4-5".to_string(), "Claude Haiku");
-                ui.selectable_value(&mut draft.ai_model, "local-llm".to_string(), "Local LLM");
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_backend"),
+        &t("settings_desc_backend"),
+        |ui| {
+            let opts = ["Local", "OpenAI", "Anthropic"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.ai_backend)
+                .unwrap_or(2);
+            settings_chips(ui, "ai_backend", &opts, &mut sel);
+            draft.ai_backend = opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_api_key"), &t("settings_desc_api_key"), |ui| {
-        ui.add(
-            egui::TextEdit::singleline(&mut draft.ai_api_key)
-                .password(true)
-                .hint_text("sk-… / anthropic key")
-                .desired_width(220.0),
-        );
-    });
+    settings_row(
+        ui,
+        &t("settings_row_model"),
+        &t("settings_desc_model"),
+        |ui| {
+            ComboBox::from_id_salt("ai_model")
+                .width(150.0)
+                .selected_text(&draft.ai_model)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut draft.ai_model, "gpt-4o".to_string(), "GPT-4o");
+                    ui.selectable_value(
+                        &mut draft.ai_model,
+                        "claude-sonnet-4-5".to_string(),
+                        "Claude Sonnet",
+                    );
+                    ui.selectable_value(
+                        &mut draft.ai_model,
+                        "claude-haiku-4-5".to_string(),
+                        "Claude Haiku",
+                    );
+                    ui.selectable_value(&mut draft.ai_model, "local-llm".to_string(), "Local LLM");
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_send_schema"), &t("settings_desc_send_schema"), |ui| {
-        settings_toggle(ui, "ai_send_schema", &mut draft.ai_send_schema);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_ai_endpoint"),
+        &t("settings_desc_ai_endpoint"),
+        |ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut draft.ai_endpoint)
+                    .hint_text(match draft.ai_backend.as_str() {
+                        "OpenAI" => "https://api.openai.com/v1/chat/completions",
+                        "Anthropic" => "https://api.anthropic.com/v1/messages",
+                        _ => "http://localhost:11434/api/chat",
+                    })
+                    .desired_width(260.0),
+            );
+        },
+    );
 
-    settings_row(ui, &t("settings_row_row_samples"), &t("settings_desc_row_samples"), |ui| {
-        settings_toggle(ui, "ai_row_samples", &mut draft.ai_allow_row_samples);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_ai_api_key"),
+        &t("settings_desc_ai_api_key"),
+        |ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut draft.ai_api_key)
+                    .password(true)
+                    .hint_text(if draft.ai_backend == "Local" {
+                        "(not required for Local)"
+                    } else {
+                        "sk-... / anthropic key"
+                    })
+                    .desired_width(220.0),
+            );
+        },
+    );
+
+    settings_row(
+        ui,
+        &t("settings_row_send_schema"),
+        &t("settings_desc_send_schema"),
+        |ui| {
+            settings_toggle(ui, "ai_send_schema", &mut draft.ai_send_schema);
+        },
+    );
+
+    settings_row(
+        ui,
+        &t("settings_row_row_samples"),
+        &t("settings_desc_row_samples"),
+        |ui| {
+            settings_toggle(ui, "ai_row_samples", &mut draft.ai_allow_row_samples);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_behavior"));
 
-    settings_row(ui, &t("settings_row_inline_suggest"), &t("settings_desc_inline_suggest"), |ui| {
-        settings_toggle(ui, "ai_inline", &mut draft.ai_suggest_inline);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_inline_suggest"),
+        &t("settings_desc_inline_suggest"),
+        |ui| {
+            settings_toggle(ui, "ai_inline", &mut draft.ai_suggest_inline);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_explain_hover"), &t("settings_desc_explain_hover"), |ui| {
-        settings_toggle(ui, "ai_explain", &mut draft.ai_explain_on_hover);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_explain_hover"),
+        &t("settings_desc_explain_hover"),
+        |ui| {
+            settings_toggle(ui, "ai_explain", &mut draft.ai_explain_on_hover);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_autofix"), &t("settings_desc_autofix"), |ui| {
-        settings_toggle(ui, "ai_autofix", &mut draft.ai_auto_fix);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_autofix"),
+        &t("settings_desc_autofix"),
+        |ui| {
+            settings_toggle(ui, "ai_autofix", &mut draft.ai_auto_fix);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_gen_test"), &t("settings_desc_gen_test"), |ui| {
-        settings_toggle(ui, "ai_gen_test", &mut draft.ai_generate_test_data);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_gen_test"),
+        &t("settings_desc_gen_test"),
+        |ui| {
+            settings_toggle(ui, "ai_gen_test", &mut draft.ai_generate_test_data);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_privacy"));
 
-    settings_row(ui, &t("settings_row_block_pii"), &t("settings_desc_block_pii"), |ui| {
-        settings_toggle(ui, "ai_block_pii", &mut draft.ai_block_pii);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_block_pii"),
+        &t("settings_desc_block_pii"),
+        |ui| {
+            settings_toggle(ui, "ai_block_pii", &mut draft.ai_block_pii);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_telemetry"), &t("settings_desc_telemetry"), |ui| {
-        settings_toggle(ui, "ai_telemetry", &mut draft.ai_telemetry);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_telemetry"),
+        &t("settings_desc_telemetry"),
+        |ui| {
+            settings_toggle(ui, "ai_telemetry", &mut draft.ai_telemetry);
+        },
+    );
 }
 
 // =============================================================================
@@ -973,57 +1413,87 @@ fn render_ai_assist_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSet
 fn render_diagnostics_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_panel"));
 
-    settings_row(ui, &t("settings_row_show_launch"), &t("settings_desc_show_launch"), |ui| {
-        settings_toggle(ui, "diag_show_launch", &mut draft.diag_show_on_launch);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_show_launch"),
+        &t("settings_desc_show_launch"),
+        |ui| {
+            settings_toggle(ui, "diag_show_launch", &mut draft.diag_show_on_launch);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_buf_size"), &t("settings_desc_buf_size"), |ui| {
-        let buf_opts = ["256", "1,000", "2,000", "4,000", "16,000"];
-        ComboBox::from_id_salt("diag_buf_size")
-            .width(100.0)
-            .selected_text(&draft.diag_buffer_size)
-            .show_ui(ui, |ui| {
-                for o in buf_opts.iter() {
-                    ui.selectable_value(&mut draft.diag_buffer_size, o.to_string(), *o);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_buf_size"),
+        &t("settings_desc_buf_size"),
+        |ui| {
+            let buf_opts = ["256", "1,000", "2,000", "4,000", "16,000"];
+            ComboBox::from_id_salt("diag_buf_size")
+                .width(100.0)
+                .selected_text(&draft.diag_buffer_size)
+                .show_ui(ui, |ui| {
+                    for o in buf_opts.iter() {
+                        ui.selectable_value(&mut draft.diag_buffer_size, o.to_string(), *o);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_persist"), &t("settings_desc_persist"), |ui| {
-        settings_toggle(ui, "diag_persist", &mut draft.diag_persist);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_persist"),
+        &t("settings_desc_persist"),
+        |ui| {
+            settings_toggle(ui, "diag_persist", &mut draft.diag_persist);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_performance"));
 
-    settings_row(ui, &t("settings_row_slow_query"), &t("settings_desc_slow_query"), |ui| {
-        let slow_opts = ["100ms", "500ms", "1s", "5s"];
-        let slow_labels = ["100 ms", "500 ms", "1 s", "5 s"];
-        ComboBox::from_id_salt("diag_slow_query")
-            .width(100.0)
-            .selected_text(&draft.slow_query_threshold)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in slow_opts.iter().zip(slow_labels.iter()) {
-                    ui.selectable_value(&mut draft.slow_query_threshold, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_slow_query"),
+        &t("settings_desc_slow_query"),
+        |ui| {
+            let slow_opts = ["100ms", "500ms", "1s", "5s"];
+            let slow_labels = ["100 ms", "500 ms", "1 s", "5 s"];
+            ComboBox::from_id_salt("diag_slow_query")
+                .width(100.0)
+                .selected_text(&draft.slow_query_threshold)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in slow_opts.iter().zip(slow_labels.iter()) {
+                        ui.selectable_value(&mut draft.slow_query_threshold, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_render_budget"), &t("settings_desc_render_budget"), |ui| {
-        let budget_opts = ["8ms", "16ms", "32ms"];
-        let budget_labels = ["8 ms", "16 ms", "32 ms"];
-        ComboBox::from_id_salt("diag_render_budget")
-            .width(100.0)
-            .selected_text(&draft.render_budget_warn)
-            .show_ui(ui, |ui| {
-                for (val, lbl) in budget_opts.iter().zip(budget_labels.iter()) {
-                    ui.selectable_value(&mut draft.render_budget_warn, val.to_string(), *lbl);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_render_budget"),
+        &t("settings_desc_render_budget"),
+        |ui| {
+            let budget_opts = ["8ms", "16ms", "32ms"];
+            let budget_labels = ["8 ms", "16 ms", "32 ms"];
+            ComboBox::from_id_salt("diag_render_budget")
+                .width(100.0)
+                .selected_text(&draft.render_budget_warn)
+                .show_ui(ui, |ui| {
+                    for (val, lbl) in budget_opts.iter().zip(budget_labels.iter()) {
+                        ui.selectable_value(&mut draft.render_budget_warn, val.to_string(), *lbl);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_track_ctid"), &t("settings_desc_track_ctid"), |ui| {
-        settings_toggle(ui, "diag_track_ctid", &mut draft.track_ctid_conflicts);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_track_ctid"),
+        &t("settings_desc_track_ctid"),
+        |ui| {
+            settings_toggle(ui, "diag_track_ctid", &mut draft.track_ctid_conflicts);
+        },
+    );
 }
 
 // =============================================================================
@@ -1033,52 +1503,94 @@ fn render_diagnostics_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppS
 fn render_language_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_language"));
 
-    settings_row(ui, &t("settings_row_ui_lang"), &t("settings_desc_ui_lang"), |ui| {
-        render_language_combo(ui, "settings_language_general", draft);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_ui_lang"),
+        &t("settings_desc_ui_lang"),
+        |ui| {
+            render_language_combo(ui, "settings_language_general", draft);
+        },
+    );
 
-    settings_row(ui, &t("settings_row_date_fmt"), &t("settings_desc_date_fmt"), |ui| {
-        let opts = ["YYYY-MM-DD", "MM/DD/YYYY", "DD.MM.YYYY"];
-        let mut sel = opts.iter().position(|o| *o == draft.date_format).unwrap_or(0);
-        settings_chips(ui, "lang_date_fmt", &opts, &mut sel);
-        draft.date_format = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_date_fmt"),
+        &t("settings_desc_date_fmt"),
+        |ui| {
+            let opts = ["YYYY-MM-DD", "MM/DD/YYYY", "DD.MM.YYYY"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.date_format)
+                .unwrap_or(0);
+            settings_chips(ui, "lang_date_fmt", &opts, &mut sel);
+            draft.date_format = opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_time_fmt"), &t("settings_desc_time_fmt"), |ui| {
-        let opts = ["12-hour", "24-hour"];
-        let labels = ["12h", "24h"];
-        let mut sel = opts.iter().position(|o| *o == draft.time_format).unwrap_or(1);
-        settings_chips(ui, "lang_time_fmt", &labels, &mut sel);
-        draft.time_format = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_time_fmt"),
+        &t("settings_desc_time_fmt"),
+        |ui| {
+            let opts = ["12-hour", "24-hour"];
+            let labels = ["12h", "24h"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.time_format)
+                .unwrap_or(1);
+            settings_chips(ui, "lang_time_fmt", &labels, &mut sel);
+            draft.time_format = opts[sel].to_string();
+        },
+    );
 
-    settings_row(ui, &t("settings_row_num_fmt"), &t("settings_desc_num_fmt"), |ui| {
-        let opts = ["1,234.56", "1.234,56", "1 234.56"];
-        let mut sel = opts.iter().position(|o| *o == draft.number_format).unwrap_or(0);
-        settings_chips(ui, "lang_num_fmt", &opts, &mut sel);
-        draft.number_format = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_num_fmt"),
+        &t("settings_desc_num_fmt"),
+        |ui| {
+            let opts = ["1,234.56", "1.234,56", "1 234.56"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.number_format)
+                .unwrap_or(0);
+            settings_chips(ui, "lang_num_fmt", &opts, &mut sel);
+            draft.number_format = opts[sel].to_string();
+        },
+    );
 
     settings_section(ui, &t("settings_sec_database"));
 
-    settings_row(ui, &t("settings_row_encoding"), &t("settings_desc_encoding"), |ui| {
-        let opts = ["UTF8", "LATIN1", "EUC_KR", "SJIS"];
-        ComboBox::from_id_salt("lang_encoding")
-            .width(120.0)
-            .selected_text(&draft.client_encoding)
-            .show_ui(ui, |ui| {
-                for o in opts.iter() {
-                    ui.selectable_value(&mut draft.client_encoding, o.to_string(), *o);
-                }
-            });
-    });
+    settings_row(
+        ui,
+        &t("settings_row_encoding"),
+        &t("settings_desc_encoding"),
+        |ui| {
+            let opts = ["UTF8", "LATIN1", "EUC_KR", "SJIS"];
+            ComboBox::from_id_salt("lang_encoding")
+                .width(120.0)
+                .selected_text(&draft.client_encoding)
+                .show_ui(ui, |ui| {
+                    for o in opts.iter() {
+                        ui.selectable_value(&mut draft.client_encoding, o.to_string(), *o);
+                    }
+                });
+        },
+    );
 
-    settings_row(ui, &t("settings_row_unknown_enc"), &t("settings_desc_unknown_enc"), |ui| {
-        let opts = ["UTF-8 (replace)", "UTF-8 (ignore)", "Error"];
-        let mut sel = opts.iter().position(|o| *o == draft.unknown_encoding).unwrap_or(0);
-        settings_chips(ui, "lang_unknown_enc", &opts, &mut sel);
-        draft.unknown_encoding = opts[sel].to_string();
-    });
+    settings_row(
+        ui,
+        &t("settings_row_unknown_enc"),
+        &t("settings_desc_unknown_enc"),
+        |ui| {
+            let opts = ["UTF-8 (replace)", "UTF-8 (ignore)", "Error"];
+            let mut sel = opts
+                .iter()
+                .position(|o| *o == draft.unknown_encoding)
+                .unwrap_or(0);
+            settings_chips(ui, "lang_unknown_enc", &opts, &mut sel);
+            draft.unknown_encoding = opts[sel].to_string();
+        },
+    );
 }
 
 // =============================================================================
@@ -1088,28 +1600,50 @@ fn render_language_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSett
 fn render_updates_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSettings) {
     settings_section(ui, &t("settings_sec_channel"));
 
-    settings_row(ui, &t("settings_row_update_channel"), &t("settings_desc_update_channel"), |ui| {
-        let channel_opts = ["Stable", "Beta", "Nightly"];
-        let mut sel = channel_opts.iter().position(|o| *o == draft.update_channel).unwrap_or(0);
-        settings_chips(ui, "updates_channel", &channel_opts, &mut sel);
-        draft.update_channel = channel_opts[sel].to_string();
+    settings_row(
+        ui,
+        &t("settings_row_update_channel"),
+        &t("settings_desc_update_channel"),
+        |ui| {
+            let channel_opts = ["Stable", "Beta", "Nightly"];
+            let mut sel = channel_opts
+                .iter()
+                .position(|o| *o == draft.update_channel)
+                .unwrap_or(0);
+            settings_chips(ui, "updates_channel", &channel_opts, &mut sel);
+            draft.update_channel = channel_opts[sel].to_string();
+        },
+    );
+
+    settings_row(
+        ui,
+        &t("settings_row_check_freq"),
+        &t("settings_desc_check_freq"),
+        |ui| {
+            let freq_opts = ["Every launch", "Daily", "Weekly", "Never"];
+            ComboBox::from_id_salt("updates_check_freq")
+                .width(130.0)
+                .selected_text(&draft.check_frequency)
+                .show_ui(ui, |ui| {
+                    for o in freq_opts.iter() {
+                        ui.selectable_value(&mut draft.check_frequency, o.to_string(), *o);
+                    }
+                });
+        },
+    );
+
+    settings_row(ui, &t("settings_auto_check_updates"), "", |ui| {
+        settings_toggle(ui, "updates_auto_check", &mut draft.auto_check_updates);
     });
 
-    settings_row(ui, &t("settings_row_check_freq"), &t("settings_desc_check_freq"), |ui| {
-        let freq_opts = ["Every launch", "Daily", "Weekly", "Never"];
-        ComboBox::from_id_salt("updates_check_freq")
-            .width(130.0)
-            .selected_text(&draft.check_frequency)
-            .show_ui(ui, |ui| {
-                for o in freq_opts.iter() {
-                    ui.selectable_value(&mut draft.check_frequency, o.to_string(), *o);
-                }
-            });
-    });
-
-    settings_row(ui, &t("settings_row_auto_install"), &t("settings_desc_auto_install"), |ui| {
-        settings_toggle(ui, "updates_auto_install", &mut draft.auto_install_updates);
-    });
+    settings_row(
+        ui,
+        &t("settings_row_auto_install"),
+        &t("settings_desc_auto_install"),
+        |ui| {
+            settings_toggle(ui, "updates_auto_install", &mut draft.auto_install_updates);
+        },
+    );
 
     settings_section(ui, &t("settings_sec_status"));
 
@@ -1141,11 +1675,17 @@ fn render_updates_tab(ui: &mut egui::Ui, draft: &mut storage::settings::AppSetti
 // =============================================================================
 
 fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
-    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), FOOTER_HEIGHT), Sense::hover());
+    let (rect, _) =
+        ui.allocate_exact_size(vec2(ui.available_width(), FOOTER_HEIGHT), Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect_filled(
         rect,
-        CornerRadius { nw: 0, ne: 0, sw: 10, se: 10 },
+        CornerRadius {
+            nw: 0,
+            ne: 0,
+            sw: 10,
+            se: 10,
+        },
         theme::bg_medium(),
     );
     painter.hline(
@@ -1167,10 +1707,16 @@ fn render_footer(ui: &mut egui::Ui, close_action: &mut CloseAction) {
             );
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.add(theme::primary_button(&t("settings_btn_apply"))).clicked() {
+                if ui
+                    .add(theme::primary_button(&t("settings_btn_apply")))
+                    .clicked()
+                {
                     *close_action = CloseAction::Apply;
                 }
-                if ui.add(theme::secondary_button(&t("settings_btn_cancel"))).clicked() {
+                if ui
+                    .add(theme::secondary_button(&t("settings_btn_cancel")))
+                    .clicked()
+                {
                     *close_action = CloseAction::Cancel;
                 }
             });
@@ -1207,12 +1753,7 @@ fn settings_section(ui: &mut egui::Ui, title: &str) {
 // Shared helper: settings row (title + description on left, control on right)
 // =============================================================================
 
-fn settings_row(
-    ui: &mut egui::Ui,
-    title: &str,
-    desc: &str,
-    control: impl FnOnce(&mut egui::Ui),
-) {
+fn settings_row(ui: &mut egui::Ui, title: &str, desc: &str, control: impl FnOnce(&mut egui::Ui)) {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
         // Left side: title + description
@@ -1248,17 +1789,14 @@ fn settings_row(
 // =============================================================================
 
 fn settings_toggle(ui: &mut egui::Ui, id: &str, value: &mut bool) {
-    let (rect, response) =
-        ui.allocate_exact_size(vec2(TOGGLE_W, TOGGLE_H), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(vec2(TOGGLE_W, TOGGLE_H), Sense::click());
     if response.clicked() {
         *value = !*value;
     }
 
-    let anim_t = ui.ctx().animate_bool_with_time(
-        egui::Id::new(id),
-        *value,
-        0.15,
-    );
+    let anim_t = ui
+        .ctx()
+        .animate_bool_with_time(egui::Id::new(id), *value, 0.15);
 
     let bg_color = if *value {
         theme::accent_color()
@@ -1271,11 +1809,8 @@ fn settings_toggle(ui: &mut egui::Ui, id: &str, value: &mut bool) {
         theme::border_default()
     };
 
-    ui.painter().rect_filled(
-        rect,
-        CornerRadius::same(9),
-        bg_color,
-    );
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(9), bg_color);
     ui.painter().rect_stroke(
         rect,
         CornerRadius::same(9),
@@ -1286,11 +1821,8 @@ fn settings_toggle(ui: &mut egui::Ui, id: &str, value: &mut bool) {
     // Knob
     let knob_r = (TOGGLE_H - 6.0) / 2.0;
     let knob_x = rect.left() + 3.0 + knob_r + anim_t * (TOGGLE_W - 6.0 - knob_r * 2.0);
-    ui.painter().circle_filled(
-        pos2(knob_x, rect.center().y),
-        knob_r,
-        Color32::WHITE,
-    );
+    ui.painter()
+        .circle_filled(pos2(knob_x, rect.center().y), knob_r, Color32::WHITE);
 }
 
 // =============================================================================
@@ -1393,7 +1925,10 @@ fn render_language_combo(
 }
 
 /// 커스텀 단축키 / 백업 스케줄 입력 UI (간단한 텍스트 편집).
-pub fn render_custom_settings(ui: &mut egui::Ui, settings: &mut crate::storage::settings::AppSettings) {
+pub fn render_custom_settings(
+    ui: &mut egui::Ui,
+    settings: &mut crate::storage::settings::AppSettings,
+) {
     ui.label("Custom shortcuts (format: \"action=Cmd+K\")");
     let mut buf = settings
         .custom_shortcuts
@@ -1401,15 +1936,22 @@ pub fn render_custom_settings(ui: &mut egui::Ui, settings: &mut crate::storage::
         .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<_>>()
         .join("\n");
-    if ui.add(egui::TextEdit::multiline(&mut buf).desired_rows(4)).changed() {
+    if ui
+        .add(egui::TextEdit::multiline(&mut buf).desired_rows(4))
+        .changed()
+    {
         settings.custom_shortcuts.clear();
         for line in buf.lines() {
             if let Some((k, v)) = line.split_once('=') {
-                settings.custom_shortcuts.insert(k.trim().to_string(), v.trim().to_string());
+                settings
+                    .custom_shortcuts
+                    .insert(k.trim().to_string(), v.trim().to_string());
             }
         }
     }
     ui.add_space(8.0);
     ui.label("Backup schedule (cron expression, empty = off)");
-    ui.add(egui::TextEdit::singleline(&mut settings.backup_schedule_cron));
+    ui.add(egui::TextEdit::singleline(
+        &mut settings.backup_schedule_cron,
+    ));
 }

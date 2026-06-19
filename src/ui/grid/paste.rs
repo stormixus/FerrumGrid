@@ -223,6 +223,40 @@ fn write_cell_xlsx(
     }
 }
 
+fn cell_to_json(cell: &CellValue) -> serde_json::Value {
+    match cell {
+        CellValue::Null => serde_json::Value::Null,
+        CellValue::Bool(v) => serde_json::Value::Bool(*v),
+        CellValue::Int(v) => serde_json::json!(*v),
+        CellValue::Float(v) => serde_json::json!(*v),
+        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
+            serde_json::Value::String(v.clone())
+        }
+        CellValue::Json(v) => v.clone(),
+        CellValue::Uuid(v) => serde_json::Value::String(v.to_string()),
+        CellValue::Bytes(v) => {
+            serde_json::Value::String(format!("\\x{}", v.iter().map(|b| format!("{b:02x}")).collect::<String>()))
+        }
+    }
+}
+
+fn cell_to_sql_literal(cell: &CellValue) -> String {
+    match cell {
+        CellValue::Null => "NULL".to_string(),
+        CellValue::Bool(v) => v.to_string(),
+        CellValue::Int(v) => v.to_string(),
+        CellValue::Float(v) => v.to_string(),
+        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
+            format!("'{}'", v.replace('\'', "''"))
+        }
+        CellValue::Json(v) => format!("'{}'", v.to_string().replace('\'', "''")),
+        CellValue::Uuid(v) => format!("'{v}'"),
+        CellValue::Bytes(v) => {
+            format!("'\\x{}'", v.iter().map(|b| format!("{b:02x}")).collect::<String>())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,39 +293,5 @@ mod tests {
         let tsv = result_to_tsv(&sample());
         assert!(tsv.starts_with("id\tnote\n"));
         assert!(tsv.contains("1\ta | b"));
-    }
-}
-
-fn cell_to_json(cell: &CellValue) -> serde_json::Value {
-    match cell {
-        CellValue::Null => serde_json::Value::Null,
-        CellValue::Bool(v) => serde_json::Value::Bool(*v),
-        CellValue::Int(v) => serde_json::json!(*v),
-        CellValue::Float(v) => serde_json::json!(*v),
-        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
-            serde_json::Value::String(v.clone())
-        }
-        CellValue::Json(v) => v.clone(),
-        CellValue::Uuid(v) => serde_json::Value::String(v.to_string()),
-        CellValue::Bytes(v) => {
-            serde_json::Value::String(format!("\\x{}", v.iter().map(|b| format!("{b:02x}")).collect::<String>()))
-        }
-    }
-}
-
-fn cell_to_sql_literal(cell: &CellValue) -> String {
-    match cell {
-        CellValue::Null => "NULL".to_string(),
-        CellValue::Bool(v) => v.to_string(),
-        CellValue::Int(v) => v.to_string(),
-        CellValue::Float(v) => v.to_string(),
-        CellValue::Text(v) | CellValue::Timestamp(v) | CellValue::Unknown(v) => {
-            format!("'{}'", v.replace('\'', "''"))
-        }
-        CellValue::Json(v) => format!("'{}'", v.to_string().replace('\'', "''")),
-        CellValue::Uuid(v) => format!("'{v}'"),
-        CellValue::Bytes(v) => {
-            format!("'\\x{}'", v.iter().map(|b| format!("{b:02x}")).collect::<String>())
-        }
     }
 }

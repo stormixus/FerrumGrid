@@ -207,12 +207,8 @@ impl NativeMenu {
         )
         .expect("failed to build FerrumGrid view menu");
 
-        let monitoring = MenuItem::with_id(
-            "monitoring",
-            crate::i18n::t("menu_monitoring"),
-            true,
-            None,
-        );
+        let monitoring =
+            MenuItem::with_id("monitoring", crate::i18n::t("menu_monitoring"), true, None);
 
         let table_designer = MenuItem::with_id(
             "table_designer",
@@ -237,12 +233,22 @@ impl NativeMenu {
             "new_window",
             crate::i18n::t("menu_new_window"),
             true,
-            Some(Accelerator::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyN)),
+            Some(Accelerator::new(
+                Some(Modifiers::SUPER | Modifiers::SHIFT),
+                Code::KeyN,
+            )),
         );
         let tools_menu = Submenu::with_items(
             crate::i18n::t("menu_tools"),
             true,
-            &[&table_designer, &prisma, &monitoring, &session_monitor, &schema_diff, &new_window],
+            &[
+                &table_designer,
+                &prisma,
+                &monitoring,
+                &session_monitor,
+                &schema_diff,
+                &new_window,
+            ],
         )
         .expect("failed to build FerrumGrid tools menu");
 
@@ -392,6 +398,7 @@ impl NativeMenu {
                 state.show_monitoring_window = true;
             } else if id == &self.session_monitor_id {
                 state.show_session_monitor = true;
+                state.sessions_needs_fetch = true;
             } else if id == &self.schema_diff_id {
                 state.show_schema_diff_window = true;
             } else if id == &self.new_window_id {

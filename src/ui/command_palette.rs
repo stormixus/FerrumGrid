@@ -42,35 +42,111 @@ static SECTIONS: &[CmdSection] = &[
     CmdSection {
         label_key: "cmd_sec_workspace",
         items: &[
-            CmdItem { icon: icons_svg::PLAY_SM, label_key: "cmd_run_query", hint_key: "cmd_hint_run_query", kbd: "\u{2318}\u{23CE}", action: PaletteAction::RunQuery },
-            CmdItem { icon: icons_svg::PLAY_SM, label_key: "cmd_new_tab", hint_key: "cmd_hint_new_tab", kbd: "\u{2318}T", action: PaletteAction::NewQueryTab },
-            CmdItem { icon: icons_svg::HISTORY, label_key: "cmd_open_history", hint_key: "cmd_hint_open_history", kbd: "\u{2318}\u{21E7}H", action: PaletteAction::OpenQueryHistory },
-            CmdItem { icon: icons_svg::SAVE, label_key: "cmd_open_snippets", hint_key: "cmd_hint_open_snippets", kbd: "", action: PaletteAction::OpenSnippetsTab },
-            CmdItem { icon: icons_svg::BRAIN, label_key: "cmd_ai_assist", hint_key: "cmd_hint_ai_assist", kbd: "\u{2318}\u{21E7}A", action: PaletteAction::OpenAiAssist },
+            CmdItem {
+                icon: icons_svg::PLAY_SM,
+                label_key: "cmd_run_query",
+                hint_key: "cmd_hint_run_query",
+                kbd: "\u{2318}\u{23CE}",
+                action: PaletteAction::RunQuery,
+            },
+            CmdItem {
+                icon: icons_svg::PLAY_SM,
+                label_key: "cmd_new_tab",
+                hint_key: "cmd_hint_new_tab",
+                kbd: "\u{2318}T",
+                action: PaletteAction::NewQueryTab,
+            },
+            CmdItem {
+                icon: icons_svg::HISTORY,
+                label_key: "cmd_open_history",
+                hint_key: "cmd_hint_open_history",
+                kbd: "\u{2318}\u{21E7}H",
+                action: PaletteAction::OpenQueryHistory,
+            },
+            CmdItem {
+                icon: icons_svg::SAVE,
+                label_key: "cmd_open_snippets",
+                hint_key: "cmd_hint_open_snippets",
+                kbd: "",
+                action: PaletteAction::OpenSnippetsTab,
+            },
+            CmdItem {
+                icon: icons_svg::BRAIN,
+                label_key: "cmd_ai_assist",
+                hint_key: "cmd_hint_ai_assist",
+                kbd: "\u{2318}\u{21E7}A",
+                action: PaletteAction::OpenAiAssist,
+            },
         ],
     },
     CmdSection {
         label_key: "cmd_sec_navigate",
         items: &[
-            CmdItem { icon: icons_svg::TABLE_SM, label_key: "cmd_go_table", hint_key: "cmd_hint_go_table", kbd: "\u{2318}O", action: PaletteAction::GoToTable },
-            CmdItem { icon: icons_svg::DIAGRAM, label_key: "cmd_open_er", hint_key: "cmd_hint_open_er", kbd: "\u{2318}D", action: PaletteAction::OpenERDiagram },
-            CmdItem { icon: icons_svg::CHART, label_key: "cmd_open_bi", hint_key: "cmd_hint_open_bi", kbd: "\u{2318}B", action: PaletteAction::OpenBI },
-            CmdItem { icon: icons_svg::VAULT, label_key: "cmd_open_vault", hint_key: "cmd_hint_open_vault", kbd: "\u{2318}\u{21E7}V", action: PaletteAction::OpenVault },
-            CmdItem { icon: icons_svg::COG, label_key: "cmd_open_settings", hint_key: "cmd_hint_open_settings", kbd: "\u{2318},", action: PaletteAction::OpenSettings },
+            CmdItem {
+                icon: icons_svg::TABLE_SM,
+                label_key: "cmd_go_table",
+                hint_key: "cmd_hint_go_table",
+                kbd: "\u{2318}O",
+                action: PaletteAction::GoToTable,
+            },
+            CmdItem {
+                icon: icons_svg::DIAGRAM,
+                label_key: "cmd_open_er",
+                hint_key: "cmd_hint_open_er",
+                kbd: "\u{2318}D",
+                action: PaletteAction::OpenERDiagram,
+            },
+            CmdItem {
+                icon: icons_svg::CHART,
+                label_key: "cmd_open_bi",
+                hint_key: "cmd_hint_open_bi",
+                kbd: "\u{2318}B",
+                action: PaletteAction::OpenBI,
+            },
+            CmdItem {
+                icon: icons_svg::VAULT,
+                label_key: "cmd_open_vault",
+                hint_key: "cmd_hint_open_vault",
+                kbd: "\u{2318}\u{21E7}V",
+                action: PaletteAction::OpenVault,
+            },
+            CmdItem {
+                icon: icons_svg::COG,
+                label_key: "cmd_open_settings",
+                hint_key: "cmd_hint_open_settings",
+                kbd: "\u{2318},",
+                action: PaletteAction::OpenSettings,
+            },
         ],
     },
     CmdSection {
         label_key: "cmd_sec_data",
         items: &[
-            CmdItem { icon: icons_svg::FILTER, label_key: "cmd_toggle_filter", hint_key: "cmd_hint_toggle_filter", kbd: "\u{2318}F", action: PaletteAction::ToggleFilterRow },
-            CmdItem { icon: icons_svg::DOWNLOAD, label_key: "cmd_export_csv", hint_key: "cmd_hint_export_csv", kbd: "\u{2318}E", action: PaletteAction::ExportCsv },
+            CmdItem {
+                icon: icons_svg::FILTER,
+                label_key: "cmd_toggle_filter",
+                hint_key: "cmd_hint_toggle_filter",
+                kbd: "\u{2318}F",
+                action: PaletteAction::ToggleFilterRow,
+            },
+            CmdItem {
+                icon: icons_svg::DOWNLOAD,
+                label_key: "cmd_export_csv",
+                hint_key: "cmd_hint_export_csv",
+                kbd: "\u{2318}E",
+                action: PaletteAction::ExportCsv,
+            },
         ],
     },
     CmdSection {
         label_key: "cmd_sec_database",
-        items: &[
-            CmdItem { icon: icons_svg::COG, label_key: "cmd_refresh_schema", hint_key: "cmd_hint_refresh_schema", kbd: "F5", action: PaletteAction::RefreshSchema },
-        ],
+        items: &[CmdItem {
+            icon: icons_svg::COG,
+            label_key: "cmd_refresh_schema",
+            hint_key: "cmd_hint_refresh_schema",
+            kbd: "F5",
+            action: PaletteAction::RefreshSchema,
+        }],
     },
 ];
 
@@ -92,7 +168,10 @@ fn filtered_items(search: &str, state: &AppState) -> Vec<ResolvedCmd> {
         for item in sec.items {
             let label = t(item.label_key);
             let hint = t(item.hint_key);
-            if query.is_empty() || label.to_lowercase().contains(&query) || hint.to_lowercase().contains(&query) {
+            if query.is_empty()
+                || label.to_lowercase().contains(&query)
+                || hint.to_lowercase().contains(&query)
+            {
                 results.push(ResolvedCmd {
                     section: section_label.clone(),
                     label,
@@ -107,7 +186,7 @@ fn filtered_items(search: &str, state: &AppState) -> Vec<ResolvedCmd> {
 
     if !query.is_empty() {
         let section_label = t("cmd_sec_snippets");
-        for snippet in &state.saved_snippets {
+        for snippet in &state.snippets {
             if snippet.name.to_lowercase().contains(&query)
                 || snippet.body.to_lowercase().contains(&query)
             {
@@ -166,7 +245,11 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 crate::ui::icon_img_tinted(
-                                    ui, icons_svg::SEARCH, "cmd_search_ic", 14.0, theme::text_muted(),
+                                    ui,
+                                    icons_svg::SEARCH,
+                                    "cmd_search_ic",
+                                    14.0,
+                                    theme::text_muted(),
                                 );
                                 ui.add_space(6.0);
                                 let te = ui.add(
@@ -182,14 +265,17 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                                 if !te.has_focus() {
                                     te.request_focus();
                                 }
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(
-                                        RichText::new("\u{2318}K")
-                                            .monospace()
-                                            .size(10.0)
-                                            .color(theme::text_disabled()),
-                                    );
-                                });
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        ui.label(
+                                            RichText::new("\u{2318}K")
+                                                .monospace()
+                                                .size(10.0)
+                                                .color(theme::text_disabled()),
+                                        );
+                                    },
+                                );
                             });
                         });
 
@@ -311,7 +397,9 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
             close = true;
         }
         if i.key_pressed(egui::Key::ArrowDown) {
-            let max = filtered_items(&state.command_palette_search, state).len().saturating_sub(1);
+            let max = filtered_items(&state.command_palette_search, state)
+                .len()
+                .saturating_sub(1);
             state.command_palette_selected = (state.command_palette_selected + 1).min(max);
         }
         if i.key_pressed(egui::Key::ArrowUp) {
@@ -335,7 +423,11 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
     triggered_action
 }
 
-pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridge: &crate::db::bridge::DbBridge) {
+pub fn execute_palette_action(
+    action: PaletteAction,
+    state: &mut AppState,
+    bridge: &crate::db::bridge::DbBridge,
+) {
     match action {
         PaletteAction::RunQuery => {
             if let Some(conn_id) = state.active_connection {
@@ -366,7 +458,7 @@ pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridg
             state.show_tree_panel = true;
         }
         PaletteAction::OpenSnippet(id) => {
-            if let Some(snippet) = state.saved_snippets.iter().find(|s| s.id == id) {
+            if let Some(snippet) = state.snippets.iter().find(|s| s.id == id) {
                 let mut tab = crate::types::EditorTab::new(snippet.name.clone());
                 tab.content = snippet.body.clone();
                 tab.connection_id = snippet.connection_id;
@@ -406,9 +498,7 @@ pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridg
         }
         PaletteAction::RefreshSchema => {
             if let Some(conn_id) = state.active_connection {
-                bridge.send(crate::db::bridge::DbCommand::ListSchemas {
-                    conn_id,
-                });
+                bridge.send(crate::db::bridge::DbCommand::ListSchemas { conn_id });
             }
         }
     }

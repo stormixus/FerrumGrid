@@ -430,9 +430,11 @@ mod tests {
 
     #[test]
     fn cell_in_range_covers_rectangle_regardless_of_anchor_order() {
-        let mut s = DataEditState::default();
         // anchor (3,4) -> focus (1,2): rectangle rows 1..=3, cols 2..=4
-        s.selection_range = Some(((3, 4), (1, 2)));
+        let mut s = DataEditState {
+            selection_range: Some(((3, 4), (1, 2))),
+            ..Default::default()
+        };
         assert!(s.cell_in_range(1, 2));
         assert!(s.cell_in_range(3, 4));
         assert!(s.cell_in_range(2, 3));

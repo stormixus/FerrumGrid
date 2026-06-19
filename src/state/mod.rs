@@ -22,9 +22,9 @@ pub use data_edit::{
     build_data_select_sql_with_columns, cell_edit_text_for_type, data_filter_from_cell,
     data_filter_from_text, data_timezone_label, data_timezone_offset_seconds,
     data_timezone_options, is_timestamp_without_timezone_type, is_timestamptz_type,
-    timestamp_display_to_utc, timestamp_display_to_utc_naive, DataEditState,
-    DataFilter, DataSortClause, DataSortDirection, DataSource, EditableCell,
-    DEFAULT_DATA_PAGE_LIMIT, MAX_DATA_PAGE_LIMIT,
+    timestamp_display_to_utc, timestamp_display_to_utc_naive, DataEditState, DataFilter,
+    DataSortClause, DataSortDirection, DataSource, EditableCell, DEFAULT_DATA_PAGE_LIMIT,
+    MAX_DATA_PAGE_LIMIT,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -215,7 +215,6 @@ pub struct AppState {
     pub active_workspace_tab: usize,
     pub editor_tabs: Vec<EditorTab>,
     pub active_tab: usize,
-    pub saved_snippets: Vec<crate::storage::snippets::SnippetEntry>,
     pub snippet_save_dialog: Option<SnippetSaveDialogState>,
     pub ai_assist: AiAssistState,
     /// 활성 에디터의 커서 char 위치 (매 프레임 TextEdit 출력에서 갱신).
@@ -323,7 +322,8 @@ pub struct AppState {
     pub diagnostics_panel: DiagnosticsPanel,
     /// Plan v7 Phase 4b3/4b4 — 등록된 자동화 작업 registry. UI thread + scheduler
     /// runner 가 공유하므로 Arc<RwLock<>> wrap.
-    pub automation: std::sync::Arc<std::sync::RwLock<crate::automation::scheduler::AutomationStore>>,
+    pub automation:
+        std::sync::Arc<std::sync::RwLock<crate::automation::scheduler::AutomationStore>>,
     /// Automation Create form 입력 draft (다음 등록 전 임시 저장).
     pub automation_draft: AutomationDraft,
     /// Plan v7 Phase 3b — Query 탭 명시 BEGIN 활성 여부.
@@ -347,7 +347,6 @@ pub struct AppState {
     pub show_session_monitor: bool,
     pub show_schema_diff_window: bool,
     pub schema_diff_rows: Vec<String>,
-    pub session_monitor_rows: Vec<crate::ui::session_monitor::SessionRow>,
     pub diag_slow_query_ms: u64,
     /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
     pub history_search: String,
@@ -476,7 +475,6 @@ impl Default for AppState {
             active_workspace_tab: 0,
             editor_tabs: vec![EditorTab::new("Query 1")],
             active_tab: 0,
-            saved_snippets: Vec::new(),
             snippet_save_dialog: None,
             ai_assist: AiAssistState::default(),
             editor_cursor_char: None,
@@ -550,7 +548,9 @@ impl Default for AppState {
             default_row_limit: 1000,
             status_message: "Disconnected".to_string(),
             er_diagram: ERDiagramState::new(),
-            table_designer: std::sync::Arc::new(std::sync::Mutex::new(TableDesignerState::default())),
+            table_designer: std::sync::Arc::new(std::sync::Mutex::new(
+                TableDesignerState::default(),
+            )),
             prisma_ui: std::sync::Arc::new(std::sync::Mutex::new(PrismaUIState::default())),
             backup_format: BackupFormat::Custom,
             backup_running: false,
@@ -576,7 +576,6 @@ impl Default for AppState {
             show_history_panel: false,
             show_monitoring_window: false,
             show_session_monitor: false,
-            session_monitor_rows: Vec::new(),
             show_schema_diff_window: false,
             schema_diff_rows: Vec::<String>::new(),
             diag_slow_query_ms: 500,
@@ -1096,7 +1095,11 @@ impl ConnectionDialogState {
             },
             aws_region: config.aws_region.clone().unwrap_or_default(),
             ssh_enabled: config.ssh_tunnel.is_some(),
-            ssh_host: config.ssh_tunnel.as_ref().map(|t| t.host.clone()).unwrap_or_default(),
+            ssh_host: config
+                .ssh_tunnel
+                .as_ref()
+                .map(|t| t.host.clone())
+                .unwrap_or_default(),
             ssh_port: config
                 .ssh_tunnel
                 .as_ref()
@@ -1155,8 +1158,8 @@ pub struct RestoreConfirmState {
     pub error: Option<String>,
 }
 
-
 pub fn spawn_new_window() {
-    let _ = std::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "ferrumgrid".into()))
-        .spawn();
+    let _ =
+        std::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "ferrumgrid".into()))
+            .spawn();
 }

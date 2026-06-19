@@ -1,194 +1,55 @@
-//! AI text-to-SQL 백엔드 (BYOK). OpenAI / Anthropic Messages API 를
-//! 기존 `ureq` 의존성으로 호출한다 (추가 의존성 없음).
+//! AI text-to-SQL backend facade.
 //!
-//! 네트워크 호출은 blocking 이므로 호출자는 별도 스레드에서 실행하고
-//! 결과를 `AiJob` 슬롯으로 전달한다.
+//! UI code calls this module while backend dispatch, endpoint handling, and
+//! schema collection live in focused submodules.
 
-use serde_json::Value;
+mod schema;
+mod service;
 
-use crate::state::ConnectionState;
+pub use schema::{collect_schema_context, TableContext};
 
-/// 백그라운드 AI 작업 슬롯 (Arc<Mutex<…>> 로 UI 와 공유).
+/// Background AI job slot shared with the UI.
 #[derive(Default)]
 pub struct AiJob {
     pub running: bool,
-    /// Ok(sql) 또는 Err(message). UI 가 매 프레임 take.
+    /// Ok(sql/text) or Err(message). The UI drains this once per frame.
     pub result: Option<Result<String, String>>,
 }
 
-/// 현재 연결의 스키마를 사람이 읽기 좋은 한 줄짜리 설명 문자열로 직렬화.
-/// 예: "public.users(id integer, email text)\npublic.orders(id bigint, user_id uuid)\n"
-/// 컬럼 메타가 아직 로드되지 않은 테이블은 `(columns unknown)` 로 표시.
-pub fn collect_schema_context(conn: &ConnectionState) -> String {
-    let mut s = String::new();
-    for (schema, tables) in &conn.tables {
-        for table in tables {
-            s.push_str(&format!("{}.{} (", schema, table.name));
-            let key = (schema.clone(), table.name.clone());
-            if let Some(columns) = conn.columns.get(&key) {
-                let col_strs: Vec<String> = columns
-                    .iter()
-                    .map(|c| format!("{} {}", c.name, c.data_type))
-                    .collect();
-                s.push_str(&col_strs.join(", "));
-            } else {
-                s.push_str("(columns unknown)");
-            }
-            s.push_str(")\n");
-        }
-    }
-    s
-}
-
-/// 자연어 요청 → 단일 PostgreSQL 문. Settings 에서 backend/model/key 를 읽어 호출.
+/// Natural language request -> one PostgreSQL statement using a rendered schema string.
 pub fn generate_sql(
     prompt: &str,
     schema: &str,
     settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if settings.ai_api_key.trim().is_empty() {
-        return Err("No API key set (Settings → AI Assist)".to_string());
-    }
-    if prompt.trim().is_empty() {
-        return Err("Empty prompt".to_string());
-    }
-    let system = build_system_prompt(schema);
-    chat(
-        &settings.ai_backend,
-        &settings.ai_model,
-        &settings.ai_api_key,
-        &system,
-        prompt,
-    )
-    .map(|s| strip_fences(&s))
+    service::generate_sql_from_text_schema(prompt, schema, settings)
 }
 
-/// 실패한 SQL + 에러 메시지를 받아 수정된 단일 SQL 문을 반환.
+/// Natural language request -> one PostgreSQL statement using structured table metadata.
+pub fn generate_sql_with_tables(
+    prompt: &str,
+    schema: &[TableContext],
+    settings: &crate::storage::settings::AppSettings,
+) -> Result<String, String> {
+    service::generate_sql_from_tables(prompt, schema, settings)
+}
+
+/// Failed SQL + Postgres error -> one corrected PostgreSQL statement.
 pub fn fix_sql(
     sql: &str,
     error: &str,
     schema: &str,
     settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if settings.ai_api_key.trim().is_empty() {
-        return Err("No API key set (Settings → AI Assist)".to_string());
-    }
-    let mut system = String::from(
-        "You are a PostgreSQL expert. The user's SQL failed. Output ONLY the corrected, \
-         single valid PostgreSQL statement — no prose, no explanation, no markdown fences.",
-    );
-    if !schema.trim().is_empty() {
-        system.push_str("\n\nSchema:\n");
-        system.push_str(schema);
-    }
-    let user = format!("Failed SQL:\n{sql}\n\nPostgres error:\n{error}");
-    chat(
-        &settings.ai_backend,
-        &settings.ai_model,
-        &settings.ai_api_key,
-        &system,
-        &user,
-    )
-    .map(|s| strip_fences(&s))
+    service::fix_sql(sql, error, schema, settings)
 }
 
-/// EXPLAIN 플랜 텍스트를 받아 Postgres 튜닝 조언(프로즈)을 생성.
+/// EXPLAIN plan text -> short tuning advice.
 pub fn interpret_plan(
     plan_text: &str,
     settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if settings.ai_api_key.trim().is_empty() {
-        return Err("No API key set (Settings → AI Assist)".to_string());
-    }
-    let system = "You are a PostgreSQL performance expert. Given an EXPLAIN plan, \
-         give a short, concrete diagnosis: name the bottleneck node, flag seq scans on \
-         large tables, row-estimate skew, and sorts/hashes likely to spill, then suggest \
-         the specific index or rewrite. Be terse and actionable. Plain text, no markdown.";
-    chat(
-        &settings.ai_backend,
-        &settings.ai_model,
-        &settings.ai_api_key,
-        system,
-        plan_text,
-    )
-}
-
-/// 백엔드 디스패치 (원문 텍스트 반환, 펜스 미제거).
-fn chat(backend: &str, model: &str, api_key: &str, system: &str, user: &str) -> Result<String, String> {
-    match backend {
-        "OpenAI" => openai(model, api_key, system, user),
-        "Anthropic" => anthropic(model, api_key, system, user),
-        other => Err(format!("AI backend '{other}' is not supported yet")),
-    }
-}
-
-fn build_system_prompt(schema: &str) -> String {
-    let mut s = String::from(
-        "You are a PostgreSQL expert. Output ONLY a single valid PostgreSQL SQL \
-         statement answering the user's request. No prose, no explanation, no \
-         markdown code fences.",
-    );
-    if !schema.trim().is_empty() {
-        s.push_str("\n\nDatabase schema (table(column type, ...)):\n");
-        s.push_str(schema);
-    }
-    s
-}
-
-fn openai(model: &str, key: &str, system: &str, user: &str) -> Result<String, String> {
-    let resp = ureq::post("https://api.openai.com/v1/chat/completions")
-        .set("Authorization", &format!("Bearer {key}"))
-        .send_json(serde_json::json!({
-            "model": model,
-            "temperature": 0,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        }))
-        .map_err(stringify_ureq)?;
-    let v: Value = resp.into_json().map_err(|e| e.to_string())?;
-    let sql = v["choices"][0]["message"]["content"]
-        .as_str()
-        .ok_or_else(|| "OpenAI: no content in response".to_string())?;
-    Ok(sql.to_string())
-}
-
-fn anthropic(model: &str, key: &str, system: &str, user: &str) -> Result<String, String> {
-    let resp = ureq::post("https://api.anthropic.com/v1/messages")
-        .set("x-api-key", key)
-        .set("anthropic-version", "2023-06-01")
-        .send_json(serde_json::json!({
-            "model": model,
-            "max_tokens": 1024,
-            "system": system,
-            "messages": [{"role": "user", "content": user}],
-        }))
-        .map_err(stringify_ureq)?;
-    let v: Value = resp.into_json().map_err(|e| e.to_string())?;
-    let sql = v["content"][0]["text"]
-        .as_str()
-        .ok_or_else(|| "Anthropic: no content in response".to_string())?;
-    Ok(sql.to_string())
-}
-
-/// ureq 의 4xx/5xx body 에 API 에러 메시지가 있으면 그것을 노출.
-fn stringify_ureq(e: ureq::Error) -> String {
-    match e {
-        ureq::Error::Status(code, resp) => {
-            let body = resp.into_string().unwrap_or_default();
-            format!("HTTP {code}: {}", body.chars().take(300).collect::<String>())
-        }
-        ureq::Error::Transport(t) => format!("Network error: {t}"),
-    }
-}
-
-/// ```sql … ``` 펜스 제거 + 트림.
-fn strip_fences(s: &str) -> String {
-    let t = s.trim();
-    let t = t.strip_prefix("```sql").or_else(|| t.strip_prefix("```")).unwrap_or(t);
-    let t = t.strip_suffix("```").unwrap_or(t);
-    t.trim().to_string()
+    service::interpret_plan(plan_text, settings)
 }
 
 #[cfg(test)]
@@ -196,25 +57,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn strip_fences_removes_markdown() {
-        assert_eq!(strip_fences("```sql\nSELECT 1;\n```"), "SELECT 1;");
-        assert_eq!(strip_fences("```\nSELECT 2;\n```"), "SELECT 2;");
-        assert_eq!(strip_fences("  SELECT 3;  "), "SELECT 3;");
-    }
-
-    #[test]
-    fn generate_requires_api_key() {
+    fn generate_requires_api_key_for_remote_backend() {
         let settings = crate::storage::settings::AppSettings {
+            ai_backend: "OpenAI".to_string(),
             ai_api_key: String::new(),
             ..Default::default()
         };
-        assert!(generate_sql("list users", "schema", &settings).is_err());
+
+        let err = generate_sql("list users", "schema", &settings).expect_err("missing key");
+        assert!(err.contains("OpenAI API key"));
     }
 
     #[test]
-    fn system_prompt_includes_schema_when_present() {
-        let p = build_system_prompt("public.users(id int)");
-        assert!(p.contains("public.users(id int)"));
-        assert!(!build_system_prompt("").contains("schema:\n\n"));
+    fn local_backend_does_not_require_api_key() {
+        let settings = crate::storage::settings::AppSettings {
+            ai_backend: "Local".to_string(),
+            ai_endpoint: "http://127.0.0.1:9/api/chat".to_string(),
+            ai_api_key: String::new(),
+            ..Default::default()
+        };
+
+        let err = generate_sql("list users", "schema", &settings)
+            .expect_err("test endpoint should be unavailable");
+
+        assert!(
+            !err.contains("API key"),
+            "local backend should attempt the configured local endpoint without an API key"
+        );
     }
 }

@@ -9,8 +9,8 @@ use crate::i18n::{t, tf};
 use crate::state::{AppState, MainView};
 use crate::ui::theme;
 
-use eframe::egui::Color32;
 use super::data_ops::{data_edit_summary, revert_data_edits};
+use eframe::egui::Color32;
 
 fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, active: bool) {
     let text_color = if active {
@@ -26,44 +26,53 @@ fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, activ
 
     let text = label.to_string();
 
-    let galley = ui.painter().layout_no_wrap(
-        text.clone(),
-        egui::FontId::proportional(11.5),
-        text_color,
-    );
+    let galley =
+        ui.painter()
+            .layout_no_wrap(text.clone(), egui::FontId::proportional(11.5), text_color);
     let count_width = count.map_or(0.0, |n| {
         let cg = ui.painter().layout_no_wrap(
             n.to_string(),
             egui::FontId::monospace(10.0),
-            if active { theme::accent_color() } else { theme::text_disabled() },
+            if active {
+                theme::accent_color()
+            } else {
+                theme::text_disabled()
+            },
         );
         cg.rect.width() + 8.0
     });
     let btn_width = galley.rect.width() + count_width + 20.0;
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(btn_width, 24.0), egui::Sense::click());
+    let (rect, response) =
+        ui.allocate_exact_size(egui::vec2(btn_width, 24.0), egui::Sense::click());
 
     let fill = if response.hovered() && !active {
         theme::bg_light()
     } else {
         bg
     };
-    ui.painter().rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(theme::RADIUS_MD), fill);
 
     // Label
     ui.painter().galley(
-        egui::pos2(rect.left() + 10.0, rect.center().y - galley.rect.height() / 2.0),
+        egui::pos2(
+            rect.left() + 10.0,
+            rect.center().y - galley.rect.height() / 2.0,
+        ),
         galley,
         text_color,
     );
 
     // Count
     if let Some(n) = count {
-        let count_color = if active { theme::accent_color() } else { theme::text_disabled() };
-        let cg = ui.painter().layout_no_wrap(
-            n.to_string(),
-            egui::FontId::monospace(10.0),
-            count_color,
-        );
+        let count_color = if active {
+            theme::accent_color()
+        } else {
+            theme::text_disabled()
+        };
+        let cg =
+            ui.painter()
+                .layout_no_wrap(n.to_string(), egui::FontId::monospace(10.0), count_color);
         ui.painter().galley(
             egui::pos2(
                 rect.right() - 10.0 - cg.rect.width(),
@@ -74,7 +83,6 @@ fn render_result_tab(ui: &mut egui::Ui, label: &str, count: Option<usize>, activ
         );
     }
 }
-use crate::types::CellValue;
 use super::pager::render_data_pager;
 use super::paste::{
     export_csv, export_json, export_sql_insert, export_xlsx, result_to_markdown,
@@ -83,6 +91,7 @@ use super::paste::{
 use super::toolbar::{
     metric_chip, result_meta_chip, result_meta_chip_svg, result_toolbar_action_button,
 };
+use crate::types::CellValue;
 
 pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let result = match &state.current_result {
@@ -115,12 +124,24 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
 
                 // Download button
                 ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, crate::ui::icons_svg::DOWNLOAD, "res_dl", 12.0, theme::text_muted()),
+                    crate::ui::icon_image_tinted(
+                        ui,
+                        crate::ui::icons_svg::DOWNLOAD,
+                        "res_dl",
+                        12.0,
+                        theme::text_muted(),
+                    ),
                     "",
                 ));
                 // Filter button
                 ui.add(theme::ghost_icon_button(
-                    crate::ui::icon_image_tinted(ui, crate::ui::icons_svg::FILTER, "res_filter", 12.0, theme::text_muted()),
+                    crate::ui::icon_image_tinted(
+                        ui,
+                        crate::ui::icons_svg::FILTER,
+                        "res_filter",
+                        12.0,
+                        theme::text_muted(),
+                    ),
                     "",
                 ));
 
@@ -262,7 +283,8 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
         |ui| {
             ui.set_clip_rect(right_rect);
             if let Some(summary) = &data_edit_summary {
-                let can_apply = summary.can_apply && !state.data_edit.applying && !state.explicit_tx_active;
+                let can_apply =
+                    summary.can_apply && !state.data_edit.applying && !state.explicit_tx_active;
                 let apply_label = t("button_apply");
                 let apply_button = if can_apply {
                     theme::primary_button(&apply_label)
@@ -443,8 +465,7 @@ pub fn render_result_header(ui: &mut egui::Ui, state: &mut AppState, bridge: &Db
 }
 
 fn result_toolbar_close_button(ui: &mut egui::Ui) -> egui::Response {
-    let (rect, response) =
-        ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
     let hovered = response.hovered();
     let bg = if hovered {
         theme::with_alpha(theme::ACCENT_RED, 38)
@@ -472,17 +493,11 @@ fn result_toolbar_close_button(ui: &mut egui::Ui) -> egui::Response {
     let cx = rect.center();
     let arm = 5.0;
     ui.painter().line_segment(
-        [
-            cx + egui::vec2(-arm, -arm),
-            cx + egui::vec2(arm, arm),
-        ],
+        [cx + egui::vec2(-arm, -arm), cx + egui::vec2(arm, arm)],
         Stroke::new(1.6, icon_color),
     );
     ui.painter().line_segment(
-        [
-            cx + egui::vec2(arm, -arm),
-            cx + egui::vec2(-arm, arm),
-        ],
+        [cx + egui::vec2(arm, -arm), cx + egui::vec2(-arm, arm)],
         Stroke::new(1.6, icon_color),
     );
     if hovered {
@@ -605,19 +620,26 @@ pub fn add_empty_row(state: &mut AppState) {
     state.data_edit.selected_cell = Some((row_idx, 0));
 }
 
-
 /// 컬럼 이름으로 PII 여부 추정.
 pub fn is_pii_column(name: &str) -> bool {
     let n = name.to_lowercase();
-    n.contains("email") || n.contains("phone") || n.contains("ssn") || n.contains("password") || n.contains("secret")
+    n.contains("email")
+        || n.contains("phone")
+        || n.contains("ssn")
+        || n.contains("password")
+        || n.contains("secret")
 }
 
 /// PII 마스킹 적용.
 pub fn mask_value(val: &str) -> String {
-    if val.len() <= 4 {
-        return "*".repeat(val.len());
+    let chars: Vec<char> = val.chars().collect();
+    if chars.len() <= 4 {
+        return "*".repeat(chars.len());
     }
-    let head = &val[..2];
-    let tail = &val[val.len() - 2..];
-    format!("{head}{}{tail}", "*".repeat(val.chars().count().saturating_sub(4).max(1)))
+    let head: String = chars.iter().take(2).collect();
+    let tail: String = chars.iter().skip(chars.len().saturating_sub(2)).collect();
+    format!(
+        "{head}{}{tail}",
+        "*".repeat(chars.len().saturating_sub(4).max(1))
+    )
 }

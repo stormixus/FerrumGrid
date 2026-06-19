@@ -13,7 +13,7 @@ pub fn open_snippet_save_dialog(
     if sql.trim().is_empty() {
         return;
     }
-    let default_name = format!("Snippet {}", state.saved_snippets.len() + 1);
+    let default_name = format!("Snippet {}", state.snippets.len() + 1);
     state.snippet_save_dialog = Some(SnippetSaveDialogState {
         name: default_name,
         tags: String::new(),
@@ -95,15 +95,46 @@ pub fn render_snippet_save_dialog(ctx: &egui::Context, state: &mut AppState) {
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
                 .collect();
-            let mut entry =
-                crate::storage::snippets::SnippetEntry::new(name, dialog.sql);
+            let mut entry = crate::storage::snippets::SnippetEntry::new(name, dialog.sql);
             entry.tags = tags;
             entry.connection_id = dialog.connection_id;
-            state.saved_snippets.push(entry);
-            crate::storage::snippets::save_snippets(&state.saved_snippets);
+            state.snippets.push(entry);
+            crate::storage::snippets::save_snippets(&state.snippets);
             state.status_message = t("snippet_saved");
             state.tree_panel_tab = crate::state::TreePanelTab::Snippets;
             state.show_tree_panel = true;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_name_counts_existing_snippets_panel_entries() {
+        let mut state = AppState::default();
+        state
+            .snippets
+            .push(crate::storage::snippets::SnippetEntry::new(
+                "one",
+                "select 1;",
+            ));
+        state
+            .snippets
+            .push(crate::storage::snippets::SnippetEntry::new(
+                "two",
+                "select 2;",
+            ));
+
+        open_snippet_save_dialog(&mut state, "select 3;", None);
+
+        assert_eq!(
+            state
+                .snippet_save_dialog
+                .as_ref()
+                .map(|dialog| dialog.name.as_str()),
+            Some("Snippet 3")
+        );
     }
 }

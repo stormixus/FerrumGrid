@@ -34,6 +34,9 @@ pub enum UpdateStatus {
     Installing {
         latest: String,
     },
+    /// Automatic background check failed. Keep this non-intrusive; the app may
+    /// be offline, GitHub may be blocked, or the user may be on a captive network.
+    CheckFailed(String),
     /// The new bundle is staged and the relaunch daemon is running. The UI
     /// thread must now shut down gracefully (flush state, join workers) so the
     /// daemon can swap the bundle and restart.
@@ -60,7 +63,12 @@ impl UpdateCheck {
     /// Fire off a check on a background thread. Subsequent calls while a check
     /// is in flight are no-ops.
     pub fn start(&mut self) {
-        if matches!(self.status, UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. }) {
+        if matches!(
+            self.status,
+            UpdateStatus::Checking
+                | UpdateStatus::Downloading { .. }
+                | UpdateStatus::Installing { .. }
+        ) {
             return;
         }
         self.status = UpdateStatus::Checking;
@@ -74,10 +82,15 @@ impl UpdateCheck {
 
     /// Start the automatic update process in the background.
     pub fn start_update(&mut self, dmg_url: String, latest: String, ctx: eframe::egui::Context) {
-        if matches!(self.status, UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. }) {
+        if matches!(
+            self.status,
+            UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. }
+        ) {
             return;
         }
-        self.status = UpdateStatus::Downloading { latest: latest.clone() };
+        self.status = UpdateStatus::Downloading {
+            latest: latest.clone(),
+        };
         let (tx, rx) = mpsc::channel();
         self.rx = Some(rx);
         thread::spawn(move || {
@@ -95,13 +108,25 @@ impl UpdateCheck {
             Ok(status) => {
                 self.status = status;
                 // If it is a final state, clear the channel receiver
-                if matches!(self.status, UpdateStatus::Idle | UpdateStatus::UpToDate { .. } | UpdateStatus::UpdateAvailable { .. } | UpdateStatus::ReadyToRestart | UpdateStatus::Error(_)) {
+                if matches!(
+                    self.status,
+                    UpdateStatus::Idle
+                        | UpdateStatus::UpToDate { .. }
+                        | UpdateStatus::UpdateAvailable { .. }
+                        | UpdateStatus::ReadyToRestart
+                        | UpdateStatus::CheckFailed(_)
+                        | UpdateStatus::Error(_)
+                ) {
                     self.rx = None;
                 }
             }
             Err(mpsc::TryRecvError::Disconnected) => {
-                if matches!(self.status, UpdateStatus::Checking | UpdateStatus::Downloading { .. } | UpdateStatus::Installing { .. })
-                    && !matches!(self.status, UpdateStatus::Error(_))
+                if matches!(
+                    self.status,
+                    UpdateStatus::Checking
+                        | UpdateStatus::Downloading { .. }
+                        | UpdateStatus::Installing { .. }
+                ) && !matches!(self.status, UpdateStatus::Error(_))
                 {
                     self.status = UpdateStatus::Error("update thread disconnected".to_string());
                 }
@@ -109,6 +134,18 @@ impl UpdateCheck {
             }
             Err(mpsc::TryRecvError::Empty) => {}
         }
+    }
+}
+
+impl UpdateStatus {
+    pub(crate) fn shows_bubble(&self) -> bool {
+        matches!(
+            self,
+            UpdateStatus::UpdateAvailable { .. }
+                | UpdateStatus::Downloading { .. }
+                | UpdateStatus::Installing { .. }
+                | UpdateStatus::Error(_)
+        )
     }
 }
 
@@ -127,24 +164,21 @@ fn fetch_latest_status() -> UpdateStatus {
     {
         Ok(r) => r,
         Err(ureq::Error::Status(code, _)) => {
-            return UpdateStatus::Error(format!("GitHub API HTTP {code}"));
+            return UpdateStatus::CheckFailed(format!("GitHub API HTTP {code}"));
         }
         Err(err) => {
-            return UpdateStatus::Error(format!("network: {err}"));
+            return UpdateStatus::CheckFailed(format!("network: {err}"));
         }
     };
 
     let json: serde_json::Value = match response.into_json() {
         Ok(v) => v,
-        Err(err) => return UpdateStatus::Error(format!("parse: {err}")),
+        Err(err) => return UpdateStatus::CheckFailed(format!("parse: {err}")),
     };
 
-    let tag = json
-        .get("tag_name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let tag = json.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
     if tag.is_empty() {
-        return UpdateStatus::Error("missing tag_name".to_string());
+        return UpdateStatus::CheckFailed("missing tag_name".to_string());
     }
     let latest_str = tag.trim_start_matches('v').to_string();
     let url = json
@@ -155,11 +189,11 @@ fn fetch_latest_status() -> UpdateStatus {
 
     let cur_v = match semver::Version::parse(&current) {
         Ok(v) => v,
-        Err(err) => return UpdateStatus::Error(format!("bad current version: {err}")),
+        Err(err) => return UpdateStatus::CheckFailed(format!("bad current version: {err}")),
     };
     let lat_v = match semver::Version::parse(&latest_str) {
         Ok(v) => v,
-        Err(err) => return UpdateStatus::Error(format!("bad latest version: {err}")),
+        Err(err) => return UpdateStatus::CheckFailed(format!("bad latest version: {err}")),
     };
 
     if lat_v > cur_v {
@@ -175,7 +209,9 @@ fn fetch_latest_status() -> UpdateStatus {
             for asset in assets {
                 if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
                     if name.contains(target) && name.ends_with(".dmg") {
-                        if let Some(dl_url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
+                        if let Some(dl_url) =
+                            asset.get("browser_download_url").and_then(|u| u.as_str())
+                        {
                             dmg_url = Some(dl_url.to_string());
                             break;
                         }
@@ -251,7 +287,9 @@ fn download_and_install_dmg(
     }
 
     // 2. We are now mounting/installing. Transition state!
-    let _ = tx.send(UpdateStatus::Installing { latest: latest.to_string() });
+    let _ = tx.send(UpdateStatus::Installing {
+        latest: latest.to_string(),
+    });
     ctx.request_repaint();
 
     // Run mount command
@@ -406,7 +444,10 @@ fn download_and_install_dmg(
     // Ensure we are actually running inside a .app bundle (safeguard for dev builds!)
     if old_app_path.extension().and_then(|e| e.to_str()) != Some("app") {
         let _ = std::fs::remove_dir_all(&stage_dir);
-        return UpdateStatus::Error("Not running as a macOS .app bundle. Automatic update disabled in dev mode.".to_string());
+        return UpdateStatus::Error(
+            "Not running as a macOS .app bundle. Automatic update disabled in dev mode."
+                .to_string(),
+        );
     }
 
     let parent_pid = std::process::id();
@@ -453,4 +494,22 @@ fn download_and_install_dmg(
     // the new bundle. The daemon polls our PID, so it waits for the clean exit.
     ctx.request_repaint();
     UpdateStatus::ReadyToRestart
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn passive_check_failures_do_not_show_persistent_bubble() {
+        assert!(!UpdateStatus::CheckFailed("network: timeout".to_string()).shows_bubble());
+        assert!(UpdateStatus::Error("download: failed".to_string()).shows_bubble());
+        assert!(UpdateStatus::UpdateAvailable {
+            current: "0.4.2".to_string(),
+            latest: "0.4.3".to_string(),
+            dmg_url: None,
+            url: "https://example.test".to_string(),
+        }
+        .shows_bubble());
+    }
 }

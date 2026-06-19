@@ -1,7 +1,12 @@
-use crate::ai::schema::TableContext;
 use crate::storage::settings::AppSettings;
 
-fn build_prompt(natural_language: &str, schema: &[TableContext], send_schema: bool) -> String {
+use super::schema::TableContext;
+
+pub(crate) fn build_prompt_from_tables(
+    natural_language: &str,
+    schema: &[TableContext],
+    send_schema: bool,
+) -> String {
     let mut prompt = String::from(
         "You are a PostgreSQL expert. Convert the user's request into a single SQL statement.\n\
          Return ONLY the SQL — no markdown fences, no explanation.\n\
@@ -24,9 +29,35 @@ fn build_prompt(natural_language: &str, schema: &[TableContext], send_schema: bo
             }
         }
         if schema.len() > 80 {
-            prompt.push_str(&format!("... and {} more tables omitted\n", schema.len() - 80));
+            prompt.push_str(&format!(
+                "... and {} more tables omitted\n",
+                schema.len() - 80
+            ));
         }
         prompt.push('\n');
+    }
+
+    prompt.push_str("User request:\n");
+    prompt.push_str(natural_language.trim());
+    prompt.push_str("\n\nSQL:");
+    prompt
+}
+
+pub(crate) fn build_prompt_from_text_schema(
+    natural_language: &str,
+    schema: &str,
+    send_schema: bool,
+) -> String {
+    let mut prompt = String::from(
+        "You are a PostgreSQL expert. Convert the user's request into a single SQL statement.\n\
+         Return ONLY the SQL — no markdown fences, no explanation.\n\
+         Use standard PostgreSQL syntax. Qualify tables with schema when known.\n\n",
+    );
+
+    if send_schema && !schema.trim().is_empty() {
+        prompt.push_str("Database schema:\n");
+        prompt.push_str(schema.trim());
+        prompt.push_str("\n\n");
     }
 
     prompt.push_str("User request:\n");
@@ -75,12 +106,12 @@ fn api_key_for_backend(backend: &str, configured: &str) -> Option<String> {
     }
 }
 
-fn call_openai(
-    endpoint: &str,
-    api_key: &str,
-    model: &str,
-    prompt: &str,
-) -> Result<String, String> {
+#[cfg(test)]
+pub(crate) fn backend_requires_api_key(backend: &str) -> bool {
+    matches!(backend, "OpenAI" | "Anthropic")
+}
+
+fn call_openai(endpoint: &str, api_key: &str, model: &str, prompt: &str) -> Result<String, String> {
     let body = serde_json::json!({
         "model": model,
         "messages": [
@@ -164,8 +195,35 @@ fn call_ollama(endpoint: &str, model: &str, prompt: &str) -> Result<String, Stri
     Err("Local LLM response missing content".to_string())
 }
 
-/// Generate SQL from natural language using configured AI backend.
-pub fn generate_sql(
+fn default_model(settings: &AppSettings) -> String {
+    if settings.ai_model.trim().is_empty() {
+        "llama3.2".to_string()
+    } else {
+        settings.ai_model.clone()
+    }
+}
+
+fn call_backend(settings: &AppSettings, prompt: &str) -> Result<String, String> {
+    let endpoint = endpoint_for_backend(&settings.ai_backend, &settings.ai_endpoint);
+    let model = default_model(settings);
+
+    match settings.ai_backend.as_str() {
+        "OpenAI" => {
+            let key = api_key_for_backend("OpenAI", &settings.ai_api_key)
+                .ok_or_else(|| "Set an OpenAI API key in Settings -> AI Assist.".to_string())?;
+            call_openai(&endpoint, &key, &model, prompt)
+        }
+        "Anthropic" => {
+            let key = api_key_for_backend("Anthropic", &settings.ai_api_key)
+                .ok_or_else(|| "Set an Anthropic API key in Settings -> AI Assist.".to_string())?;
+            call_anthropic(&endpoint, &key, &model, prompt)
+        }
+        _ => call_ollama(&endpoint, &model, prompt),
+    }
+}
+
+/// Generate SQL from natural language using configured AI backend and table metadata.
+pub(crate) fn generate_sql_from_tables(
     natural_language: &str,
     schema: &[TableContext],
     settings: &AppSettings,
@@ -174,27 +232,60 @@ pub fn generate_sql(
         return Err("Enter a description of the query you want.".to_string());
     }
 
-    let prompt = build_prompt(natural_language, schema, settings.ai_send_schema);
-    let endpoint = endpoint_for_backend(&settings.ai_backend, &settings.ai_endpoint);
-    let model = if settings.ai_model.trim().is_empty() {
-        "llama3.2".to_string()
-    } else {
-        settings.ai_model.clone()
-    };
+    let prompt = build_prompt_from_tables(natural_language, schema, settings.ai_send_schema);
+    call_backend(settings, &prompt)
+}
 
-    match settings.ai_backend.as_str() {
-        "OpenAI" => {
-            let key = api_key_for_backend("OpenAI", &settings.ai_api_key)
-                .ok_or_else(|| "Set an OpenAI API key in Settings → AI Assist.".to_string())?;
-            call_openai(&endpoint, &key, &model, &prompt)
-        }
-        "Anthropic" => {
-            let key = api_key_for_backend("Anthropic", &settings.ai_api_key)
-                .ok_or_else(|| "Set an Anthropic API key in Settings → AI Assist.".to_string())?;
-            call_anthropic(&endpoint, &key, &model, &prompt)
-        }
-        _ => call_ollama(&endpoint, &model, &prompt),
+/// Generate SQL from natural language using a pre-rendered schema string.
+pub(crate) fn generate_sql_from_text_schema(
+    natural_language: &str,
+    schema: &str,
+    settings: &AppSettings,
+) -> Result<String, String> {
+    if natural_language.trim().is_empty() {
+        return Err("Enter a description of the query you want.".to_string());
     }
+
+    let prompt = build_prompt_from_text_schema(natural_language, schema, settings.ai_send_schema);
+    call_backend(settings, &prompt)
+}
+
+pub(crate) fn fix_sql(
+    sql: &str,
+    error: &str,
+    schema: &str,
+    settings: &AppSettings,
+) -> Result<String, String> {
+    if sql.trim().is_empty() {
+        return Err("No SQL to fix.".to_string());
+    }
+    let mut prompt = String::from(
+        "You are a PostgreSQL expert. The user's SQL failed. Return ONLY one corrected PostgreSQL statement.\n\
+         No markdown fences, no prose.\n\n",
+    );
+    if settings.ai_send_schema && !schema.trim().is_empty() {
+        prompt.push_str("Database schema:\n");
+        prompt.push_str(schema.trim());
+        prompt.push_str("\n\n");
+    }
+    prompt.push_str("Failed SQL:\n");
+    prompt.push_str(sql.trim());
+    prompt.push_str("\n\nPostgres error:\n");
+    prompt.push_str(error.trim());
+    prompt.push_str("\n\nSQL:");
+    call_backend(settings, &prompt)
+}
+
+pub(crate) fn interpret_plan(plan_text: &str, settings: &AppSettings) -> Result<String, String> {
+    if plan_text.trim().is_empty() {
+        return Err("No EXPLAIN plan to interpret.".to_string());
+    }
+    let prompt = format!(
+        "You are a PostgreSQL performance expert. Given this EXPLAIN plan, \
+         give a short, concrete diagnosis with bottleneck nodes and specific index or rewrite suggestions. \
+         Plain text, no markdown.\n\n{plan_text}"
+    );
+    call_backend(settings, &prompt)
 }
 
 #[cfg(test)]
@@ -203,10 +294,7 @@ mod tests {
 
     #[test]
     fn strip_fences_removes_markdown() {
-        assert_eq!(
-            strip_fences("```sql\nSELECT 1;\n```"),
-            "SELECT 1;"
-        );
+        assert_eq!(strip_fences("```sql\nSELECT 1;\n```"), "SELECT 1;");
     }
 
     #[test]
@@ -216,8 +304,16 @@ mod tests {
             table: "users".to_string(),
             columns: vec![("id".to_string(), "integer".to_string())],
         }];
-        let prompt = build_prompt("show users", &schema, true);
+        let prompt = build_prompt_from_tables("show users", &schema, true);
         assert!(prompt.contains("public.users"));
         assert!(prompt.contains("show users"));
+    }
+
+    #[test]
+    fn local_backend_does_not_require_api_key() {
+        assert!(!backend_requires_api_key("Local"));
+        assert!(!backend_requires_api_key("Ollama"));
+        assert!(backend_requires_api_key("OpenAI"));
+        assert!(backend_requires_api_key("Anthropic"));
     }
 }

@@ -9,8 +9,8 @@ use eframe::egui::{self, Margin, RichText, Stroke};
 
 use crate::i18n::t;
 use crate::state::AppState;
-use crate::ui::theme;
 use crate::storage::history::HistoryEntry;
+use crate::ui::theme;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SortColumn {
@@ -41,9 +41,20 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
         .show(ctx, |ui| {
             // Threshold slider
             ui.horizontal(|ui| {
-                ui.label(RichText::new(t("monitoring_threshold")).color(theme::text_secondary()).size(12.0));
+                ui.label(
+                    RichText::new(t("monitoring_threshold"))
+                        .color(theme::text_secondary())
+                        .size(12.0),
+                );
                 let mut threshold_ms = state.diag_slow_query_ms;
-                if ui.add(egui::DragValue::new(&mut threshold_ms).range(50..=10_000).suffix(" ms")).changed() {
+                if ui
+                    .add(
+                        egui::DragValue::new(&mut threshold_ms)
+                            .range(50..=10_000)
+                            .suffix(" ms"),
+                    )
+                    .changed()
+                {
                     state.diag_slow_query_ms = threshold_ms;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -59,16 +70,28 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
             // Render header row
             egui::Frame::new()
                 .fill(theme::bg_light())
-                .inner_margin(Margin::symmetric(theme::SPACE_SM as i8, theme::SPACE_XS as i8))
+                .inner_margin(Margin::symmetric(
+                    theme::SPACE_SM as i8,
+                    theme::SPACE_XS as i8,
+                ))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        if ui.selectable_label(false, format!("{} ↕", t("monitoring_time"))).clicked() {
+                        if ui
+                            .selectable_label(false, format!("{} ↕", t("monitoring_time")))
+                            .clicked()
+                        {
                             sort = SortColumn::Timestamp;
                         }
-                        if ui.selectable_label(true, format!("{} ↕", t("monitoring_duration"))).clicked() {
+                        if ui
+                            .selectable_label(true, format!("{} ↕", t("monitoring_duration")))
+                            .clicked()
+                        {
                             sort = SortColumn::Duration;
                         }
-                        if ui.selectable_label(false, format!("{} ↕", t("monitoring_rows"))).clicked() {
+                        if ui
+                            .selectable_label(false, format!("{} ↕", t("monitoring_rows")))
+                            .clicked()
+                        {
                             sort = SortColumn::Rows;
                         }
                     });
@@ -81,9 +104,15 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                 .filter(|e| e.duration_ms >= state.diag_slow_query_ms as u128)
                 .collect();
             match sort {
-                SortColumn::Timestamp => entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)),
-                SortColumn::Duration => entries.sort_by(|a, b| b.duration_ms.cmp(&a.duration_ms)),
-                SortColumn::Rows => entries.sort_by(|a, b| b.row_count.cmp(&a.row_count)),
+                SortColumn::Timestamp => {
+                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
+                }
+                SortColumn::Duration => {
+                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration_ms));
+                }
+                SortColumn::Rows => {
+                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.row_count));
+                }
             }
 
             egui::ScrollArea::vertical()
@@ -109,7 +138,12 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                             .collect::<String>()
                             .replace('\n', " ");
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(time).color(theme::text_disabled()).size(10.5).monospace());
+                            ui.label(
+                                RichText::new(time)
+                                    .color(theme::text_disabled())
+                                    .size(10.5)
+                                    .monospace(),
+                            );
                             ui.label(
                                 RichText::new(format!("{} ms", entry.duration_ms))
                                     .color(theme::ACCENT_RED)
@@ -117,7 +151,12 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                                     .size(11.0)
                                     .monospace(),
                             );
-                            ui.label(RichText::new(format!("{}", entry.row_count)).color(theme::text_muted()).size(11.0).monospace());
+                            ui.label(
+                                RichText::new(format!("{}", entry.row_count))
+                                    .color(theme::text_muted())
+                                    .size(11.0)
+                                    .monospace(),
+                            );
                             ui.label(
                                 RichText::new(preview)
                                     .color(theme::text_secondary())

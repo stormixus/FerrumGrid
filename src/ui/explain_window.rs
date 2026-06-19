@@ -21,16 +21,28 @@ pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState, settings
     };
 
     // AI 조언 작업 결과 수거.
-    if let Some(res) = state.explain_advice_job.lock().ok().and_then(|mut g| g.result.take()) {
+    if let Some(res) = state
+        .explain_advice_job
+        .lock()
+        .ok()
+        .and_then(|mut g| g.result.take())
+    {
         match res {
             Ok(advice) => state.explain_advice = Some(advice),
             Err(e) => state.explain_advice = Some(format!("AI error: {e}")),
         }
     }
-    let advice_running = state.explain_advice_job.lock().map(|g| g.running).unwrap_or(false);
+    let advice_running = state
+        .explain_advice_job
+        .lock()
+        .map(|g| g.running)
+        .unwrap_or(false);
 
     // 트리 전체에서 최대 비용 — heat 색상 기준.
     let max_cost = max_total_cost(&plan).unwrap_or(0.0);
+    let mut plan_text = String::new();
+    plan_to_text(&plan, 0, &mut plan_text);
+    let index_recommendations = recommend_indexes_from_plan(&plan_text);
 
     let mut open = true;
     let mut interpret = false;
@@ -48,7 +60,10 @@ pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState, settings
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
-                        .add_enabled(!advice_running, theme::secondary_button(&t("explain_interpret")))
+                        .add_enabled(
+                            !advice_running,
+                            theme::secondary_button(&t("explain_interpret")),
+                        )
                         .clicked()
                     {
                         interpret = true;
@@ -63,6 +78,25 @@ pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState, settings
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     render_node(ui, &plan, 0, max_cost);
+                    if !index_recommendations.is_empty() {
+                        ui.add_space(theme::SPACE_MD);
+                        ui.separator();
+                        ui.label(
+                            RichText::new("Index recommendations")
+                                .color(theme::ACCENT_YELLOW)
+                                .strong()
+                                .size(12.0),
+                        );
+                        ui.add_space(theme::SPACE_XS);
+                        for recommendation in &index_recommendations {
+                            ui.label(
+                                RichText::new(recommendation)
+                                    .color(theme::text_secondary())
+                                    .monospace()
+                                    .size(11.0),
+                            );
+                        }
+                    }
                     if let Some(advice) = &state.explain_advice {
                         ui.add_space(theme::SPACE_MD);
                         ui.separator();
@@ -73,7 +107,11 @@ pub fn render_explain_window(ctx: &egui::Context, state: &mut AppState, settings
                                 .size(12.0),
                         );
                         ui.add_space(theme::SPACE_XS);
-                        ui.label(RichText::new(advice).size(11.5).color(theme::text_secondary()));
+                        ui.label(
+                            RichText::new(advice)
+                                .size(11.5)
+                                .color(theme::text_secondary()),
+                        );
                     }
                 });
         });
@@ -212,7 +250,7 @@ pub fn recommend_indexes_from_plan(plan_text: &str) -> Vec<String> {
         let trimmed = line.trim_start();
         if let Some(rest) = trimmed.strip_prefix("Seq Scan on ") {
             if let Some(name) = rest.split_whitespace().next() {
-                current_table = Some(name.split('.').last().unwrap_or(name).to_string());
+                current_table = Some(name.split('.').next_back().unwrap_or(name).to_string());
             }
         } else if let Some(rest) = trimmed.strip_prefix("Index Scan using ") {
             if let Some(idx) = rest.split_whitespace().next() {

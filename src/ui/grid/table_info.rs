@@ -14,7 +14,11 @@ use super::info_panel::{info_section_label, tiny_badge, value_box, TableInfoCont
 use super::info_row::render_info_empty;
 use super::metric_chip;
 
-pub(super) fn ensure_table_info_metadata(state: &mut AppState, bridge: &DbBridge, source: &DataSource) {
+pub(super) fn ensure_table_info_metadata(
+    state: &mut AppState,
+    bridge: &DbBridge,
+    source: &DataSource,
+) {
     let key = (source.schema.clone(), source.table.clone());
     let mut request_tables = false;
     let mut request_columns = false;
@@ -98,7 +102,10 @@ pub(super) fn ensure_table_info_metadata(state: &mut AppState, bridge: &DbBridge
     }
 }
 
-pub(super) fn table_info_context(state: &AppState, source: &DataSource) -> Option<TableInfoContext> {
+pub(super) fn table_info_context(
+    state: &AppState,
+    source: &DataSource,
+) -> Option<TableInfoContext> {
     let conn = state.connections.get(&source.conn_id)?;
     let key = (source.schema.clone(), source.table.clone());
     let table_meta = conn
@@ -189,9 +196,18 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
             .size(11.0),
     );
     ui.add_space(theme::SPACE_XS);
-    if ui.small_button("Copy name").clicked() {
-        ui.ctx().copy_text(context.source_label.clone());
-    }
+    ui.horizontal(|ui| {
+        if ui.small_button("Copy name").clicked() {
+            ui.ctx().copy_text(context.source_label.clone());
+        }
+        generate_seed_sql_button(
+            ui,
+            &context.schema,
+            &context.table_name,
+            &context.columns,
+            10,
+        );
+    });
     if let Some(comment) = &context.table_comment {
         ui.add_space(theme::SPACE_XS);
         ui.label(
@@ -204,7 +220,11 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
     ui.add_space(theme::SPACE_SM);
 
     ui.horizontal_wrapped(|ui| {
-        metric_chip(ui, &context.table_type.to_lowercase(), theme::accent_color());
+        metric_chip(
+            ui,
+            &context.table_type.to_lowercase(),
+            theme::accent_color(),
+        );
         metric_chip(
             ui,
             &tf("data_info_columns_n", &[&context.columns.len().to_string()]),
@@ -258,6 +278,7 @@ pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoCo
     }
 
     for column in &context.columns {
+        let pii_column = crate::ui::grid::header::is_pii_column(&column.name);
         let relation = context.relations.iter().find(|fk| {
             fk.source_schema == context.schema
                 && fk.source_table == context.table_name
@@ -292,7 +313,22 @@ pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoCo
                     if column.is_nullable {
                         tiny_badge(ui, "NULL", theme::text_muted());
                     }
+                    if pii_column {
+                        tiny_badge(ui, "PII", theme::ACCENT_RED);
+                    }
                 });
+                if pii_column {
+                    ui.add_space(theme::SPACE_XS);
+                    ui.label(
+                        RichText::new(format!(
+                            "PII mask preview: {}",
+                            crate::ui::grid::header::mask_value("sample@example.com")
+                        ))
+                        .color(theme::text_muted())
+                        .monospace()
+                        .size(10.0),
+                    );
+                }
                 if let Some(default_value) = &column.default_value {
                     ui.add_space(theme::SPACE_XS);
                     ui.label(
@@ -472,11 +508,16 @@ pub(super) fn compact_metadata_row(
     ui.add_space(theme::SPACE_SM);
 }
 
-
 /// Generate SQL for the table using test_data module.
-pub fn generate_seed_sql_button(ui: &mut egui::Ui, table: &str, columns: &[crate::types::ColumnInfo], rows: usize) {
+pub fn generate_seed_sql_button(
+    ui: &mut egui::Ui,
+    schema: &str,
+    table: &str,
+    columns: &[crate::types::ColumnInfo],
+    rows: usize,
+) {
     if ui.small_button("Seed").clicked() {
-        let sql = crate::db::test_data::generate_inserts("public", table, columns, rows);
+        let sql = crate::db::test_data::generate_inserts(schema, table, columns, rows);
         ui.ctx().copy_text(sql);
     }
 }

@@ -90,7 +90,8 @@ impl FerrumGridApp {
         // Initialize i18n system
         init_with_saved(Some(&settings.language));
 
-        settings.dark_mode = ui::theme::apply_appearance(&cc.egui_ctx, &settings.appearance, &settings.accent_color);
+        settings.dark_mode =
+            ui::theme::apply_appearance(&cc.egui_ctx, &settings.appearance, &settings.accent_color);
         cc.egui_ctx
             .send_viewport_cmd(egui::ViewportCommand::Icon(Some(Arc::new(
                 crate::app_icon::icon_for_dark_mode(settings.dark_mode),
@@ -133,7 +134,7 @@ impl FerrumGridApp {
             saved_connections,
             vault,
             query_history: history.clone(),
-            saved_snippets: storage::snippets::load_snippets(),
+            snippets: storage::snippets::load_snippets(),
             backup_history,
             ..Default::default()
         };
@@ -141,7 +142,9 @@ impl FerrumGridApp {
         crate::dock_menu::install();
 
         let mut update_check = crate::updater::UpdateCheck::default();
-        update_check.start();
+        if should_start_update_check(&settings) {
+            update_check.start();
+        }
 
         Self {
             state: app_state,
@@ -481,7 +484,10 @@ impl FerrumGridApp {
                     self.toasts
                         .success(format!("Restore completed from {}", file_path.display()));
                 }
-                DbResponse::RestoreFailed { file_path: _, error } => {
+                DbResponse::RestoreFailed {
+                    file_path: _,
+                    error,
+                } => {
                     if let Some(ref mut dialog) = self.state.restore_confirm_dialog {
                         dialog.running = false;
                         dialog.completed = true;
@@ -549,10 +555,11 @@ impl FerrumGridApp {
                     self.state.status_message = format!(
                         "Schema diff: {added} added, {modified} modified, {removed} removed"
                     );
+                    self.state.schema_diff_rows = ui::schema_diff_window::diff_to_rows(&diff);
                     self.state.migration_wizard.diff = Some(diff);
-                    self.state.migration_wizard.go_to(
-                        crate::state::migration::MigrationStep::DiffResult,
-                    );
+                    self.state
+                        .migration_wizard
+                        .go_to(crate::state::migration::MigrationStep::DiffResult);
                 }
                 DbResponse::SchemaDiffError { error } => {
                     self.state.migration_wizard.loading_diff = false;
@@ -562,9 +569,9 @@ impl FerrumGridApp {
                 DbResponse::MigrationApplied => {
                     self.state.migration_wizard.applying = false;
                     self.state.migration_wizard.apply_success = true;
-                    self.state.migration_wizard.go_to(
-                        crate::state::migration::MigrationStep::Complete,
-                    );
+                    self.state
+                        .migration_wizard
+                        .go_to(crate::state::migration::MigrationStep::Complete);
                     self.state.status_message = "Migration applied successfully".to_string();
                     self.toasts
                         .info("Migration applied successfully")
@@ -618,10 +625,16 @@ impl FerrumGridApp {
                         self.state.query_running = true;
                     }
                 }
-                DbResponse::SessionList { conn_id: _, sessions } => {
+                DbResponse::SessionList {
+                    conn_id: _,
+                    sessions,
+                } => {
                     self.state.sessions = sessions;
                 }
-                DbResponse::CatalogList { conn_id: _, catalog } => {
+                DbResponse::CatalogList {
+                    conn_id: _,
+                    catalog,
+                } => {
                     self.state.catalog = Some(catalog);
                 }
                 DbResponse::GrantList { conn_id: _, grants } => {
@@ -633,7 +646,11 @@ impl FerrumGridApp {
                     terminated,
                     ok,
                 } => {
-                    let verb = if terminated { "terminated" } else { "cancelled" };
+                    let verb = if terminated {
+                        "terminated"
+                    } else {
+                        "cancelled"
+                    };
                     if ok {
                         self.toasts.info(format!("Backend {pid} {verb}"));
                     } else {
@@ -765,7 +782,10 @@ impl eframe::App for FerrumGridApp {
                         }
                         self.state.diagnostics_panel.push_dangling_tx(
                             crate::ui::diagnostics_panel::DiagSeverity::Error,
-                            format!("Forced ROLLBACK after {}s idle in transaction", elapsed.as_secs()),
+                            format!(
+                                "Forced ROLLBACK after {}s idle in transaction",
+                                elapsed.as_secs()
+                            ),
                         );
                         self.toasts.error("Transaction auto-rolled back after 60s");
                         self.state.explicit_tx_active = false;
@@ -777,9 +797,13 @@ impl eframe::App for FerrumGridApp {
                             self.state.explicit_tx_warned = true;
                             self.state.diagnostics_panel.push_dangling_tx(
                                 crate::ui::diagnostics_panel::DiagSeverity::Warn,
-                                format!("Transaction idle for {}s — auto-ROLLBACK at 60s", elapsed.as_secs()),
+                                format!(
+                                    "Transaction idle for {}s — auto-ROLLBACK at 60s",
+                                    elapsed.as_secs()
+                                ),
                             );
-                            self.toasts.warning(format!("Transaction idle for {}s", elapsed.as_secs()));
+                            self.toasts
+                                .warning(format!("Transaction idle for {}s", elapsed.as_secs()));
                         }
                     }
                     crate::db::dangling_tx::DanglingTxStatus::Ok => {}
@@ -846,7 +870,7 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
-ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
+        ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
         ui::ai_assist_dialog::poll_ai_assist(&mut self.state);
         ui::ai_assist_dialog::render_ai_assist_dialog(ctx, &mut self.state, &self.settings);
         ui::snippet_save_dialog::render_snippet_save_dialog(ctx, &mut self.state);
@@ -858,8 +882,8 @@ ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         ui::explain_window::render_explain_window(ctx, &mut self.state, &self.settings);
         ui::monitoring::render_monitoring_window(ctx, &mut self.state);
-        ui::session_monitor::render_session_monitor(ctx, &mut self.state);
-        ui::schema_diff_window::render_schema_diff_window(ctx, &mut self.state);
+        ui::session_monitor::render_session_monitor(ctx, &mut self.state, bridge);
+        ui::schema_diff_window::render_schema_diff_window(ctx, &mut self.state, bridge);
         ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
         ui::catalog_window::render_catalog_window(ctx, &mut self.state, bridge);
         ui::privileges_window::render_privileges_window(ctx, &mut self.state, bridge);
@@ -914,6 +938,10 @@ ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
     }
 }
 
+fn should_start_update_check(settings: &storage::settings::AppSettings) -> bool {
+    settings.auto_check_updates && settings.check_frequency != "Never"
+}
+
 impl FerrumGridApp {
     fn handle_close_request(&mut self, ctx: &egui::Context) {
         if !ctx.input(|input| input.viewport().close_requested()) {
@@ -929,16 +957,8 @@ impl FerrumGridApp {
 
     fn render_update_bubble(&mut self, ctx: &egui::Context) {
         let status = &self.update_check.status;
-        
-        let show = matches!(
-            status,
-            crate::updater::UpdateStatus::UpdateAvailable { .. }
-                | crate::updater::UpdateStatus::Downloading { .. }
-                | crate::updater::UpdateStatus::Installing { .. }
-                | crate::updater::UpdateStatus::Error(_)
-        );
-        
-        if !show {
+
+        if !status.shows_bubble() {
             return;
         }
 
@@ -952,7 +972,10 @@ impl FerrumGridApp {
             .anchor(egui::Align2::LEFT_BOTTOM, offset)
             .show(ctx, |ui| {
                 let frame = egui::Frame::new()
-                    .fill(crate::ui::theme::with_alpha(crate::ui::theme::BG_SHELL, 245))
+                    .fill(crate::ui::theme::with_alpha(
+                        crate::ui::theme::BG_SHELL,
+                        245,
+                    ))
                     .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
                     .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_LG))
                     .inner_margin(egui::Margin::symmetric(14, 10))
@@ -970,18 +993,40 @@ impl FerrumGridApp {
                         // 1. Icon (emerald circle, yellow error, or spinner)
                         match &self.update_check.status {
                             crate::updater::UpdateStatus::UpdateAvailable { .. } => {
-                                let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
-                                ui.painter().circle_filled(rect.center(), 9.0, crate::ui::theme::ACCENT_EMERALD_DIM);
-                                ui.painter().circle_filled(rect.center(), 4.0, crate::ui::theme::ACCENT_EMERALD);
+                                let (rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(18.0, 18.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().circle_filled(
+                                    rect.center(),
+                                    9.0,
+                                    crate::ui::theme::ACCENT_EMERALD_DIM,
+                                );
+                                ui.painter().circle_filled(
+                                    rect.center(),
+                                    4.0,
+                                    crate::ui::theme::ACCENT_EMERALD,
+                                );
                             }
                             crate::updater::UpdateStatus::Downloading { .. }
                             | crate::updater::UpdateStatus::Installing { .. } => {
                                 ui.add(egui::Spinner::new().size(16.0));
                             }
                             crate::updater::UpdateStatus::Error(_) => {
-                                let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
-                                ui.painter().circle_filled(rect.center(), 9.0, crate::ui::theme::ACCENT_RED_DIM);
-                                ui.painter().circle_filled(rect.center(), 4.0, crate::ui::theme::ACCENT_RED);
+                                let (rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(18.0, 18.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().circle_filled(
+                                    rect.center(),
+                                    9.0,
+                                    crate::ui::theme::ACCENT_RED_DIM,
+                                );
+                                ui.painter().circle_filled(
+                                    rect.center(),
+                                    4.0,
+                                    crate::ui::theme::ACCENT_RED,
+                                );
                             }
                             _ => {}
                         }
@@ -990,7 +1035,11 @@ impl FerrumGridApp {
                         ui.vertical(|ui| {
                             ui.spacing_mut().item_spacing.y = 2.0;
                             match &self.update_check.status {
-                                crate::updater::UpdateStatus::UpdateAvailable { latest, dmg_url, .. } => {
+                                crate::updater::UpdateStatus::UpdateAvailable {
+                                    latest,
+                                    dmg_url,
+                                    ..
+                                } => {
                                     ui.label(
                                         egui::RichText::new("Update Available")
                                             .color(crate::ui::theme::TEXT_PRIMARY)
@@ -1030,9 +1079,12 @@ impl FerrumGridApp {
                                             .size(13.0),
                                     );
                                     ui.label(
-                                        egui::RichText::new(format!("Extracting & preparing v{}...", latest))
-                                            .color(crate::ui::theme::TEXT_MUTED)
-                                            .size(11.0),
+                                        egui::RichText::new(format!(
+                                            "Extracting & preparing v{}...",
+                                            latest
+                                        ))
+                                        .color(crate::ui::theme::TEXT_MUTED)
+                                        .size(11.0),
                                     );
                                 }
                                 crate::updater::UpdateStatus::Error(err) => {
@@ -1064,7 +1116,12 @@ impl FerrumGridApp {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;
                             match &self.update_check.status {
-                                crate::updater::UpdateStatus::UpdateAvailable { latest, dmg_url, url, .. } => {
+                                crate::updater::UpdateStatus::UpdateAvailable {
+                                    latest,
+                                    dmg_url,
+                                    url,
+                                    ..
+                                } => {
                                     let latest = latest.clone();
                                     let dmg_url = dmg_url.clone();
                                     let url = url.clone();
@@ -1074,43 +1131,55 @@ impl FerrumGridApp {
                                             egui::RichText::new("Update Now")
                                                 .color(egui::Color32::from_rgb(15, 15, 15))
                                                 .strong()
-                                                .size(11.0)
+                                                .size(11.0),
                                         )
                                         .fill(crate::ui::theme::ACCENT_EMERALD)
-                                        .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
-                                        
+                                        .corner_radius(egui::CornerRadius::same(
+                                            crate::ui::theme::RADIUS_MD,
+                                        ));
+
                                         if ui.add(btn).clicked() {
-                                            self.update_check.start_update(dmg_url, latest, ctx.clone());
+                                            self.update_check.start_update(
+                                                dmg_url,
+                                                latest,
+                                                ctx.clone(),
+                                            );
                                         }
                                     } else {
                                         let btn = egui::Button::new(
                                             egui::RichText::new("Download")
                                                 .color(egui::Color32::from_rgb(15, 15, 15))
                                                 .strong()
-                                                .size(11.0)
+                                                .size(11.0),
                                         )
                                         .fill(crate::ui::theme::ACCENT_EMERALD)
-                                        .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
-                                        
+                                        .corner_radius(egui::CornerRadius::same(
+                                            crate::ui::theme::RADIUS_MD,
+                                        ));
+
                                         if ui.add(btn).clicked() {
                                             let _ = std::process::Command::new("open")
                                                 .arg(&url)
                                                 .spawn();
-                                            self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                            self.update_check.status =
+                                                crate::updater::UpdateStatus::Idle;
                                         }
                                     }
 
                                     let dismiss_btn = egui::Button::new(
                                         egui::RichText::new("Dismiss")
                                             .color(crate::ui::theme::TEXT_MUTED)
-                                            .size(11.0)
+                                            .size(11.0),
                                     )
                                     .fill(egui::Color32::TRANSPARENT)
                                     .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
-                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+                                    .corner_radius(egui::CornerRadius::same(
+                                        crate::ui::theme::RADIUS_MD,
+                                    ));
 
                                     if ui.add(dismiss_btn).clicked() {
-                                        self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                        self.update_check.status =
+                                            crate::updater::UpdateStatus::Idle;
                                     }
                                 }
                                 crate::updater::UpdateStatus::Downloading { .. }
@@ -1118,25 +1187,30 @@ impl FerrumGridApp {
                                     let btn = egui::Button::new(
                                         egui::RichText::new("Processing...")
                                             .color(crate::ui::theme::TEXT_DISABLED)
-                                            .size(11.0)
+                                            .size(11.0),
                                     )
                                     .fill(crate::ui::theme::BG_LIGHT)
-                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
-                                    
+                                    .corner_radius(
+                                        egui::CornerRadius::same(crate::ui::theme::RADIUS_MD),
+                                    );
+
                                     ui.add_enabled(false, btn);
                                 }
                                 crate::updater::UpdateStatus::Error(_) => {
                                     let dismiss_btn = egui::Button::new(
                                         egui::RichText::new("Close")
                                             .color(crate::ui::theme::TEXT_MUTED)
-                                            .size(11.0)
+                                            .size(11.0),
                                     )
                                     .fill(egui::Color32::TRANSPARENT)
                                     .stroke(egui::Stroke::new(1.0, crate::ui::theme::BORDER_STRONG))
-                                    .corner_radius(egui::CornerRadius::same(crate::ui::theme::RADIUS_MD));
+                                    .corner_radius(egui::CornerRadius::same(
+                                        crate::ui::theme::RADIUS_MD,
+                                    ));
 
                                     if ui.add(dismiss_btn).clicked() {
-                                        self.update_check.status = crate::updater::UpdateStatus::Idle;
+                                        self.update_check.status =
+                                            crate::updater::UpdateStatus::Idle;
                                     }
                                 }
                                 _ => {}
@@ -1161,4 +1235,17 @@ fn show_main_window(ctx: &egui::Context) {
     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn startup_update_check_respects_auto_check_setting() {
+        let settings = storage::settings::AppSettings {
+            auto_check_updates: false,
+            ..Default::default()
+        };
+
+        assert!(!should_start_update_check(&settings));
+    }
+}

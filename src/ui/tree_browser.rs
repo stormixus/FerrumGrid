@@ -23,19 +23,45 @@ pub fn render_tree(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
         TreePanelTab::Roles => {
             ui.add_space(theme::SPACE_XXL);
             ui.vertical_centered(|ui| {
-                ui.label(RichText::new("R").monospace().size(20.0).color(theme::ACCENT_RED));
+                ui.label(
+                    RichText::new("R")
+                        .monospace()
+                        .size(20.0)
+                        .color(theme::ACCENT_RED),
+                );
                 ui.add_space(theme::SPACE_SM);
-                ui.label(RichText::new(t("tree_roles_title")).color(theme::text_muted()).size(12.0));
-                ui.label(RichText::new(t("tree_roles_desc")).color(theme::text_disabled()).size(11.0));
+                ui.label(
+                    RichText::new(t("tree_roles_title"))
+                        .color(theme::text_muted())
+                        .size(12.0),
+                );
+                ui.label(
+                    RichText::new(t("tree_roles_desc"))
+                        .color(theme::text_disabled())
+                        .size(11.0),
+                );
             });
         }
         TreePanelTab::History => {
             ui.add_space(theme::SPACE_XXL);
             ui.vertical_centered(|ui| {
-                ui.label(RichText::new("H").monospace().size(20.0).color(theme::ACCENT_BLUE));
+                ui.label(
+                    RichText::new("H")
+                        .monospace()
+                        .size(20.0)
+                        .color(theme::ACCENT_BLUE),
+                );
                 ui.add_space(theme::SPACE_SM);
-                ui.label(RichText::new(t("tree_history_title")).color(theme::text_muted()).size(12.0));
-                ui.label(RichText::new(t("tree_history_desc")).color(theme::text_disabled()).size(11.0));
+                ui.label(
+                    RichText::new(t("tree_history_title"))
+                        .color(theme::text_muted())
+                        .size(12.0),
+                );
+                ui.label(
+                    RichText::new(t("tree_history_desc"))
+                        .color(theme::text_disabled())
+                        .size(11.0),
+                );
             });
         }
         TreePanelTab::Snippets => render_snippets_panel(ui, state),
@@ -69,17 +95,29 @@ fn render_snippets_panel(ui: &mut egui::Ui, state: &mut AppState) {
         .unwrap_or_default();
     let can_save = !current_sql.is_empty();
     if ui
-        .add_enabled(can_save, theme::secondary_button(&t("snippet_save_current")))
+        .add_enabled(
+            can_save,
+            theme::secondary_button(&t("snippet_save_current")),
+        )
         .clicked()
     {
         let name = if state.snippet_draft_name.trim().is_empty() {
-            current_sql.lines().next().unwrap_or("snippet").chars().take(40).collect()
+            current_sql
+                .lines()
+                .next()
+                .unwrap_or("snippet")
+                .chars()
+                .take(40)
+                .collect()
         } else {
             state.snippet_draft_name.trim().to_string()
         };
         state
             .snippets
-            .push(crate::storage::snippets::SnippetEntry::new(name, current_sql));
+            .push(crate::storage::snippets::SnippetEntry::new(
+                name,
+                current_sql,
+            ));
         state.snippet_draft_name.clear();
         crate::storage::snippets::save_snippets(&state.snippets);
     }
@@ -138,8 +176,12 @@ fn render_snippets_panel(ui: &mut egui::Ui, state: &mut AppState) {
                                 },
                             );
                         });
-                        let preview: String =
-                            snippet.body.chars().take(80).collect::<String>().replace('\n', " ");
+                        let preview: String = snippet
+                            .body
+                            .chars()
+                            .take(80)
+                            .collect::<String>()
+                            .replace('\n', " ");
                         ui.label(
                             RichText::new(preview)
                                 .color(theme::text_muted())
@@ -189,6 +231,8 @@ fn render_tree_schema(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge
         render_explorer_empty_space(ui, state, bridge);
         return;
     }
+
+    render_plugin_tree_entries(ui, state);
 
     let conn_ids: Vec<ConnectionId> = state.connections.keys().copied().collect();
     for conn_id in conn_ids {
@@ -618,6 +662,47 @@ fn render_connection_context_menu(
     }
 }
 
+fn render_plugin_tree_entries(ui: &mut egui::Ui, state: &mut AppState) {
+    let labels = state.plugins.tree_labels();
+    if labels.is_empty() {
+        return;
+    }
+    let plugins = state.plugins.plugins().to_vec();
+    let mut status_message = None;
+
+    ui.add_space(theme::SPACE_XS);
+    ui.label(
+        RichText::new("Plugins")
+            .color(theme::text_muted())
+            .strong()
+            .size(10.5),
+    );
+    ui.add_space(theme::SPACE_XS);
+    for plugin in plugins {
+        if let Some(label) = plugin.tree_menu_label() {
+            let response = ui
+                .add(
+                    egui::Label::new(
+                        RichText::new(format!("{} · {}", label, plugin.name()))
+                            .color(theme::text_secondary())
+                            .size(11.0),
+                    )
+                    .sense(Sense::click()),
+                )
+                .on_hover_text("Run plugin tree action");
+            if response.clicked() {
+                status_message = plugin.on_tree_menu_click();
+            }
+        }
+    }
+    if let Some(message) = status_message {
+        state.status_message = message;
+    }
+    ui.add_space(theme::SPACE_SM);
+    ui.separator();
+    ui.add_space(theme::SPACE_SM);
+}
+
 fn render_explorer_empty_space(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge) {
     let width = ui.available_width().max(1.0);
     let available_height = ui.available_height();
@@ -952,8 +1037,8 @@ fn render_schema_node(
         false,
     )
     .set_open(schema_opened);
-    let schema_selected = state.objects_schema_filter == schema
-        && state.active_connection == Some(conn_id);
+    let schema_selected =
+        state.objects_schema_filter == schema && state.active_connection == Some(conn_id);
 
     let header_text = RichText::new(schema)
         .color(if schema_selected {
@@ -1454,7 +1539,6 @@ fn active_data_source_matches(
     table.is_none_or(|table| source.table == table)
 }
 
-
 fn render_table_group_node(
     ui: &mut egui::Ui,
     state: &mut AppState,
@@ -1586,7 +1670,11 @@ fn render_function_group_node(
         && state.objects_schema_filter == schema
         && matches!(state.active_main_view, MainView::Function);
     let header_text = RichText::new(t("tree_functions"))
-        .color(if fn_active { theme::text_primary() } else { theme::text_secondary() })
+        .color(if fn_active {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -1651,7 +1739,11 @@ fn render_query_group_node(
         && state.objects_schema_filter == schema
         && matches!(state.active_main_view, MainView::Query);
     let header_text = RichText::new(t("tree_queries"))
-        .color(if q_active { theme::text_primary() } else { theme::text_secondary() })
+        .color(if q_active {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        })
         .size(12.0);
 
     collapsing_node(
@@ -1718,7 +1810,11 @@ fn render_backups_group_node(
         && state.objects_schema_filter == schema
         && matches!(state.active_main_view, MainView::Backup);
     let header_text = RichText::new(t("tree_backups"))
-        .color(if bk_active { theme::text_primary() } else { theme::text_secondary() })
+        .color(if bk_active {
+            theme::text_primary()
+        } else {
+            theme::text_secondary()
+        })
         .size(12.0);
 
     let resp = collapsing_node(
@@ -1995,9 +2091,7 @@ fn render_table_node(
     // 에디터로 드래그 시 삽입할 정규화 식별자 페이로드.
     let drag_payload = format!("{}.{}", quote_ident(schema), quote_ident(table_name));
     resp.header_response
-        .dnd_set_drag_payload::<TableDragPayload>(TableDragPayload {
-            text: drag_payload,
-        });
+        .dnd_set_drag_payload::<TableDragPayload>(TableDragPayload { text: drag_payload });
 
     resp.header_response.context_menu(|ui| {
         if !matches!(table_type, "VIEW" | "MATERIALIZED VIEW") {
@@ -2699,11 +2793,9 @@ fn tree_icon_spec(icon_svg: &str) -> (&'static str, Color32, Color32) {
             theme::with_alpha(theme::accent_color(), 40),
             theme::accent_color(),
         ),
-        s if std::ptr::eq(s, icons_svg::SCHEMA) => (
-            "S",
-            theme::bg_light(),
-            theme::text_secondary(),
-        ),
+        s if std::ptr::eq(s, icons_svg::SCHEMA) => {
+            ("S", theme::bg_light(), theme::text_secondary())
+        }
         s if std::ptr::eq(s, icons_svg::TABLE) => (
             "T",
             theme::with_alpha(theme::accent_color(), 40),
@@ -2734,18 +2826,13 @@ fn tree_icon_spec(icon_svg: &str) -> (&'static str, Color32, Color32) {
             theme::with_alpha(theme::ACCENT_YELLOW, 40),
             theme::ACCENT_YELLOW,
         ),
-        _ => (
-            "\u{00B7}",
-            theme::bg_light(),
-            theme::text_muted(),
-        ),
+        _ => ("\u{00B7}", theme::bg_light(), theme::text_muted()),
     }
 }
 
 fn paint_letter_badge(ui: &mut egui::Ui, rect: egui::Rect, icon_svg: &str) {
     let (letter, bg, fg) = tree_icon_spec(icon_svg);
-    ui.painter()
-        .rect_filled(rect, CornerRadius::same(3), bg);
+    ui.painter().rect_filled(rect, CornerRadius::same(3), bg);
     ui.painter().text(
         rect.center(),
         egui::Align2::CENTER_CENTER,
@@ -2990,11 +3077,13 @@ fn collapsing_node(
             egui::vec2(16.0, 16.0),
         )),
         |ui| {
-            let (badge_rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+            let (badge_rect, _) =
+                ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
             if let Some(tint) = spec.icon_tint {
                 let (letter, _, _) = tree_icon_spec(spec.icon_svg);
                 let bg = theme::with_alpha(tint, 40);
-                ui.painter().rect_filled(badge_rect, CornerRadius::same(3), bg);
+                ui.painter()
+                    .rect_filled(badge_rect, CornerRadius::same(3), bg);
                 ui.painter().text(
                     badge_rect.center(),
                     egui::Align2::CENTER_CENTER,
