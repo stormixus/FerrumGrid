@@ -61,3 +61,4 @@ fn main() -> eframe::Result<()> {
         Box::new(|cc| Ok(Box::new(app::FerrumGridApp::new(cc)))),
     )
 }
+mod plugin;

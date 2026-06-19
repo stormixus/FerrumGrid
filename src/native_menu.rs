@@ -32,6 +32,10 @@ pub struct NativeMenu {
     er_diagram_id: MenuId,
     table_designer_id: MenuId,
     prisma_id: MenuId,
+    monitoring_id: MenuId,
+    session_monitor_id: MenuId,
+    schema_diff_id: MenuId,
+    new_window_id: MenuId,
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -203,6 +207,13 @@ impl NativeMenu {
         )
         .expect("failed to build FerrumGrid view menu");
 
+        let monitoring = MenuItem::with_id(
+            "monitoring",
+            crate::i18n::t("menu_monitoring"),
+            true,
+            None,
+        );
+
         let table_designer = MenuItem::with_id(
             "table_designer",
             crate::i18n::t("menu_table_designer"),
@@ -210,10 +221,28 @@ impl NativeMenu {
             None,
         );
         let prisma = MenuItem::with_id("prisma", crate::i18n::t("menu_prisma"), true, None);
+        let session_monitor = MenuItem::with_id(
+            "session_monitor",
+            crate::i18n::t("menu_session_monitor"),
+            true,
+            None,
+        );
+        let schema_diff = MenuItem::with_id(
+            "schema_diff",
+            crate::i18n::t("menu_schema_diff"),
+            true,
+            None,
+        );
+        let new_window = MenuItem::with_id(
+            "new_window",
+            crate::i18n::t("menu_new_window"),
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyN)),
+        );
         let tools_menu = Submenu::with_items(
             crate::i18n::t("menu_tools"),
             true,
-            &[&table_designer, &prisma],
+            &[&table_designer, &prisma, &monitoring, &session_monitor, &schema_diff, &new_window],
         )
         .expect("failed to build FerrumGrid tools menu");
 
@@ -271,6 +300,10 @@ impl NativeMenu {
             er_diagram_id: er_diagram.id().clone(),
             table_designer_id: table_designer.id().clone(),
             prisma_id: prisma.id().clone(),
+            monitoring_id: monitoring.id().clone(),
+            session_monitor_id: session_monitor.id().clone(),
+            schema_diff_id: schema_diff.id().clone(),
+            new_window_id: new_window.id().clone(),
         }
     }
 
@@ -355,6 +388,14 @@ impl NativeMenu {
                 crate::ui::table_designer::open_for_new_table(state);
             } else if id == &self.prisma_id {
                 crate::prisma::ui::open_prisma_window(state);
+            } else if id == &self.monitoring_id {
+                state.show_monitoring_window = true;
+            } else if id == &self.session_monitor_id {
+                state.show_session_monitor = true;
+            } else if id == &self.schema_diff_id {
+                state.show_schema_diff_window = true;
+            } else if id == &self.new_window_id {
+                crate::state::spawn_new_window();
             }
         }
         actions

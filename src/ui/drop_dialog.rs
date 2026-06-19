@@ -6,6 +6,7 @@
 use eframe::egui::{self, RichText};
 
 use crate::db::bridge::{DbBridge, DbCommand};
+use crate::i18n::{t, tf};
 use crate::state::AppState;
 use crate::ui::theme;
 
@@ -29,47 +30,58 @@ pub fn render_drop_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &Db
             ui.set_max_width(560.0);
 
             ui.label(
-                RichText::new("이 작업은 되돌릴 수 없습니다 (DROP CASCADE).")
+                RichText::new(t("drop_irreversible"))
                     .color(theme::ACCENT_RED)
                     .strong()
                     .size(13.0),
             );
             ui.add_space(theme::SPACE_MD);
 
-            // Dependents preview
             ui.label(
-                RichText::new("Dependents preview")
+                RichText::new(t("drop_dependents_title"))
                     .color(theme::text_primary())
                     .strong()
                     .size(12.0),
             );
             if dialog.loading {
                 ui.label(
-                    RichText::new("Loading dependents…")
+                    RichText::new(t("drop_dependents_loading"))
                         .color(theme::text_muted())
                         .size(11.0),
                 );
-            } else if dialog.dependents.is_empty() {
-                // Dependents fetch is not yet wired (pg_depend_recursive_sql 호출 + DbResponse
-                // 통합 미구현). 사용자에게 정확하게 미구현 상태 명시.
+            } else if dialog.oid_unavailable {
                 ui.label(
-                    RichText::new(
-                        "Dependents preview not yet implemented \
-                         — proceed only if you are sure no other objects depend on this table.",
-                    )
-                    .color(theme::ACCENT_YELLOW)
-                    .size(11.0),
+                    RichText::new(t("drop_dependents_oid_unavailable"))
+                        .color(theme::ACCENT_YELLOW)
+                        .size(11.0),
+                );
+            } else if let Some(err) = &dialog.fetch_error {
+                ui.label(
+                    RichText::new(tf("drop_dependents_fetch_failed", &[err.as_str()]))
+                        .color(theme::ACCENT_RED)
+                        .size(11.0),
+                );
+            } else if dialog.dependents.is_empty() {
+                ui.label(
+                    RichText::new(t("drop_dependents_none"))
+                        .color(theme::ACCENT_GREEN)
+                        .size(11.0),
                 );
             } else {
                 ui.label(
                     RichText::new(if dialog.truncated {
-                        format!(
-                            "Showing first {} of more than {} dependents (truncated)",
-                            crate::db::dependencies::MAX_DISPLAY,
-                            crate::db::dependencies::MAX_DISPLAY
+                        tf(
+                            "drop_dependents_truncated",
+                            &[
+                                &crate::db::dependencies::MAX_DISPLAY.to_string(),
+                                &crate::db::dependencies::MAX_DISPLAY.to_string(),
+                            ],
                         )
                     } else {
-                        format!("Showing all {} dependents", dialog.dependents.len())
+                        tf(
+                            "drop_dependents_count",
+                            &[&dialog.dependents.len().to_string()],
+                        )
                     })
                     .color(theme::text_muted())
                     .size(11.0),
@@ -90,13 +102,13 @@ pub fn render_drop_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &Db
                     egui::Layout::right_to_left(egui::Align::Center),
                     |ui| {
                         if ui
-                            .add(theme::primary_button("Drop CASCADE"))
+                            .add(theme::primary_button(&t("drop_cascade_confirm")))
                             .clicked()
                         {
                             confirm = true;
                         }
                         ui.add_space(theme::SPACE_SM);
-                        if ui.add(theme::secondary_button("Cancel")).clicked() {
+                        if ui.add(theme::secondary_button(&t("settings_btn_cancel"))).clicked() {
                             close = true;
                         }
                     },
@@ -109,7 +121,7 @@ pub fn render_drop_dialog(ctx: &egui::Context, state: &mut AppState, bridge: &Db
         bridge.send(DbCommand::ApplyDdlWithInvalidation {
             conn_id: dialog.conn_id,
             sql,
-            table_oid: None, // table_oid 매칭 미구현
+            table_oid: None,
             schema_to_refresh: Some(dialog.schema.clone()),
         });
         state.status_message = format!("Dropped {}.{}", dialog.schema, dialog.table);
@@ -150,6 +162,8 @@ mod tests {
         assert!(!d.confirming);
         assert!(d.dependents.is_empty());
         assert!(!d.truncated);
+        assert!(!d.oid_unavailable);
+        assert!(d.fetch_error.is_none());
     }
 
     #[test]
@@ -237,7 +251,6 @@ mod tests {
             DropTargetKind::from_table_type("MATERIALIZED VIEW"),
             DropTargetKind::MaterializedView
         );
-        // Unknown defaults to Table
         assert_eq!(
             DropTargetKind::from_table_type("FOREIGN TABLE"),
             DropTargetKind::Table

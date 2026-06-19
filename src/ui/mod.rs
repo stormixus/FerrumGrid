@@ -1,6 +1,7 @@
 use eframe::egui;
 
 pub mod about;
+pub mod ai_assist_dialog;
 pub mod command_palette;
 pub mod diagnostics_panel;
 pub mod dialogs;
@@ -17,6 +18,7 @@ pub mod icons_svg;
 pub mod objects;
 pub mod panels;
 pub mod settings;
+pub mod snippet_save_dialog;
 pub mod table_designer;
 pub mod migration_wizard;
 pub mod backup_dialogs;
@@ -75,3 +77,6 @@ pub fn icon_image_tinted(
     ui.ctx().include_bytes(uri.clone(), svg.into_bytes());
     egui::Image::new(uri).fit_to_exact_size(egui::vec2(size, size))
 }
+pub mod monitoring;
+pub mod session_monitor;
+pub mod schema_diff_window;

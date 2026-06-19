@@ -5,19 +5,27 @@
 
 use std::path::PathBuf;
 
+use crate::types::ConnectionId;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Snippet {
+pub struct SnippetEntry {
     pub id: uuid::Uuid,
     pub name: String,
     pub body: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub connection_id: Option<ConnectionId>,
 }
 
-impl Snippet {
+impl SnippetEntry {
     pub fn new(name: impl Into<String>, body: impl Into<String>) -> Self {
         Self {
             id: uuid::Uuid::new_v4(),
             name: name.into(),
             body: body.into(),
+            tags: Vec::new(),
+            connection_id: None,
         }
     }
 }
@@ -30,7 +38,7 @@ fn snippets_file() -> PathBuf {
     data_dir.join("snippets.json")
 }
 
-pub fn load_snippets() -> Vec<Snippet> {
+pub fn load_snippets() -> Vec<SnippetEntry> {
     let path = snippets_file();
     match std::fs::read_to_string(&path) {
         Ok(data) => serde_json::from_str(&data).unwrap_or_default(),
@@ -38,7 +46,7 @@ pub fn load_snippets() -> Vec<Snippet> {
     }
 }
 
-pub fn save_snippets(snippets: &[Snippet]) {
+pub fn save_snippets(snippets: &[SnippetEntry]) {
     let path = snippets_file();
     if let Ok(data) = serde_json::to_string_pretty(snippets) {
         std::fs::write(path, data).ok();

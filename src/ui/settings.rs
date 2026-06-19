@@ -1391,3 +1391,25 @@ fn render_language_combo(
         });
     draft.language = selected.code().to_string();
 }
+
+/// 커스텀 단축키 / 백업 스케줄 입력 UI (간단한 텍스트 편집).
+pub fn render_custom_settings(ui: &mut egui::Ui, settings: &mut crate::storage::settings::AppSettings) {
+    ui.label("Custom shortcuts (format: \"action=Cmd+K\")");
+    let mut buf = settings
+        .custom_shortcuts
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if ui.add(egui::TextEdit::multiline(&mut buf).desired_rows(4)).changed() {
+        settings.custom_shortcuts.clear();
+        for line in buf.lines() {
+            if let Some((k, v)) = line.split_once('=') {
+                settings.custom_shortcuts.insert(k.trim().to_string(), v.trim().to_string());
+            }
+        }
+    }
+    ui.add_space(8.0);
+    ui.label("Backup schedule (cron expression, empty = off)");
+    ui.add(egui::TextEdit::singleline(&mut settings.backup_schedule_cron));
+}

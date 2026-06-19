@@ -9,6 +9,8 @@ pub enum PaletteAction {
     RunQuery,
     NewQueryTab,
     OpenQueryHistory,
+    OpenSnippetsTab,
+    OpenSnippet(uuid::Uuid),
     GoToTable,
     OpenERDiagram,
     OpenBI,
@@ -17,6 +19,7 @@ pub enum PaletteAction {
     ToggleFilterRow,
     ExportCsv,
     RefreshSchema,
+    OpenAiAssist,
 }
 
 struct CmdSection {
@@ -42,6 +45,8 @@ static SECTIONS: &[CmdSection] = &[
             CmdItem { icon: icons_svg::PLAY_SM, label_key: "cmd_run_query", hint_key: "cmd_hint_run_query", kbd: "\u{2318}\u{23CE}", action: PaletteAction::RunQuery },
             CmdItem { icon: icons_svg::PLAY_SM, label_key: "cmd_new_tab", hint_key: "cmd_hint_new_tab", kbd: "\u{2318}T", action: PaletteAction::NewQueryTab },
             CmdItem { icon: icons_svg::HISTORY, label_key: "cmd_open_history", hint_key: "cmd_hint_open_history", kbd: "\u{2318}\u{21E7}H", action: PaletteAction::OpenQueryHistory },
+            CmdItem { icon: icons_svg::SAVE, label_key: "cmd_open_snippets", hint_key: "cmd_hint_open_snippets", kbd: "", action: PaletteAction::OpenSnippetsTab },
+            CmdItem { icon: icons_svg::BRAIN, label_key: "cmd_ai_assist", hint_key: "cmd_hint_ai_assist", kbd: "\u{2318}\u{21E7}A", action: PaletteAction::OpenAiAssist },
         ],
     },
     CmdSection {
@@ -74,10 +79,12 @@ struct ResolvedCmd {
     section: String,
     label: String,
     hint: String,
-    item: &'static CmdItem,
+    icon: &'static str,
+    kbd: &'static str,
+    action: PaletteAction,
 }
 
-fn filtered_items(search: &str) -> Vec<ResolvedCmd> {
+fn filtered_items(search: &str, state: &AppState) -> Vec<ResolvedCmd> {
     let query = search.to_lowercase();
     let mut results = Vec::new();
     for sec in SECTIONS {
@@ -90,7 +97,27 @@ fn filtered_items(search: &str) -> Vec<ResolvedCmd> {
                     section: section_label.clone(),
                     label,
                     hint,
-                    item,
+                    icon: item.icon,
+                    kbd: item.kbd,
+                    action: item.action,
+                });
+            }
+        }
+    }
+
+    if !query.is_empty() {
+        let section_label = t("cmd_sec_snippets");
+        for snippet in &state.saved_snippets {
+            if snippet.name.to_lowercase().contains(&query)
+                || snippet.body.to_lowercase().contains(&query)
+            {
+                results.push(ResolvedCmd {
+                    section: section_label.clone(),
+                    label: snippet.name.clone(),
+                    hint: t("cmd_hint_open_snippet"),
+                    icon: icons_svg::SAVE,
+                    kbd: "",
+                    action: PaletteAction::OpenSnippet(snippet.id),
                 });
             }
         }
@@ -173,7 +200,7 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                     );
                     ui.add_space(1.0);
 
-                    let items = filtered_items(&state.command_palette_search);
+                    let items = filtered_items(&state.command_palette_search, state);
                     let max_sel = items.len().saturating_sub(1);
                     state.command_palette_selected = state.command_palette_selected.min(max_sel);
 
@@ -222,7 +249,11 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                                     egui::vec2(14.0, 14.0),
                                 );
                                 let icon_img = crate::ui::icon_image_tinted(
-                                    ui, resolved.item.icon, &format!("cmd_{}", resolved.item.label_key), 14.0, theme::text_muted(),
+                                    ui,
+                                    resolved.icon,
+                                    &format!("cmd_{}", resolved.label),
+                                    14.0,
+                                    theme::text_muted(),
                                 );
                                 icon_img.paint_at(ui, icon_rect);
 
@@ -244,18 +275,18 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
                                     );
                                 }
 
-                                if !resolved.item.kbd.is_empty() {
+                                if !resolved.kbd.is_empty() {
                                     ui.painter().text(
                                         egui::pos2(row_rect.right() - 16.0, row_rect.center().y),
                                         egui::Align2::RIGHT_CENTER,
-                                        resolved.item.kbd,
+                                        resolved.kbd,
                                         egui::FontId::monospace(10.0),
                                         theme::text_disabled(),
                                     );
                                 }
 
                                 if resp.clicked() {
-                                    triggered_action = Some(resolved.item.action);
+                                    triggered_action = Some(resolved.action);
                                     close = true;
                                 }
                             }
@@ -280,16 +311,16 @@ pub fn render_command_palette(ctx: &egui::Context, state: &mut AppState) -> Opti
             close = true;
         }
         if i.key_pressed(egui::Key::ArrowDown) {
-            let max = filtered_items(&state.command_palette_search).len().saturating_sub(1);
+            let max = filtered_items(&state.command_palette_search, state).len().saturating_sub(1);
             state.command_palette_selected = (state.command_palette_selected + 1).min(max);
         }
         if i.key_pressed(egui::Key::ArrowUp) {
             state.command_palette_selected = state.command_palette_selected.saturating_sub(1);
         }
         if i.key_pressed(egui::Key::Enter) && triggered_action.is_none() {
-            let items = filtered_items(&state.command_palette_search);
+            let items = filtered_items(&state.command_palette_search, state);
             if let Some(resolved) = items.get(state.command_palette_selected) {
-                triggered_action = Some(resolved.item.action);
+                triggered_action = Some(resolved.action);
             }
             close = true;
         }
@@ -326,6 +357,24 @@ pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridg
         }
         PaletteAction::OpenQueryHistory => {
             state.open_workspace_main_view(MainView::Query);
+            state.show_history_panel = true;
+            state.tree_panel_tab = crate::state::TreePanelTab::History;
+            state.show_tree_panel = true;
+        }
+        PaletteAction::OpenSnippetsTab => {
+            state.tree_panel_tab = crate::state::TreePanelTab::Snippets;
+            state.show_tree_panel = true;
+        }
+        PaletteAction::OpenSnippet(id) => {
+            if let Some(snippet) = state.saved_snippets.iter().find(|s| s.id == id) {
+                let mut tab = crate::types::EditorTab::new(snippet.name.clone());
+                tab.content = snippet.body.clone();
+                tab.connection_id = snippet.connection_id;
+                state.editor_tabs.push(tab);
+                state.active_tab = state.editor_tabs.len() - 1;
+                state.active_connection = snippet.connection_id;
+                state.open_workspace_main_view(MainView::Query);
+            }
         }
         PaletteAction::GoToTable => {
             state.open_workspace_main_view(MainView::Data);
@@ -351,6 +400,9 @@ pub fn execute_palette_action(action: PaletteAction, state: &mut AppState, bridg
         }
         PaletteAction::ExportCsv => {
             crate::ui::grid::paste::export_csv(state);
+        }
+        PaletteAction::OpenAiAssist => {
+            crate::ui::ai_assist_dialog::open_ai_assist(state);
         }
         PaletteAction::RefreshSchema => {
             if let Some(conn_id) = state.active_connection {

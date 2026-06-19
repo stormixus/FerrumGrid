@@ -127,12 +127,10 @@ fn start_interpret_job(
     }
     let mut plan_text = String::new();
     plan_to_text(plan, 0, &mut plan_text);
-    let backend = settings.ai_backend.clone();
-    let model = settings.ai_model.clone();
-    let key = settings.ai_api_key.clone();
     let ctx = ctx.clone();
+    let settings_clone = settings.clone();
     std::thread::spawn(move || {
-        let res = crate::ai::interpret_plan(&backend, &model, &key, &plan_text);
+        let res = crate::ai::interpret_plan(&plan_text, &settings_clone);
         if let Ok(mut g) = job.lock() {
             g.running = false;
             g.result = Some(res);
@@ -204,4 +202,33 @@ fn render_node(ui: &mut egui::Ui, node: &PlanNode, depth: usize, max_cost: f64) 
     for child in &node.children {
         render_node(ui, child, depth + 1, max_cost);
     }
+}
+
+/// EXPLAIN 텍스트에서 Seq Scan 을 찾고 추천 인덱스 DDL을 반환.
+pub fn recommend_indexes_from_plan(plan_text: &str) -> Vec<String> {
+    let mut recs = Vec::new();
+    let mut current_table: Option<String> = None;
+    for line in plan_text.lines() {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix("Seq Scan on ") {
+            if let Some(name) = rest.split_whitespace().next() {
+                current_table = Some(name.split('.').last().unwrap_or(name).to_string());
+            }
+        } else if let Some(rest) = trimmed.strip_prefix("Index Scan using ") {
+            if let Some(idx) = rest.split_whitespace().next() {
+                recs.push(format!("-- detected index: {idx}"));
+            }
+        }
+        if let Some(table) = current_table.as_ref() {
+            if line.contains("rows=") && line.contains("Seq Scan") {
+                recs.push(format!(
+                    "CREATE INDEX ON {} (id);  -- approximate recommendation",
+                    table
+                ));
+                current_table = None;
+            }
+        }
+    }
+    recs.dedup();
+    recs
 }

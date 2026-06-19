@@ -448,6 +448,33 @@ fn render_toolbar(
                     format_active_tab(state);
                 }
 
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::SAVE, "ed_save_snippet", 12.0, theme::text_muted()),
+                        "Save Snippet",
+                    ))
+                    .on_hover_text(t("editor_save_snippet_hint"))
+                    .clicked()
+                {
+                    let conn_id = state.active_connection;
+                    if let Some(tab) = state.editor_tabs.get(state.active_tab) {
+                        crate::ui::snippet_save_dialog::open_snippet_save_dialog(state, tab.content.clone(), conn_id);
+                    }
+                }
+
+                if ui
+                    .add(theme::ghost_icon_button(
+                        crate::ui::icon_image_tinted(ui, icons_svg::COPY, "ed_copy_sql", 12.0, theme::text_muted()),
+                        "Copy SQL",
+                    ))
+                    .on_hover_text(t("editor_copy_sql_hint"))
+                    .clicked()
+                {
+                    if let Some(tab) = state.editor_tabs.get(state.active_tab) {
+                        ui.ctx().copy_text(tab.content.clone());
+                    }
+                }
+
                 let sep_rect = ui
                     .allocate_exact_size(egui::vec2(1.0, 18.0), egui::Sense::hover())
                     .0;
@@ -1535,9 +1562,6 @@ fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
         g.running = true;
         g.result = None;
     }
-    let backend = settings.ai_backend.clone();
-    let model = settings.ai_model.clone();
-    let key = settings.ai_api_key.clone();
     let schema = if settings.ai_send_schema {
         build_ai_schema_context(state)
     } else {
@@ -1545,8 +1569,9 @@ fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
     };
     let prompt = state.ai_prompt_input.clone();
     let ctx = ui.ctx().clone();
+    let settings_clone = settings.clone();
     std::thread::spawn(move || {
-        let res = crate::ai::generate_sql(&backend, &model, &key, &schema, &prompt);
+        let res = crate::ai::generate_sql(&prompt, &schema, &settings_clone);
         if let Ok(mut g) = job.lock() {
             g.running = false;
             g.result = Some(res);
@@ -1578,17 +1603,15 @@ fn start_ai_fix_job(ui: &egui::Ui, state: &mut AppState, settings: &AppSettings)
         g.result = None;
     }
     state.ai_replace_active_tab = true;
-    let backend = settings.ai_backend.clone();
-    let model = settings.ai_model.clone();
-    let key = settings.ai_api_key.clone();
     let schema = if settings.ai_send_schema {
         build_ai_schema_context(state)
     } else {
         String::new()
     };
     let ctx = ui.ctx().clone();
+    let settings_clone = settings.clone();
     std::thread::spawn(move || {
-        let res = crate::ai::fix_sql(&backend, &model, &key, &schema, &sql, &error);
+        let res = crate::ai::fix_sql(&sql, &error, &schema, &settings_clone);
         if let Ok(mut g) = job.lock() {
             g.running = false;
             g.result = Some(res);
@@ -1990,6 +2013,10 @@ fn render_history_panel(ui: &mut egui::Ui, state: &mut AppState, slow_ms: Option
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.small_button("×").clicked() {
                 state.show_history_panel = false;
+            }
+            if ui.small_button("Clear").clicked() {
+                state.query_history.clear();
+                state.history_search.clear();
             }
         });
     });

@@ -23,6 +23,7 @@ pub struct AppSettings {
     pub open_new_queries_in_tabs: bool,
     pub enable_code_completion: bool,
     pub code_completion_popup: bool,
+    pub custom_shortcuts: std::collections::HashMap<String, String>,
     pub show_line_numbers: bool,
     pub enable_auto_recovery: bool,
     pub ai_assistant_enabled: bool,
@@ -103,6 +104,7 @@ pub struct AppSettings {
     pub weekly_archive: bool,
     pub pre_deploy_hook: bool,
     pub backup_retention: String,
+    pub backup_schedule_cron: String,
     pub backup_compression: String,
     pub verify_after_dump: bool,
     pub always_restore_copy: bool,
@@ -110,10 +112,9 @@ pub struct AppSettings {
 
     // --- AI Assist ---
     pub ai_backend: String,
-    pub ai_model: String,
-    /// BYOK API 키 (OpenAI/Anthropic). 빈 문자열이면 AI 비활성.
-    #[serde(default)]
+    pub ai_endpoint: String,
     pub ai_api_key: String,
+    pub ai_model: String,
     pub ai_send_schema: bool,
     pub ai_allow_row_samples: bool,
     pub ai_explain_on_hover: bool,
@@ -153,6 +154,7 @@ impl Default for AppSettings {
             open_new_queries_in_tabs: true,
             enable_code_completion: true,
             code_completion_popup: true,
+            custom_shortcuts: std::collections::HashMap::new(),
             show_line_numbers: true,
             enable_auto_recovery: true,
             ai_assistant_enabled: false,
@@ -226,6 +228,7 @@ impl Default for AppSettings {
             weekly_archive: true,
             pre_deploy_hook: false,
             backup_retention: "14 days".to_string(),
+            backup_schedule_cron: String::new(),
             backup_compression: "zstd".to_string(),
             verify_after_dump: true,
             always_restore_copy: true,
@@ -233,8 +236,9 @@ impl Default for AppSettings {
 
             // AI Assist
             ai_backend: "Anthropic".to_string(),
-            ai_model: "claude-haiku-4-5".to_string(),
+            ai_endpoint: String::new(),
             ai_api_key: String::new(),
+            ai_model: "claude-haiku-4-5".to_string(),
             ai_send_schema: true,
             ai_allow_row_samples: false,
             ai_explain_on_hover: true,

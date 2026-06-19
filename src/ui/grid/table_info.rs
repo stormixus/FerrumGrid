@@ -188,6 +188,10 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
             .monospace()
             .size(11.0),
     );
+    ui.add_space(theme::SPACE_XS);
+    if ui.small_button("Copy name").clicked() {
+        ui.ctx().copy_text(context.source_label.clone());
+    }
     if let Some(comment) = &context.table_comment {
         ui.add_space(theme::SPACE_XS);
         ui.label(
@@ -468,3 +472,11 @@ pub(super) fn compact_metadata_row(
     ui.add_space(theme::SPACE_SM);
 }
 
+
+/// Generate SQL for the table using test_data module.
+pub fn generate_seed_sql_button(ui: &mut egui::Ui, table: &str, columns: &[crate::types::ColumnInfo], rows: usize) {
+    if ui.small_button("Seed").clicked() {
+        let sql = crate::db::test_data::generate_inserts("public", table, columns, rows);
+        ui.ctx().copy_text(sql);
+    }
+}

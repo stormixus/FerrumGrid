@@ -1,11 +1,15 @@
 use eframe::egui::{self, Color32, CornerRadius, Id, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 use std::collections::{HashMap, HashSet};
 
-use crate::db::bridge::DbBridge;
+use crate::db::bridge::{DbBridge, DbCommand};
 use crate::i18n::{t, tf};
-use crate::state::{AppState, ConnectionStatus};
+use crate::state::{
+    AppState, ConnectionStatus, DataSource, MainView, build_data_select_sql_with_columns,
+};
 use crate::types::{ColumnInfo, ConnectionId};
+use crate::ui::grid::request_table_columns_for_data;
 use crate::ui::theme;
+
 
 const CARD_WIDTH: f32 = 300.0;
 const CARD_HEADER_HEIGHT: f32 = 42.0;
@@ -66,6 +70,8 @@ pub struct ERDiagramState {
     pub is_panning: bool,
     pub last_mouse_pos: Option<Pos2>,
     pub zoom: f32,
+    pub last_click_time: Option<std::time::Instant>,
+    pub last_clicked_id: Option<String>,
 }
 
 impl ERDiagramState {
@@ -118,6 +124,88 @@ impl ERDiagramState {
                     row_offsets[row],
                 );
             }
+        }
+    }
+
+    /// Force-directed layout: simple spring/electrical simulation to position tables based on FK relationships.
+    pub fn apply_force_directed_layout(&mut self, canvas_width: f32, canvas_height: f32) {
+        let mut rng_state: u64 = 0xdeadbeef;
+        let mut rng = || -> f32 {
+            rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((rng_state >> 33) as u32 as f32) / (u32::MAX as f32)
+        };
+        for (_, card) in self.cards.iter_mut() {
+            if card.pos.x == 0.0 && card.pos.y == 0.0 {
+                card.pos.x = rng() * canvas_width;
+                card.pos.y = rng() * canvas_height;
+            }
+        }
+        let iterations = 200;
+        let repulsion = 5000.0;
+        let spring_length = 200.0;
+        let spring_k = 0.05;
+        let damping = 0.85;
+        let mut velocities: HashMap<String, Vec2> = self.cards.keys().map(|id| (id.clone(), Vec2::ZERO)).collect();
+        for _ in 0..iterations {
+            let mut forces: HashMap<String, Vec2> = self.cards.keys().map(|id| (id.clone(), Vec2::ZERO)).collect();
+            let ids: Vec<String> = self.cards.keys().cloned().collect();
+            for i in 0..ids.len() {
+                for j in (i+1)..ids.len() {
+                    let id_i = &ids[i];
+                    let id_j = &ids[j];
+                    let pos_i = self.cards[id_i].pos;
+                    let pos_j = self.cards[id_j].pos;
+                    let delta = pos_i - pos_j;
+                    let dist = delta.length().max(1.0);
+                    let force = repulsion / (dist * dist);
+                    let dir = delta / dist;
+                    let f_i = forces.get_mut(id_i).unwrap();
+                    *f_i = *f_i + dir * force;
+                    let f_j = forces.get_mut(id_j).unwrap();
+                    *f_j = *f_j - dir * force;
+                }
+            }
+            for fk in &self.foreign_keys {
+                let source_id = format!("{}.{}", fk.source_schema, fk.source_table);
+                let target_id = format!("{}.{}", fk.target_schema, fk.target_table);
+                if let (Some(pos_s), Some(pos_t)) = (self.cards.get(&source_id).map(|c| c.pos), self.cards.get(&target_id).map(|c| c.pos)) {
+                    let delta = pos_t - pos_s;
+                    let dist = delta.length();
+                    let displacement = dist - spring_length;
+                    let dir = if dist > 0.0 { delta / dist } else { Vec2::ZERO };
+                    let force = spring_k * displacement;
+                    let f_s = forces.get_mut(&source_id).unwrap();
+                    *f_s = *f_s + dir * force;
+                    let f_t = forces.get_mut(&target_id).unwrap();
+                    *f_t = *f_t - dir * force;
+                }
+            }
+            for id in &ids {
+                let force = forces[id];
+                let vel = velocities.get_mut(id).unwrap();
+                *vel = *vel + force;
+                *vel = *vel * damping;
+                let pos = self.cards.get_mut(id).unwrap();
+                pos.pos = pos.pos + *vel;
+                pos.pos.x = pos.pos.x.clamp(0.0, (canvas_width - CARD_WIDTH).max(CARD_WIDTH));
+                pos.pos.y = pos.pos.y.clamp(0.0, (canvas_height - pos.height()).max(pos.height()));
+            }
+        }
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        for (_, card) in self.cards.iter() {
+            min_x = min_x.min(card.pos.x);
+            min_y = min_y.min(card.pos.y);
+            max_x = max_x.max(card.pos.x + CARD_WIDTH);
+            max_y = max_y.max(card.pos.y + card.height());
+        }
+        let dx = (canvas_width - (max_x - min_x)) / 2.0 - min_x;
+        let dy = (canvas_height - (max_y - min_y)) / 2.0 - min_y;
+        for (_, card) in self.cards.iter_mut() {
+            card.pos.x += dx;
+            card.pos.y += dy;
         }
     }
 
@@ -650,7 +738,7 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
     let foreign_keys = state.er_diagram.foreign_keys.clone();
     draw_foreign_keys(&painter, &state.er_diagram, response.rect, &visible_ids);
 
-    let mut clicked_table = None;
+    let mut card_clicked = false;
     let mut card_ids: Vec<String> = state.er_diagram.cards.keys().cloned().collect();
     card_ids.sort();
     for card_id in card_ids {
@@ -661,6 +749,8 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
         let Some(card) = state.er_diagram.cards.get_mut(&card_id) else {
             continue;
         };
+        let schema = card.schema.clone();
+        let table_name = card.table_name.clone();
         let interaction = draw_card(
             ui,
             card,
@@ -677,17 +767,31 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             card.pos += delta;
         }
         if interaction.clicked {
-            clicked_table = Some(card_id);
+            card_clicked = true;
+            let now = std::time::Instant::now();
+            let is_double_click = state
+                .er_diagram
+                .last_click_time
+                .is_some_and(|last_time| {
+                    state.er_diagram.last_clicked_id.as_deref() == Some(card_id.as_str())
+                        && now.duration_since(last_time) < std::time::Duration::from_millis(300)
+                });
+            if is_double_click {
+                state.er_diagram.last_click_time = None;
+                state.er_diagram.last_clicked_id = None;
+                open_table_data_from_er(state, bridge, active_conn, &schema, &table_name);
+            } else {
+                state.er_diagram.last_click_time = Some(now);
+                state.er_diagram.last_clicked_id = Some(card_id.clone());
+                state.er_diagram.selected_table = Some(card_id);
+            }
         }
     }
 
-    if let Some(card_id) = clicked_table {
-        state.er_diagram.selected_table = Some(card_id);
-    } else if response.clicked() {
+    if !card_clicked && response.clicked() {
         state.er_diagram.selected_table = None;
     }
 
-    // Keyboard navigation: Tab/Shift+Tab cycles cards, Escape deselects
     if !visible_ids.is_empty() {
         let mut sorted_visible: Vec<&String> = visible_ids.iter().collect();
         sorted_visible.sort();
@@ -752,6 +856,46 @@ pub fn render_er_diagram(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBri
             &t("visualizer_clear_search_hint"),
         );
     }
+}
+
+fn open_table_data_from_er(
+    state: &mut AppState,
+    bridge: &DbBridge,
+    conn_id: ConnectionId,
+    schema: &str,
+    table_name: &str,
+) {
+    state.active_connection = Some(conn_id);
+    state.current_result = None;
+    state.current_result_truncated = false;
+    state.begin_data_edit(conn_id, schema, table_name);
+    request_table_columns_for_data(state, bridge, conn_id, schema, table_name);
+    let source = DataSource {
+        conn_id,
+        schema: schema.to_string(),
+        table: table_name.to_string(),
+        filter: None,
+    };
+    let limit = state.data_edit.page_limit;
+    let columns = state.data_columns_for_source(&source);
+    let sql =
+        build_data_select_sql_with_columns(&source, &state.data_edit.sort, limit, 0, &columns);
+    bridge.send(DbCommand::ExecuteQuery {
+        conn_id,
+        sql,
+        row_limit: Some(limit),
+    });
+    if let Some(conn) = state.connections.get(&conn_id) {
+        if matches!(conn.status, ConnectionStatus::Connected { .. }) {
+            state.query_running = true;
+        }
+    }
+    state.open_workspace_view(
+        MainView::Data,
+        format!("{schema}.{table_name}"),
+        schema,
+        table_name,
+    );
 }
 
 fn draw_foreign_keys(
@@ -902,6 +1046,14 @@ fn render_toolbar(
         {
             state.er_diagram.layout_cards_with_width(ui.available_width());
             state.er_diagram.pan_offset = Vec2::ZERO;
+        }
+
+        if ui
+            .add(theme::secondary_button(&t("visualizer_force_layout")))
+            .clicked()
+        {
+            let canvas_size = ui.available_size();
+            state.er_diagram.apply_force_directed_layout(canvas_size.x, canvas_size.y);
         }
 
         ui.add_space(8.0);

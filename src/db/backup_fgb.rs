@@ -367,7 +367,7 @@ pub async fn run_fgb_restore(config: &ConnectionConfig, file_path: &std::path::P
             let mut payload = vec![0u8; chunk_len];
             reader.read_exact(&mut payload).map_err(|e| format!("Failed to read frame payload: {e}"))?;
 
-            if let Some(Some(ref mut writer)) = copy_writers.get_mut(table_idx) {
+            if let Some(Some(writer)) = copy_writers.get_mut(table_idx) {
                 writer.as_mut().send(bytes::Bytes::from(payload)).await
                     .map_err(|e| format!("Failed streaming copy data chunk: {e}"))?;
             }

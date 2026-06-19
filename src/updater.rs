@@ -34,6 +34,10 @@ pub enum UpdateStatus {
     Installing {
         latest: String,
     },
+    /// The new bundle is staged and the relaunch daemon is running. The UI
+    /// thread must now shut down gracefully (flush state, join workers) so the
+    /// daemon can swap the bundle and restart.
+    ReadyToRestart,
     Error(String),
 }
 
@@ -91,7 +95,7 @@ impl UpdateCheck {
             Ok(status) => {
                 self.status = status;
                 // If it is a final state, clear the channel receiver
-                if matches!(self.status, UpdateStatus::Idle | UpdateStatus::UpToDate { .. } | UpdateStatus::UpdateAvailable { .. } | UpdateStatus::Error(_)) {
+                if matches!(self.status, UpdateStatus::Idle | UpdateStatus::UpToDate { .. } | UpdateStatus::UpdateAvailable { .. } | UpdateStatus::ReadyToRestart | UpdateStatus::Error(_)) {
                     self.rx = None;
                 }
             }
@@ -209,16 +213,40 @@ fn download_and_install_dmg(
         Err(err) => return UpdateStatus::Error(format!("download: {err}")),
     };
 
-    let temp_dir = std::env::temp_dir();
-    let dmg_path = temp_dir.join(format!("ferrumgrid-update-{}.dmg", latest));
+    use std::os::unix::fs::PermissionsExt;
+
+    // Unique, private (0700) staging directory. Predictable shared-temp paths
+    // are vulnerable to TOCTOU/symlink swaps between copy and the daemon's move;
+    // a per-run private dir removes that surface and contains everything we
+    // create (the DMG and the extracted bundle) for easy cleanup.
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let stage_dir = std::env::temp_dir().join(format!(
+        "ferrumgrid-update-{}-{}",
+        std::process::id(),
+        nonce
+    ));
+    if let Err(err) = std::fs::create_dir_all(&stage_dir) {
+        return UpdateStatus::Error(format!("create staging dir: {err}"));
+    }
+    if let Err(err) = std::fs::set_permissions(&stage_dir, std::fs::Permissions::from_mode(0o700)) {
+        let _ = std::fs::remove_dir_all(&stage_dir);
+        return UpdateStatus::Error(format!("secure staging dir: {err}"));
+    }
+    let dmg_path = stage_dir.join("update.dmg");
 
     let mut file = match std::fs::File::create(&dmg_path) {
         Ok(f) => f,
-        Err(err) => return UpdateStatus::Error(format!("create temp file: {err}")),
+        Err(err) => {
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            return UpdateStatus::Error(format!("create temp file: {err}"));
+        }
     };
 
     if let Err(err) = std::io::copy(&mut response.into_reader(), &mut file) {
-        let _ = std::fs::remove_file(&dmg_path);
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error(format!("download write: {err}"));
     }
 
@@ -233,12 +261,15 @@ fn download_and_install_dmg(
         .output()
     {
         Ok(out) => out,
-        Err(err) => return UpdateStatus::Error(format!("hdiutil launch error: {err}")),
+        Err(err) => {
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            return UpdateStatus::Error(format!("hdiutil launch error: {err}"));
+        }
     };
 
     if !mount_output.status.success() {
         let err_msg = String::from_utf8_lossy(&mount_output.stderr).to_string();
-        let _ = std::fs::remove_file(&dmg_path);
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error(format!("mount failed: {err_msg}"));
     }
 
@@ -255,7 +286,7 @@ fn download_and_install_dmg(
     }
 
     let Some(mount_path) = mount_point else {
-        let _ = std::fs::remove_file(&dmg_path);
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error("mount point unresolved".to_string());
     };
 
@@ -264,27 +295,75 @@ fn download_and_install_dmg(
         let _ = std::process::Command::new("hdiutil")
             .args(["detach", &mount_path])
             .output();
-        let _ = std::fs::remove_file(&dmg_path);
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error("App bundle not found in mounted volume".to_string());
     }
 
-    // Copy to a temporary location before detaching
-    let temp_app_dir = temp_dir.join("ferrumgrid_new_app");
-    let _ = std::fs::remove_dir_all(&temp_app_dir);
-    if let Err(err) = std::fs::create_dir_all(&temp_app_dir) {
+    // Verify the downloaded bundle before trusting it. Release DMGs are built in
+    // CI (.github/workflows/dmg.yml): the app is Developer ID signed with a
+    // hardened runtime and the DMG is notarized + stapled, so both checks below
+    // pass for legitimate releases.
+    //
+    //   1. codesign --verify  — offline integrity: the signature seal is intact
+    //      (catches in-transit corruption / tampering).
+    //   2. spctl --assess      — Gatekeeper/notarization: the bundle is signed by
+    //      our Developer ID and notarized by Apple. This is the real supply-chain
+    //      gate — an attacker who swaps the release asset cannot notarize a
+    //      malicious bundle under our identity, so it gets rejected here.
+    let cleanup = || {
         let _ = std::process::Command::new("hdiutil")
             .args(["detach", &mount_path])
             .output();
-        let _ = std::fs::remove_file(&dmg_path);
-        return UpdateStatus::Error(format!("failed to create extract path: {err}"));
+        let _ = std::fs::remove_dir_all(&stage_dir);
+    };
+
+    let verify = std::process::Command::new("codesign")
+        .arg("--verify")
+        .arg("--deep")
+        .arg("--strict")
+        .arg(&source_app)
+        .output();
+    match verify {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => {
+            let err_msg = String::from_utf8_lossy(&out.stderr).to_string();
+            cleanup();
+            return UpdateStatus::Error(format!("signature verification failed: {err_msg}"));
+        }
+        Err(err) => {
+            cleanup();
+            return UpdateStatus::Error(format!("codesign launch error: {err}"));
+        }
     }
 
-    let temp_app_path = temp_app_dir.join("FerrumGrid.app");
+    let assess = std::process::Command::new("spctl")
+        .arg("--assess")
+        .arg("--type")
+        .arg("execute")
+        .arg(&source_app)
+        .output();
+    match assess {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => {
+            let err_msg = String::from_utf8_lossy(&out.stderr).to_string();
+            cleanup();
+            return UpdateStatus::Error(format!("notarization check failed: {err_msg}"));
+        }
+        Err(err) => {
+            cleanup();
+            return UpdateStatus::Error(format!("spctl launch error: {err}"));
+        }
+    }
+
+    // Copy the verified bundle into the private staging dir before detaching.
+    let temp_app_path = stage_dir.join("FerrumGrid.app");
     let cp_output = std::process::Command::new("cp")
-        .args(["-R", source_app.to_str().unwrap(), temp_app_path.to_str().unwrap()])
+        .arg("-R")
+        .arg(&source_app)
+        .arg(&temp_app_path)
         .output();
 
-    // Clean up DMG mount
+    // Clean up DMG mount and the downloaded image (the extracted bundle stays).
     let _ = std::process::Command::new("hdiutil")
         .args(["detach", &mount_path])
         .output();
@@ -294,15 +373,22 @@ fn download_and_install_dmg(
         Ok(out) if out.status.success() => {}
         Ok(out) => {
             let err_msg = String::from_utf8_lossy(&out.stderr).to_string();
+            let _ = std::fs::remove_dir_all(&stage_dir);
             return UpdateStatus::Error(format!("cp failed: {err_msg}"));
         }
-        Err(err) => return UpdateStatus::Error(format!("cp execution failed: {err}")),
+        Err(err) => {
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            return UpdateStatus::Error(format!("cp execution failed: {err}"));
+        }
     }
 
     // 3. Resolve currently running executable and verify bundle
     let current_exe = match std::env::current_exe() {
         Ok(path) => path,
-        Err(err) => return UpdateStatus::Error(format!("resolve current executable: {err}")),
+        Err(err) => {
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            return UpdateStatus::Error(format!("resolve current executable: {err}"));
+        }
     };
 
     let old_app_path = match current_exe
@@ -311,36 +397,60 @@ fn download_and_install_dmg(
         .and_then(|p| p.parent())
     {
         Some(path) => path,
-        None => return UpdateStatus::Error("current exe parent resolution failed".to_string()),
+        None => {
+            let _ = std::fs::remove_dir_all(&stage_dir);
+            return UpdateStatus::Error("current exe parent resolution failed".to_string());
+        }
     };
 
     // Ensure we are actually running inside a .app bundle (safeguard for dev builds!)
     if old_app_path.extension().and_then(|e| e.to_str()) != Some("app") {
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error("Not running as a macOS .app bundle. Automatic update disabled in dev mode.".to_string());
     }
 
     let parent_pid = std::process::id();
-    let old_app_str = old_app_path.to_string_lossy().into_owned();
-    let temp_app_str = temp_app_path.to_string_lossy().into_owned();
 
-    // Relaunch shell script daemon that waits for us to quit, replaces the bundle, and restarts
-    let script = format!(
-        "while kill -0 {parent_pid} 2>/dev/null; do sleep 0.1; done; \
-         rm -rf \"{old_app_str}\" && \
-         mv \"{temp_app_str}\" \"{old_app_str}\" && \
-         open \"{old_app_str}\"",
-        parent_pid = parent_pid,
-        old_app_str = old_app_str,
-        temp_app_str = temp_app_str
-    );
+    // Relaunch daemon: wait for us to quit, then atomically swap the bundle and
+    // restart. Paths are passed as positional args ($1/$2/$3), NOT interpolated
+    // into the script string — this prevents shell injection / quote-breakage if
+    // the install path contains spaces, quotes, $, or backticks. The swap moves
+    // the old bundle aside first and only deletes it after the new one is in
+    // place; on failure it restores the backup so a failed update never bricks
+    // the install.
+    let script = r#"
+        while kill -0 "$1" 2>/dev/null; do sleep 0.1; done
+        backup="$2.backup-$$"
+        if mv "$2" "$backup" 2>/dev/null; then
+            if mv "$3" "$2" 2>/dev/null; then
+                rm -rf "$backup"
+                open "$2"
+            else
+                rm -rf "$2" 2>/dev/null
+                mv "$backup" "$2"
+                open "$2"
+            fi
+        else
+            open "$2"
+        fi
+    "#;
 
     if let Err(err) = std::process::Command::new("sh")
-        .args(["-c", &script])
+        .arg("-c")
+        .arg(script)
+        .arg("sh") // $0
+        .arg(parent_pid.to_string()) // $1
+        .arg(old_app_path) // $2
+        .arg(&temp_app_path) // $3
         .spawn()
     {
+        let _ = std::fs::remove_dir_all(&stage_dir);
         return UpdateStatus::Error(format!("updater daemon launch failed: {err}"));
     }
 
-    // Gracefully exit immediately so the daemon can finish the job
-    std::process::exit(0);
+    // Hand off to the UI thread for a graceful shutdown (flush state, join
+    // workers, disconnect DB) before the process dies and the daemon swaps in
+    // the new bundle. The daemon polls our PID, so it waits for the clean exit.
+    ctx.request_repaint();
+    UpdateStatus::ReadyToRestart
 }

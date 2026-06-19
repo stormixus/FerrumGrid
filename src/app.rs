@@ -133,6 +133,7 @@ impl FerrumGridApp {
             saved_connections,
             vault,
             query_history: history.clone(),
+            saved_snippets: storage::snippets::load_snippets(),
             backup_history,
             ..Default::default()
         };
@@ -671,6 +672,12 @@ impl FerrumGridApp {
                         .duration(Some(std::time::Duration::from_secs(5)));
                 }
                 DbResponse::Error { conn_id, error } => {
+                    if let Some(dlg) = self.state.drop_dialog.as_mut() {
+                        if dlg.loading {
+                            dlg.loading = false;
+                            dlg.fetch_error = Some(error.message.clone());
+                        }
+                    }
                     let was_applying_edits = self.state.data_edit.applying;
                     self.state.data_edit.applying = false;
                     tracing::warn!(
@@ -725,6 +732,17 @@ impl FerrumGridApp {
 impl eframe::App for FerrumGridApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         self.update_check.poll();
+        // The updater staged the new bundle and launched the relaunch daemon.
+        // Trigger a graceful shutdown (on_exit flushes state, joins workers,
+        // disconnects DB) so the process dies cleanly and the daemon swaps in
+        // the new bundle and restarts us.
+        if matches!(
+            self.update_check.status,
+            crate::updater::UpdateStatus::ReadyToRestart
+        ) {
+            self.quit_requested = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         let previous_dark_mode = self.settings.dark_mode;
         self.process_responses();
         self.state.diagnostics_panel.unsafe_ctid_active = self.settings.unsafe_ctid;
@@ -828,7 +846,10 @@ impl eframe::App for FerrumGridApp {
         let bridge = self.bridge.as_ref().unwrap();
         ui::panels::render_panels(ctx, &mut self.state, bridge, &mut self.settings);
         ui::dialogs::render_connection_dialog(ctx, &mut self.state, bridge);
-        ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
+ui::dialogs::render_prod_confirm_dialog(ctx, &mut self.state, bridge);
+        ui::ai_assist_dialog::poll_ai_assist(&mut self.state);
+        ui::ai_assist_dialog::render_ai_assist_dialog(ctx, &mut self.state, &self.settings);
+        ui::snippet_save_dialog::render_snippet_save_dialog(ctx, &mut self.state);
         ui::drop_dialog::render_drop_dialog(ctx, &mut self.state, bridge);
         ui::transfer_dialog::render_transfer_dialog(ctx, &mut self.state, bridge);
         ui::migration_wizard::render_migration_wizard(ctx, &mut self.state, bridge);
@@ -836,6 +857,9 @@ impl eframe::App for FerrumGridApp {
         ui::backup_dialogs::render_restore_confirm_dialog(ctx, &mut self.state, bridge);
         ui::about::render_about_window(ctx, &mut self.state);
         ui::explain_window::render_explain_window(ctx, &mut self.state, &self.settings);
+        ui::monitoring::render_monitoring_window(ctx, &mut self.state);
+        ui::session_monitor::render_session_monitor(ctx, &mut self.state);
+        ui::schema_diff_window::render_schema_diff_window(ctx, &mut self.state);
         ui::sessions_window::render_sessions_window(ctx, &mut self.state, bridge);
         ui::catalog_window::render_catalog_window(ctx, &mut self.state, bridge);
         ui::privileges_window::render_privileges_window(ctx, &mut self.state, bridge);
@@ -1018,8 +1042,9 @@ impl FerrumGridApp {
                                             .strong()
                                             .size(13.0),
                                     );
-                                    let short_err = if err.len() > 32 {
-                                        format!("{}...", &err[..30])
+                                    let short_err = if err.chars().count() > 32 {
+                                        let truncated: String = err.chars().take(30).collect();
+                                        format!("{}...", truncated)
                                     } else {
                                         err.clone()
                                     };

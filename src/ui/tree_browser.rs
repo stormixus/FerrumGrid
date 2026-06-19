@@ -79,7 +79,7 @@ fn render_snippets_panel(ui: &mut egui::Ui, state: &mut AppState) {
         };
         state
             .snippets
-            .push(crate::storage::snippets::Snippet::new(name, current_sql));
+            .push(crate::storage::snippets::SnippetEntry::new(name, current_sql));
         state.snippet_draft_name.clear();
         crate::storage::snippets::save_snippets(&state.snippets);
     }

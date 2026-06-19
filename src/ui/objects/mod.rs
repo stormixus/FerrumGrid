@@ -467,7 +467,8 @@ fn handle_action(ui: &mut egui::Ui, state: &mut AppState, bridge: &DbBridge, act
                     refobjid,
                 });
             } else if let Some(dlg) = state.drop_dialog.as_mut() {
-                dlg.loading = false; // oid 없음 — fetch 불가
+                dlg.loading = false;
+                dlg.oid_unavailable = true;
             }
         }
         ObjectAction::CopySql(sql) => {

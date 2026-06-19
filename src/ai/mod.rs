@@ -6,6 +6,8 @@
 
 use serde_json::Value;
 
+use crate::state::ConnectionState;
+
 /// 백그라운드 AI 작업 슬롯 (Arc<Mutex<…>> 로 UI 와 공유).
 #[derive(Default)]
 pub struct AiJob {
@@ -14,34 +16,61 @@ pub struct AiJob {
     pub result: Option<Result<String, String>>,
 }
 
-/// 자연어 요청 → 단일 PostgreSQL 문. 백엔드별 API 호출.
+/// 현재 연결의 스키마를 사람이 읽기 좋은 한 줄짜리 설명 문자열로 직렬화.
+/// 예: "public.users(id integer, email text)\npublic.orders(id bigint, user_id uuid)\n"
+/// 컬럼 메타가 아직 로드되지 않은 테이블은 `(columns unknown)` 로 표시.
+pub fn collect_schema_context(conn: &ConnectionState) -> String {
+    let mut s = String::new();
+    for (schema, tables) in &conn.tables {
+        for table in tables {
+            s.push_str(&format!("{}.{} (", schema, table.name));
+            let key = (schema.clone(), table.name.clone());
+            if let Some(columns) = conn.columns.get(&key) {
+                let col_strs: Vec<String> = columns
+                    .iter()
+                    .map(|c| format!("{} {}", c.name, c.data_type))
+                    .collect();
+                s.push_str(&col_strs.join(", "));
+            } else {
+                s.push_str("(columns unknown)");
+            }
+            s.push_str(")\n");
+        }
+    }
+    s
+}
+
+/// 자연어 요청 → 단일 PostgreSQL 문. Settings 에서 backend/model/key 를 읽어 호출.
 pub fn generate_sql(
-    backend: &str,
-    model: &str,
-    api_key: &str,
-    schema: &str,
     prompt: &str,
+    schema: &str,
+    settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if api_key.trim().is_empty() {
+    if settings.ai_api_key.trim().is_empty() {
         return Err("No API key set (Settings → AI Assist)".to_string());
     }
     if prompt.trim().is_empty() {
         return Err("Empty prompt".to_string());
     }
     let system = build_system_prompt(schema);
-    chat(backend, model, api_key, &system, prompt).map(|s| strip_fences(&s))
+    chat(
+        &settings.ai_backend,
+        &settings.ai_model,
+        &settings.ai_api_key,
+        &system,
+        prompt,
+    )
+    .map(|s| strip_fences(&s))
 }
 
 /// 실패한 SQL + 에러 메시지를 받아 수정된 단일 SQL 문을 반환.
 pub fn fix_sql(
-    backend: &str,
-    model: &str,
-    api_key: &str,
-    schema: &str,
     sql: &str,
     error: &str,
+    schema: &str,
+    settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if api_key.trim().is_empty() {
+    if settings.ai_api_key.trim().is_empty() {
         return Err("No API key set (Settings → AI Assist)".to_string());
     }
     let mut system = String::from(
@@ -53,24 +82,35 @@ pub fn fix_sql(
         system.push_str(schema);
     }
     let user = format!("Failed SQL:\n{sql}\n\nPostgres error:\n{error}");
-    chat(backend, model, api_key, &system, &user).map(|s| strip_fences(&s))
+    chat(
+        &settings.ai_backend,
+        &settings.ai_model,
+        &settings.ai_api_key,
+        &system,
+        &user,
+    )
+    .map(|s| strip_fences(&s))
 }
 
 /// EXPLAIN 플랜 텍스트를 받아 Postgres 튜닝 조언(프로즈)을 생성.
 pub fn interpret_plan(
-    backend: &str,
-    model: &str,
-    api_key: &str,
     plan_text: &str,
+    settings: &crate::storage::settings::AppSettings,
 ) -> Result<String, String> {
-    if api_key.trim().is_empty() {
+    if settings.ai_api_key.trim().is_empty() {
         return Err("No API key set (Settings → AI Assist)".to_string());
     }
     let system = "You are a PostgreSQL performance expert. Given an EXPLAIN plan, \
          give a short, concrete diagnosis: name the bottleneck node, flag seq scans on \
          large tables, row-estimate skew, and sorts/hashes likely to spill, then suggest \
          the specific index or rewrite. Be terse and actionable. Plain text, no markdown.";
-    chat(backend, model, api_key, system, plan_text)
+    chat(
+        &settings.ai_backend,
+        &settings.ai_model,
+        &settings.ai_api_key,
+        system,
+        plan_text,
+    )
 }
 
 /// 백엔드 디스패치 (원문 텍스트 반환, 펜스 미제거).
@@ -164,7 +204,11 @@ mod tests {
 
     #[test]
     fn generate_requires_api_key() {
-        assert!(generate_sql("OpenAI", "gpt-4o", "", "schema", "list users").is_err());
+        let settings = crate::storage::settings::AppSettings {
+            ai_api_key: String::new(),
+            ..Default::default()
+        };
+        assert!(generate_sql("list users", "schema", &settings).is_err());
     }
 
     #[test]

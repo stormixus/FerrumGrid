@@ -605,3 +605,19 @@ pub fn add_empty_row(state: &mut AppState) {
     state.data_edit.selected_cell = Some((row_idx, 0));
 }
 
+
+/// 컬럼 이름으로 PII 여부 추정.
+pub fn is_pii_column(name: &str) -> bool {
+    let n = name.to_lowercase();
+    n.contains("email") || n.contains("phone") || n.contains("ssn") || n.contains("password") || n.contains("secret")
+}
+
+/// PII 마스킹 적용.
+pub fn mask_value(val: &str) -> String {
+    if val.len() <= 4 {
+        return "*".repeat(val.len());
+    }
+    let head = &val[..2];
+    let tail = &val[val.len() - 2..];
+    format!("{head}{}{tail}", "*".repeat(val.chars().count().saturating_sub(4).max(1)))
+}

@@ -1080,17 +1080,18 @@ fn render_status_bar(ctx: &egui::Context, state: &mut AppState) {
                     }
 
                     // Last query stats
-                    if let Some(ref result) = state.current_result {
-                        ui.label(
-                            RichText::new(format!(
-                                "last query {} ms \u{00B7} {} rows",
-                                result.execution_time_ms,
-                                result.rows.len(),
-                            ))
-                            .color(theme::text_muted())
-                            .size(11.0),
-                        );
-                    }
+                                        if let Some(ref result) = state.current_result {
+                                            ui.label(
+                                                RichText::new(format!(
+                                                    "last query {} ms · {} rows",
+                                                    result.execution_time_ms,
+                                                    result.rows.len(),
+                                                ))
+                                                .color(theme::text_muted())
+                                                .size(11.0),
+                                            );
+                                            render_mini_bar_chart(ui, result);
+                                        }
 
                     if state.query_running {
                         ui.spinner();
@@ -1261,4 +1262,56 @@ fn render_tree_panel_header(ui: &mut egui::Ui, state: &mut AppState) {
             }
         });
     });
+}
+
+/// 결과 첫 컬럼이 숫자면 미니 막대 차트 표시.
+fn render_mini_bar_chart(ui: &mut egui::Ui, result: &crate::types::QueryResult) {
+    if result.columns.is_empty() || result.rows.is_empty() {
+        return;
+    }
+    let mut values: Vec<f64> = Vec::with_capacity(result.rows.len().min(64));
+    let mut max_v = f64::NEG_INFINITY;
+    let mut min_v = f64::INFINITY;
+    for (i, row) in result.rows.iter().enumerate() {
+        if i >= 64 { break; }
+        if let Some(val) = row.get(0) {
+            if let Some(n) = cell_to_f64(val) {
+                if n.is_finite() {
+                    values.push(n);
+                    if n > max_v { max_v = n; }
+                    if n < min_v { min_v = n; }
+                }
+            }
+        }
+    }
+    if values.len() < 2 || !max_v.is_finite() { return; }
+    let span = (max_v - min_v).max(1e-9);
+    let height = 40.0;
+    let width = ui.available_width().min(360.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, CornerRadius::same(2), theme::bg_dark());
+    let bar_w = (width / values.len() as f32).max(1.0);
+    for (i, v) in values.iter().enumerate() {
+        let norm = ((v - min_v) / span) as f32;
+        let h = norm * height;
+        let x = rect.left() + i as f32 * bar_w;
+        let y = rect.bottom() - h;
+        painter.rect_filled(
+            egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(bar_w - 0.5, h)),
+            CornerRadius::ZERO,
+            theme::accent_color(),
+        );
+    }
+}
+
+fn cell_to_f64(v: &crate::types::CellValue) -> Option<f64> {
+    use crate::types::CellValue::*;
+    match v {
+        Int(i) => Some(*i as f64),
+        Float(f) => Some(*f),
+        Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+        Text(s) => s.parse::<f64>().ok(),
+        _ => None,
+    }
 }

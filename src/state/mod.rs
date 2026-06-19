@@ -187,6 +187,26 @@ impl WorkspaceTab {
     }
 }
 
+/// 스니펫 저장 다이얼로그의 입력 상태.
+#[derive(Debug, Clone, Default)]
+pub struct SnippetSaveDialogState {
+    pub name: String,
+    pub tags: String,
+    pub sql: String,
+    pub connection_id: Option<crate::types::ConnectionId>,
+}
+
+/// AI Assist 대화 상태.
+#[derive(Default, Debug)]
+pub struct AiAssistState {
+    pub open: bool,
+    pub prompt: String,
+    pub generated_sql: String,
+    pub generating: bool,
+    pub error: Option<String>,
+    pub result_rx: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
+}
+
 pub struct AppState {
     pub connections: HashMap<ConnectionId, ConnectionState>,
     pub active_connection: Option<ConnectionId>,
@@ -195,6 +215,9 @@ pub struct AppState {
     pub active_workspace_tab: usize,
     pub editor_tabs: Vec<EditorTab>,
     pub active_tab: usize,
+    pub saved_snippets: Vec<crate::storage::snippets::SnippetEntry>,
+    pub snippet_save_dialog: Option<SnippetSaveDialogState>,
+    pub ai_assist: AiAssistState,
     /// 활성 에디터의 커서 char 위치 (매 프레임 TextEdit 출력에서 갱신).
     /// 커서 위치 문장 실행(run-statement)에 사용.
     pub editor_cursor_char: Option<usize>,
@@ -320,10 +343,17 @@ pub struct AppState {
     pub echo_warned: HashSet<u32>,
     pub query_history: Vec<crate::storage::history::HistoryEntry>,
     pub show_history_panel: bool,
+    pub show_monitoring_window: bool,
+    pub show_session_monitor: bool,
+    pub show_schema_diff_window: bool,
+    pub schema_diff_rows: Vec<String>,
+    pub session_monitor_rows: Vec<crate::ui::session_monitor::SessionRow>,
+    pub diag_slow_query_ms: u64,
     /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
     pub history_search: String,
     /// 저장된 SQL 스니펫 라이브러리 (이름으로 삽입).
-    pub snippets: Vec<crate::storage::snippets::Snippet>,
+    pub snippets: Vec<crate::storage::snippets::SnippetEntry>,
+    pub plugins: crate::plugin::PluginRegistry,
     /// 새 스니펫 저장 시 입력하는 이름 버퍼.
     pub snippet_draft_name: String,
     pub transfer: TransferState,
@@ -375,6 +405,10 @@ pub struct DropDialogState {
     pub truncated: bool,
     /// dependents 조회 진행 중 여부.
     pub loading: bool,
+    /// dependents 조회 실패 메시지 (있으면 UI에 노출).
+    pub fetch_error: Option<String>,
+    /// 대상 oid 가 무효(information_schema 권한 부족)하여 dependents 조회를 생략했는지.
+    pub oid_unavailable: bool,
     /// 사용자가 'Drop CASCADE' 버튼을 click 한 후 confirmation 진행 중 여부.
     /// (현재는 dialog 가 즉시 닫히므로 미사용 — 후속 multi-step UX 시 활용)
     #[allow(dead_code)]
@@ -396,6 +430,8 @@ impl DropDialogState {
             dependents: Vec::new(),
             truncated: false,
             loading: true,
+            fetch_error: None,
+            oid_unavailable: false,
             confirming: false,
         }
     }
@@ -440,6 +476,9 @@ impl Default for AppState {
             active_workspace_tab: 0,
             editor_tabs: vec![EditorTab::new("Query 1")],
             active_tab: 0,
+            saved_snippets: Vec::new(),
+            snippet_save_dialog: None,
+            ai_assist: AiAssistState::default(),
             editor_cursor_char: None,
             editor_selection: None,
             find_open: false,
@@ -535,8 +574,15 @@ impl Default for AppState {
             echo_warned: HashSet::new(),
             query_history: Vec::new(),
             show_history_panel: false,
+            show_monitoring_window: false,
+            show_session_monitor: false,
+            session_monitor_rows: Vec::new(),
+            show_schema_diff_window: false,
+            schema_diff_rows: Vec::<String>::new(),
+            diag_slow_query_ms: 500,
             history_search: String::new(),
             snippets: crate::storage::snippets::load_snippets(),
+            plugins: crate::plugin::PluginRegistry::default(),
             snippet_draft_name: String::new(),
             transfer: TransferState::default(),
             clipboard_tables: None,
@@ -1109,3 +1155,8 @@ pub struct RestoreConfirmState {
     pub error: Option<String>,
 }
 
+
+pub fn spawn_new_window() {
+    let _ = std::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "ferrumgrid".into()))
+        .spawn();
+}
