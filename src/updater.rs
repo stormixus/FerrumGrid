@@ -197,15 +197,11 @@ fn fetch_latest_status() -> UpdateStatus {
     };
 
     if lat_v > cur_v {
-        // Detect current architecture for macOS auto-updates
-        let target = if cfg!(target_arch = "aarch64") {
-            "aarch64-apple-darwin"
-        } else {
-            "x86_64-apple-darwin"
-        };
-
         let mut dmg_url = None;
-        if let Some(assets) = json.get("assets").and_then(|a| a.as_array()) {
+        if let (Some(target), Some(assets)) = (
+            current_dmg_target(),
+            json.get("assets").and_then(|a| a.as_array()),
+        ) {
             for asset in assets {
                 if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
                     if name.contains(target) && name.ends_with(".dmg") {
@@ -231,7 +227,22 @@ fn fetch_latest_status() -> UpdateStatus {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn current_dmg_target() -> Option<&'static str> {
+    Some(if cfg!(target_arch = "aarch64") {
+        "aarch64-apple-darwin"
+    } else {
+        "x86_64-apple-darwin"
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn current_dmg_target() -> Option<&'static str> {
+    None
+}
+
 /// Download and install the DMG background task.
+#[cfg(target_os = "macos")]
 fn download_and_install_dmg(
     tx: mpsc::Sender<UpdateStatus>,
     dmg_url: &str,
@@ -494,6 +505,16 @@ fn download_and_install_dmg(
     // the new bundle. The daemon polls our PID, so it waits for the clean exit.
     ctx.request_repaint();
     UpdateStatus::ReadyToRestart
+}
+
+#[cfg(not(target_os = "macos"))]
+fn download_and_install_dmg(
+    _tx: mpsc::Sender<UpdateStatus>,
+    _dmg_url: &str,
+    _latest: &str,
+    _ctx: eframe::egui::Context,
+) -> UpdateStatus {
+    UpdateStatus::Error("automatic update install is only supported on macOS".to_string())
 }
 
 #[cfg(test)]
