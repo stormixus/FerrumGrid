@@ -31,6 +31,7 @@ pub enum UpdateStatus {
     Downloading {
         latest: String,
     },
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     Installing {
         latest: String,
     },
@@ -40,6 +41,7 @@ pub enum UpdateStatus {
     /// The new bundle is staged and the relaunch daemon is running. The UI
     /// thread must now shut down gracefully (flush state, join workers) so the
     /// daemon can swap the bundle and restart.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     ReadyToRestart,
     Error(String),
 }

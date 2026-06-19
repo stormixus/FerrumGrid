@@ -1158,6 +1158,7 @@ pub struct RestoreConfirmState {
     pub error: Option<String>,
 }
 
+#[cfg(target_os = "macos")]
 pub fn spawn_new_window() {
     let _ =
         std::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "ferrumgrid".into()))

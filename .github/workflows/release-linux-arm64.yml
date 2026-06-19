@@ -1,10 +1,9 @@
 name: release-linux-arm64
 
 on:
+  # Keep this manual until the GTK3/aarch64 sysroot is packaged for cross.
+  # The main cargo-dist release intentionally omits this target for now.
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   build:
