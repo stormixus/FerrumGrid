@@ -10,6 +10,7 @@ pub(crate) mod data_ops;
 mod date_picker;
 mod footer;
 mod header;
+pub(crate) use header::is_pii_column;
 mod hit_test;
 mod info_panel;
 mod info_row;

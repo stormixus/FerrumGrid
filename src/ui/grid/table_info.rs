@@ -261,6 +261,7 @@ pub(super) fn render_info_table_overview(ui: &mut egui::Ui, state: &AppState, so
     render_info_table_indexes(ui, &context.indexes);
     render_info_table_relations(ui, &context);
     render_info_table_rules_and_triggers(ui, &context.rules, &context.triggers);
+    generate_seed_sql_button(ui, &context.schema, &context.table_name, &context.columns, 10);
 }
 
 pub(super) fn render_info_table_columns(ui: &mut egui::Ui, context: &TableInfoContext) {

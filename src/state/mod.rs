@@ -39,6 +39,7 @@ use crate::types::{
 };
 use crate::ui::diagnostics_panel::DiagnosticsPanel;
 use crate::ui::er_diagram::ERDiagramState;
+use crate::ui::monitoring::SortColumn;
 use crate::ui::table_designer::TableDesignerState;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -348,10 +349,15 @@ pub struct AppState {
     pub show_schema_diff_window: bool,
     pub schema_diff_rows: Vec<String>,
     pub diag_slow_query_ms: u64,
+    /// Slow-query 모니터링 창의 정렬 상태 (프레임 간 유지).
+    pub monitoring_sort: SortColumn,
     /// 히스토리 패널 검색 필터(대소문자 무시 부분 일치). 메모리 내 필터링.
     pub history_search: String,
     /// 저장된 SQL 스니펫 라이브러리 (이름으로 삽입).
     pub snippets: Vec<crate::storage::snippets::SnippetEntry>,
+    /// 등록된 자동화 작업 registry. UI thread + scheduler runner 가 공유하므로
+    /// Arc<RwLock<>> wrap. (현재 미사용 — 향후 plugin 로딩 구현 시 활성화)
+    #[allow(dead_code)]
     pub plugins: crate::plugin::PluginRegistry,
     /// 새 스니펫 저장 시 입력하는 이름 버퍼.
     pub snippet_draft_name: String,
@@ -579,6 +585,7 @@ impl Default for AppState {
             show_schema_diff_window: false,
             schema_diff_rows: Vec::<String>::new(),
             diag_slow_query_ms: 500,
+            monitoring_sort: SortColumn::default(),
             history_search: String::new(),
             snippets: crate::storage::snippets::load_snippets(),
             plugins: crate::plugin::PluginRegistry::default(),

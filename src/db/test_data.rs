@@ -47,7 +47,7 @@ fn random_value(data_type: &str, rng: &mut dyn FnMut() -> f64) -> String {
     let dt = data_type.to_lowercase();
     if dt.contains("bool") {
         if r < 0.5 { "TRUE" } else { "FALSE" }.to_string()
-    } else if dt.contains("int") {
+    } else if dt.contains("int") || dt.contains("serial") {
         format!("{}", (r * 1000.0) as i64)
     } else if dt.contains("numeric") || dt.contains("decimal") || dt.contains("float") || dt.contains("double") {
         format!("{:.2}", r * 1000.0)

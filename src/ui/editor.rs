@@ -1533,7 +1533,7 @@ fn select_editor_range(ctx: &egui::Context, tab_id: uuid::Uuid, start: usize, en
 }
 
 /// 활성 연결의 로드된 테이블/컬럼으로 AI 프롬프트용 스키마 컨텍스트 구성.
-fn build_ai_schema_context(state: &AppState) -> String {
+fn build_ai_schema_context(state: &AppState, block_pii: bool) -> String {
     let Some(conn_id) = state.active_connection else {
         return String::new();
     };
@@ -1544,9 +1544,12 @@ fn build_ai_schema_context(state: &AppState) -> String {
     for ((schema, table), cols) in conn.columns.iter().take(60) {
         let defs: Vec<String> = cols
             .iter()
+            .filter(|c| !(block_pii && crate::ui::grid::is_pii_column(&c.name)))
             .map(|c| format!("{} {}", c.name, c.data_type))
             .collect();
-        out.push_str(&format!("{schema}.{table}({})\n", defs.join(", ")));
+        if !defs.is_empty() {
+            out.push_str(&format!("{schema}.{table}({})\n", defs.join(", ")));
+        }
     }
     out
 }
@@ -1563,7 +1566,7 @@ fn start_ai_job(ui: &egui::Ui, state: &AppState, settings: &AppSettings) {
         g.result = None;
     }
     let schema = if settings.ai_send_schema {
-        build_ai_schema_context(state)
+        build_ai_schema_context(state, settings.ai_block_pii)
     } else {
         String::new()
     };
@@ -1604,7 +1607,7 @@ fn start_ai_fix_job(ui: &egui::Ui, state: &mut AppState, settings: &AppSettings)
     }
     state.ai_replace_active_tab = true;
     let schema = if settings.ai_send_schema {
-        build_ai_schema_context(state)
+        build_ai_schema_context(state, settings.ai_block_pii)
     } else {
         String::new()
     };

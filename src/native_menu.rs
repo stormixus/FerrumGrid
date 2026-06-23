@@ -400,6 +400,22 @@ impl NativeMenu {
                 state.show_session_monitor = true;
                 state.sessions_needs_fetch = true;
             } else if id == &self.schema_diff_id {
+                if let Some(conn_id) = state.active_connection {
+                    if let Some(conn) = state.connections.get(&conn_id) {
+                        state.schema_diff_rows = crate::ai::collect_schema_context(conn)
+                            .into_iter()
+                            .map(|ctx| {
+                                let cols = ctx
+                                    .columns
+                                    .iter()
+                                    .map(|(n, ty)| format!("{n} {ty}"))
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                format!("{}.{}({})", ctx.schema, ctx.table, cols)
+                            })
+                            .collect();
+                    }
+                }
                 state.show_schema_diff_window = true;
             } else if id == &self.new_window_id {
                 crate::state::spawn_new_window();

@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 /// 플러그인이 제공할 수 있는 훅 (현재는 1종 — 메뉴 항목 등록).
+#[allow(dead_code)]
 pub trait Plugin: Send + Sync {
     fn name(&self) -> &str;
     /// 좌측 트리 패널에 표시될 메뉴 항목을 반환. None 이면 노출 안 함.

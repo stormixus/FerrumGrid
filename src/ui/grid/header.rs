@@ -630,7 +630,8 @@ pub fn is_pii_column(name: &str) -> bool {
         || n.contains("secret")
 }
 
-/// PII 마스킹 적용.
+/// PII 마스킹 적용. (헬퍼 — 향후 그리드 컬럼 마스킹 UI 에서 사용 예정)
+#[allow(dead_code)]
 pub fn mask_value(val: &str) -> String {
     let chars: Vec<char> = val.chars().collect();
     if chars.len() <= 4 {

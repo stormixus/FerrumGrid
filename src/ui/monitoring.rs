@@ -5,6 +5,8 @@
 //!
 //! The window is opened from the main menu (Diagnostics → Slow Queries).
 
+use std::cmp::Reverse;
+
 use eframe::egui::{self, Margin, RichText, Stroke};
 
 use crate::i18n::t;
@@ -12,12 +14,16 @@ use crate::state::AppState;
 use crate::storage::history::HistoryEntry;
 use crate::ui::theme;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SortColumn {
-    Timestamp,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortColumn {
+    #[default]
     Duration,
+    Timestamp,
     Rows,
 }
+
+/// Default slow-query threshold (ms) — used by the Clear button to reset.
+const DEFAULT_THRESHOLD_MS: u64 = 500;
 
 pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
     if !state.show_monitoring_window {
@@ -59,15 +65,13 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(t("button_clear")).clicked() {
-                        // We don't actually delete history here; just close.
+                        state.diag_slow_query_ms = DEFAULT_THRESHOLD_MS;
                     }
                 });
             });
             ui.add_space(theme::SPACE_SM);
 
-            // Sort state
-            let mut sort = SortColumn::Duration;
-            // Render header row
+            // Render header row — sort state persists in AppState across frames.
             egui::Frame::new()
                 .fill(theme::bg_light())
                 .inner_margin(Margin::symmetric(
@@ -77,22 +81,31 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         if ui
-                            .selectable_label(false, format!("{} ↕", t("monitoring_time")))
+                            .selectable_label(
+                                state.monitoring_sort == SortColumn::Timestamp,
+                                format!("{} ↕", t("monitoring_time")),
+                            )
                             .clicked()
                         {
-                            sort = SortColumn::Timestamp;
+                            state.monitoring_sort = SortColumn::Timestamp;
                         }
                         if ui
-                            .selectable_label(true, format!("{} ↕", t("monitoring_duration")))
+                            .selectable_label(
+                                state.monitoring_sort == SortColumn::Duration,
+                                format!("{} ↕", t("monitoring_duration")),
+                            )
                             .clicked()
                         {
-                            sort = SortColumn::Duration;
+                            state.monitoring_sort = SortColumn::Duration;
                         }
                         if ui
-                            .selectable_label(false, format!("{} ↕", t("monitoring_rows")))
+                            .selectable_label(
+                                state.monitoring_sort == SortColumn::Rows,
+                                format!("{} ↕", t("monitoring_rows")),
+                            )
                             .clicked()
                         {
-                            sort = SortColumn::Rows;
+                            state.monitoring_sort = SortColumn::Rows;
                         }
                     });
                 });
@@ -103,16 +116,10 @@ pub fn render_monitoring_window(ctx: &egui::Context, state: &mut AppState) {
                 .iter()
                 .filter(|e| e.duration_ms >= state.diag_slow_query_ms as u128)
                 .collect();
-            match sort {
-                SortColumn::Timestamp => {
-                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
-                }
-                SortColumn::Duration => {
-                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration_ms));
-                }
-                SortColumn::Rows => {
-                    entries.sort_by_key(|entry| std::cmp::Reverse(entry.row_count));
-                }
+            match state.monitoring_sort {
+                SortColumn::Timestamp => entries.sort_by_key(|e| Reverse(e.timestamp)),
+                SortColumn::Duration => entries.sort_by_key(|e| Reverse(e.duration_ms)),
+                SortColumn::Rows => entries.sort_by_key(|e| Reverse(e.row_count)),
             }
 
             egui::ScrollArea::vertical()
