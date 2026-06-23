@@ -2,6 +2,23 @@
 
 All notable changes to FerrumGrid will be documented in this file.
 
+## [0.4.4] - 2026-06-23
+
+### Added
+
+- Schema Diff window now loads live schema context (`TableContext`) for the active
+  connection instead of a placeholder list.
+- Seed button on the table info overview generates `INSERT` statements (via
+  `generate_inserts`) with the correct schema argument and copies them to the clipboard.
+- `test_data` random-value generation now handles `serial` types alongside `int`.
+
+### Changed
+
+- AI schema context honors the `ai_block_pii` setting — PII columns are filtered out
+  before sending prompts to OpenAI/Anthropic, and empty tables are omitted.
+- Slow-query monitoring window persists its sort selection across frames; the Clear
+  button resets the threshold to the default (500 ms).
+
 ## [0.4.1] - 2026-06-03
 
 ### Added
